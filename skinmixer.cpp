@@ -61,19 +61,6 @@ int main(int argc, char *argv[]) {
     ModelDrawer modelDrawer(&model);
     viewer.canvas()->addDrawable(&modelDrawer, "dreyar.obj");
 
-    //TODO CANCEL!!!!
-    ModelDrawer modelDrawer2(&model);
-    viewer.canvas()->addDrawable(&modelDrawer2, "dreyar.obj");
-
-    ModelDrawer modelDrawer3(&model);
-    viewer.canvas()->addDrawable(&modelDrawer3, "dreyar.obj");
-
-    std::unordered_set<size_t> asd;
-    asd.insert(0);
-    asd.insert(2);
-    viewer.canvas()->setSelectedDrawables(asd);
-
-
     std::vector<double> vertexValues(model.mesh.vertexNumber(), 0);
     for (auto vertex : model.mesh.vertices()) {
         vertexValues[vertex.id()] = model.skinningWeights.weight(vertex.id(), 61);

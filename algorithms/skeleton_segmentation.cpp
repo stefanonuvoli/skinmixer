@@ -56,7 +56,7 @@ std::vector<int> skeletonSegmentationMax(
 template<class Model>
 std::vector<int> skeletonSegmentationGraphcut(
         const Model& model,
-        float compactness)
+        double compactness)
 {
     typedef typename Model::Skeleton Skeleton;
     typedef typename Model::SkinningWeights SkinningWeights;
@@ -81,18 +81,18 @@ std::vector<int> skeletonSegmentationGraphcut(
     std::vector<std::vector<typename Mesh::FaceId>> ffAdj = nvl::meshFaceFaceAdjacencies(mesh);
 
     //Data cost
-    std::vector<float> dataCost(nFaces * nJoints);
+    std::vector<double> dataCost(nFaces * nJoints);
 
     for (FaceId fId = 0; fId < nFaces; fId++) {
         const Face& face = mesh.face(fId);
 
         for (unsigned int jId = 0; jId < nJoints; ++jId) {
-            float cost = 0;
+            double cost = 0;
 
             for (const VertexId& vId : face.vertexIds()) {
                 double vertexWeight = skinningWeights.weight(vId, jId);
 
-                cost += static_cast<float>(1.0 - vertexWeight);
+                cost += static_cast<double>(1.0 - vertexWeight);
             }
 
             cost /= face.vertexIds().size();
@@ -107,11 +107,11 @@ std::vector<int> skeletonSegmentationGraphcut(
     }
 
     //Smooth cost
-    std::vector<float> smoothCost(nJoints * nJoints);
+    std::vector<double> smoothCost(nJoints * nJoints);
 
     for (unsigned int l1 = 0; l1 < nJoints; ++l1) {
         for (unsigned int l2 = 0; l2 < nJoints; ++l2) {
-            float cost;
+            double cost;
 
             if (l1 == l2) {
                 cost = 0.f;
@@ -169,7 +169,7 @@ std::vector<int> skeletonSegmentationGraphcut(
 template<class Model>
 std::vector<int> skeletonBinarySegmentationGraphcut(
         const Model& model,
-        float compactness,
+        double compactness,
         typename Model::Skeleton::JointId targetJointId,
         std::vector<int>& jointSegmentation)
 {
@@ -203,13 +203,13 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
     std::vector<int> maxAssociation = skeletonSegmentationMax(model);
 
     //Weight per face for the target joint
-    std::vector<float> weightPerFaceTargetJoint(nFaces, 0);
+    std::vector<double> weightPerFaceTargetJoint(nFaces, 0);
     for (FaceId fId = 0; fId < nFaces; fId++) {
         const Face& face = mesh.face(fId);
 
         for (const VertexId& vId : face.vertexIds()) {
             double vertexWeight = skinningWeights.weight(vId, targetJointId);
-            weightPerFaceTargetJoint[fId] += static_cast<float>(vertexWeight);
+            weightPerFaceTargetJoint[fId] += static_cast<double>(vertexWeight);
         }
 
         weightPerFaceTargetJoint[fId] /= face.vertexIds().size();
@@ -272,7 +272,7 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
                     double weight = 0;
                     for (const VertexId& vId : face.vertexIds()) {
                         double vertexWeight = skinningWeights.weight(vId, jId);
-                        weight += static_cast<float>(vertexWeight);
+                        weight += static_cast<double>(vertexWeight);
                     }
                     weight /= face.vertexIds().size();
 
@@ -347,7 +347,7 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
     }
 
     //Data cost
-    std::vector<float> dataCost(nFaces * 2);
+    std::vector<double> dataCost(nFaces * 2);
     for (FaceId fId = 0; fId < nFaces; fId++) {
         if (mesh.isFaceDeleted(fId)) {
             dataCost[fId * 2 + 0] = 0;
@@ -366,7 +366,7 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
         else {
             assert(faceSegmentation[fId] == -1);
 
-            float weight = weightPerFaceTargetJoint[fId];
+            double weight = weightPerFaceTargetJoint[fId];
 
             assert(weight >= 0 && weight <= 1);
 
@@ -376,10 +376,10 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
     }
 
     //Smooth cost
-    std::vector<float> smoothCost(2 * 2);
+    std::vector<double> smoothCost(2 * 2);
     for (unsigned int l1 = 0; l1 < 2; ++l1) {
         for (unsigned int l2 = 0; l2 < 2; ++l2) {
-            float cost;
+            double cost;
 
             if (l1 == l2) {
                 cost = 0.f;

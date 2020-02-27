@@ -43,10 +43,9 @@ void SkinMixerManager::slot_drawableSelectionChanged()
             vSelectedModelDrawer = modelDrawer;
 
             const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
-            if (selectionData.size() != 1)
-                return;
-
-            vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+            if (selectionData.size() == 1) {
+                vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+            }
         }
     }
 
@@ -55,16 +54,14 @@ void SkinMixerManager::slot_drawableSelectionChanged()
 
 void SkinMixerManager::slot_selectedDrawableUpdated()
 {
-    if (vSelectedModelDrawer == nullptr)
-        return;
-
     vSelectedJointId = nvl::MAX_ID;
 
-    const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
-    if (selectionData.size() != 1)
-        return;
-
-    vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+    if (vSelectedModelDrawer != nullptr) {
+        const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
+        if (selectionData.size() == 1) {
+            vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+        }
+    }
 
     if (!vPreviewSegmentation.empty())
         segmentationPreview();

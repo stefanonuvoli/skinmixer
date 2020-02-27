@@ -14,12 +14,12 @@ std::vector<int> skeletonSegmentationMax(
 template<class Model>
 std::vector<int> skeletonSegmentationGraphcut(
         const Model& model,
-        float compactness);
+        double compactness);
 
 template<class Model>
 std::vector<int> skeletonBinarySegmentationGraphcut(
         const Model& model,
-        float compactness,
+        double compactness,
         typename Model::Skeleton::JointId jointId,
         std::vector<int>& jointSegmentation = nvl::internal::dummyVectorInt);
 
