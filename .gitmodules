@@ -1,0 +1,6 @@
+[submodule "libs/nuvolib"]
+	path = libs/nuvolib
+	url = https://github.com/stefanonuvoli/nuvolib
+[submodule "libs/MultiLabelOptimization"]
+	path = libs/MultiLabelOptimization
+	url = https://github.com/alemuntoni/MultiLabelOptimization

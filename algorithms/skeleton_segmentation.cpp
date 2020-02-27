@@ -1,7 +1,5 @@
 #include "skeleton_segmentation.h"
 
-#include <MultiLabelOptimization/GCoptimization.h>
-
 #include <nvl/models/mesh_adjacencies.h>
 #include <nvl/models/skeleton_adjacencies.h>
 #include <nvl/models/mesh_geometric_information.h>
@@ -10,6 +8,8 @@
 
 #include <iostream>
 #include <queue>
+
+#include "libs/MultiLabelOptimization/GCoptimization.h"
 
 #define MAXCOST GCO_MAX_ENERGYTERM
 

@@ -56,7 +56,7 @@ FINAL_RELEASE {
 include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
 
 #Include MultiLabelOptimization
-include($$MLO_PATH/MultiLabelOptimization.pri)
+include($$MLO_PATH/multilabeloptimization.pri)
 
 #Project files
 SOURCES += \
