@@ -2,9 +2,13 @@
 #include "ui_skinmixer_manager.h"
 
 #include <nvl/utilities/colorize.h>
+#include <nvl/io/model_io.h>
+#include <nvl/models/mesh_normals.h>
 
 #include "algorithms/skeleton_segmentation.h"
 #include "algorithms/detach.h"
+
+#include <QFileDialog>
 
 namespace skinmixer {
 
@@ -22,34 +26,25 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
 }
 
 SkinMixerManager::~SkinMixerManager()
-{
-    delete ui;
-}
+{    
+    typedef nvl::Model3d Model;
+    typedef nvl::ModelDrawer<Model> ModelDrawer;
 
-void SkinMixerManager::slot_drawableSelectionChanged()
-{
-    clearSegmentationPreview();
-
-    vSelectedModelDrawer = nullptr;
-    vSelectedJointId = nvl::MAX_ID;
-
-    const std::unordered_set<nvl::Index>& selectedItems = vCanvas->selectedDrawables();
-    if (selectedItems.size() == 1) {
-        nvl::Index firstItem = *selectedItems.begin();
-        nvl::Drawable* drawable = vCanvas->drawable(firstItem);
-
-        nvl::ModelDrawer<nvl::Model3d>* modelDrawer = dynamic_cast<nvl::ModelDrawer<nvl::Model3d>*>(drawable);
-        if (modelDrawer != nullptr) {
-            vSelectedModelDrawer = modelDrawer;
-
-            const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
-            if (selectionData.size() == 1) {
-                vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
-            }
+    for (Model*& model : vModels) {
+        if (model != nullptr) {
+            delete model;
+            model = nullptr;
         }
     }
 
-    updateView();
+    for (ModelDrawer*& drawers : vModelDrawers) {
+        if (drawers != nullptr) {
+            delete drawers;
+            drawers = nullptr;
+        }
+    }
+
+    delete ui;
 }
 
 void SkinMixerManager::slot_selectedDrawableUpdated()
@@ -61,6 +56,8 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
         if (selectionData.size() == 1) {
             vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
         }
+
+        updateVertexValues();
     }
 
     if (!vPreviewSegmentation.empty())
@@ -69,31 +66,80 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
     updateView();
 }
 
+void SkinMixerManager::slot_drawableSelectionChanged()
+{
+    typedef nvl::Model3d Model;
+    typedef nvl::ModelDrawer<Model> ModelDrawer;
+
+    clearSegmentationPreview();
+
+    vSelectedModelDrawer = nullptr;
+    vSelectedJointId = nvl::MAX_ID;
+
+    const std::unordered_set<nvl::Index>& selectedItems = vCanvas->selectedDrawables();
+    if (selectedItems.size() == 1) {
+        nvl::Index firstItem = *selectedItems.begin();
+        nvl::Drawable* drawable = vCanvas->drawable(firstItem);
+
+        ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(drawable);
+        if (modelDrawer != nullptr) {
+            vSelectedModelDrawer = modelDrawer;
+
+            const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
+            if (selectionData.size() == 1) {
+                vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+            }
+        }
+
+        updateVertexValues();
+    }
+
+    vCanvas->setMovableFrame(nvl::Affine3d::Identity());
+
+    updateView();
+}
+
+void SkinMixerManager::slot_movableFrameChanged()
+{
+    for (nvl::Index id : vCanvas->selectedDrawables()) {
+        if (vCanvas->isFrameable(id)) {
+            nvl::Frameable* frameable = vCanvas->frameable(id);
+            frameable->setFrame(frameable->frame() * vCanvas->movableFrame());
+        }
+    }
+
+    vCanvas->setMovableFrame(nvl::Affine3d::Identity());
+}
+
 void SkinMixerManager::detachBySegmentation()
 {
+    typedef nvl::Model3d Model;
+    typedef nvl::ModelDrawer<Model> ModelDrawer;
+
     if (vSelectedModelDrawer == nullptr || vSelectedJointId == nvl::MAX_ID) {
         return;
     }
 
-    std::vector<std::vector<nvl::Model3d::Mesh::VertexId>> vertexMaps;
-    std::vector<std::vector<nvl::Model3d::Mesh::FaceId>> faceMaps;
-    std::vector<std::vector<nvl::Model3d::Skeleton::JointId>> jointMaps;
+    std::vector<std::vector<Model::Mesh::VertexId>> vertexMaps;
+    std::vector<std::vector<Model::Mesh::FaceId>> faceMaps;
+    std::vector<std::vector<Model::Skeleton::JointId>> jointMaps;
 
-    const float compactness = ui->skeletonSegmentationCompactnessSpinBox->value();
+    const float compactness = ui->detachingCompactnessSpinBox->value();
 
-    std::vector<nvl::Model3d> detachResult = skinmixer::detachBySkeletonSegmentation(*vSelectedModelDrawer->model(), vSelectedJointId, compactness, vertexMaps, faceMaps, jointMaps);
+    std::vector<Model> detachResult = skinmixer::detachBySkeletonSegmentation(*vSelectedModelDrawer->model(), vSelectedJointId, compactness, vertexMaps, faceMaps, jointMaps);
 
-    for (nvl::Model3d result : detachResult) {
-        nvl::Model3d* newModel = new nvl::Model3d(result);
-        nvl::ModelDrawer<nvl::Model3d>* newModelDrawer = new nvl::ModelDrawer<nvl::Model3d>(newModel);
-        models.push_back(newModel);
-        modelDrawers.push_back(newModelDrawer);
+    for (Model result : detachResult) {
+        Model* newModel = new Model(result);
+        ModelDrawer* newModelDrawer = new ModelDrawer(newModel);
+        vModels.push_back(newModel);
+        vModelDrawers.push_back(newModelDrawer);
 
         newModelDrawer->skeletonDrawer().setVisible(true);
         vCanvas->addDrawable(newModelDrawer, "Result");
 
+        //TODO
         newModelDrawer->setAnimationTargetFPS(60);
-        newModelDrawer->setAnimationSkinningMode(nvl::ModelDrawer<nvl::Model3d>::SkinningMode::SKINNING_DUAL_QUATERNIONS);
+        newModelDrawer->setAnimationSkinningMode(ModelDrawer::SkinningMode::SKINNING_DUAL_QUATERNIONS);
         newModelDrawer->setAnimationLoop(true);
         newModelDrawer->setAnimationSpeed(1);
         newModelDrawer->loadAnimation(0);
@@ -106,11 +152,16 @@ void SkinMixerManager::detachBySegmentation()
 
 void SkinMixerManager::updateView()
 {
-    bool itemSelected = vSelectedModelDrawer != nullptr && vSelectedJointId != nvl::MAX_ID;
+    bool drawableSelected = vSelectedModelDrawer != nullptr;
+    ui->modelsRemoveButton->setEnabled(drawableSelected);
+    ui->modelsSaveButton->setEnabled(drawableSelected);
+
+    bool jointSelected = drawableSelected && vSelectedJointId != nvl::MAX_ID;
     bool preview = !vPreviewSegmentation.empty();
-    ui->skeletonSegmentationPreviewButton->setEnabled(itemSelected && !preview);
-    ui->skeletonSegmentationClearButton->setEnabled(preview);
-    ui->skeletonSegmentationDetachButton->setEnabled(itemSelected);
+
+    ui->detachingPreviewButton->setEnabled(jointSelected && !preview);
+    ui->detachingClearButton->setEnabled(preview);
+    ui->detachingDetachButton->setEnabled(jointSelected);
 }
 
 void SkinMixerManager::segmentationPreview()
@@ -121,7 +172,7 @@ void SkinMixerManager::segmentationPreview()
         return;
     }
 
-    const float compactness = ui->skeletonSegmentationCompactnessSpinBox->value();
+    const float compactness = ui->detachingCompactnessSpinBox->value();
     vPreviewSegmentation = skinmixer::skeletonBinarySegmentationGraphcut(*vSelectedModelDrawer->model(), compactness, vSelectedJointId);
 
     showModelSegmentationColor();
@@ -136,13 +187,15 @@ void SkinMixerManager::clearSegmentationPreview()
 
 void SkinMixerManager::showModelSegmentationColor()
 {
+    typedef nvl::Model3d Model;
+
     resetModelSegmentationColor();
 
     if (vSelectedModelDrawer == nullptr || vSelectedJointId == nvl::MAX_ID || vPreviewSegmentation.empty()) {
         return;
     }
 
-    nvl::Model3d* model = vSelectedModelDrawer->model();
+    Model* model = vSelectedModelDrawer->model();
 
     std::vector<nvl::Color> colors = nvl::getLabelDifferentColor(vPreviewSegmentation);
 
@@ -175,6 +228,23 @@ void SkinMixerManager::resetModelSegmentationColor()
     updateView();
 }
 
+void SkinMixerManager::updateVertexValues()
+{
+    if (vSelectedModelDrawer != nullptr) {
+        std::vector<double> vertexValues;
+
+        if (vSelectedJointId != nvl::MAX_ID) {
+            vertexValues.resize(vSelectedModelDrawer->model()->mesh.vertexNumber(), 0);
+            for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
+                vertexValues[vertex.id()] = vSelectedModelDrawer->model()->skinningWeights.weight(vertex.id(), vSelectedJointId);
+            }
+        }
+        vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+
+        vCanvas->updateGL();
+    }
+}
+
 void SkinMixerManager::initialize()
 {
     updateView();
@@ -186,20 +256,70 @@ void SkinMixerManager::connectSignals()
         //Connect signals to the viewer
         connect(vCanvas, &nvl::Canvas::signal_drawableSelectionChanged, this, &SkinMixerManager::slot_drawableSelectionChanged);
         connect(vCanvas, &nvl::Canvas::signal_selectedDrawableUpdated, this, &SkinMixerManager::slot_selectedDrawableUpdated);
+        connect(vCanvas, &nvl::Canvas::signal_movableFrameChanged, this, &SkinMixerManager::slot_movableFrameChanged);
     }
 }
 
-void SkinMixerManager::on_skeletonSegmentationPreviewButton_clicked()
+void SkinMixerManager::on_modelsLoadButton_clicked()
+{
+    typedef nvl::Model3d Model;
+    typedef nvl::ModelDrawer<Model> ModelDrawer;
+
+    QFileDialog dialog(this);
+    dialog.setDirectory(QDir::homePath());
+    dialog.setFileMode(QFileDialog::ExistingFiles);
+    dialog.setNameFilter("Model (*.txt)");
+
+    QStringList files;
+
+    if (dialog.exec())
+        files = dialog.selectedFiles();
+
+    for (QString str : files) {
+
+        nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(str.toStdString());
+
+        Model* model = new Model();
+
+        nvl::modelLoadFromFile(str.toStdString(), *model);
+
+        nvl::meshUpdateFaceNormals(model->mesh);
+        nvl::meshUpdateVertexNormals(model->mesh);
+
+        ModelDrawer* modelDrawer = new ModelDrawer(model);
+        modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
+        modelDrawer->meshDrawer().setWireframeVisible(true);
+        modelDrawer->skeletonDrawer().setVisible(true);
+
+        vModels.push_back(model);
+        vModelDrawers.push_back(modelDrawer);
+
+        vCanvas->addDrawable(modelDrawer, fileInfo.file);
+    }
+
+    vCanvas->fitScene();
+}
+
+void SkinMixerManager::on_modelsRemoveButton_clicked()
+{
+    const std::unordered_set<nvl::Index> selectedDrawables = vCanvas->selectedDrawables();
+    for (nvl::Index id : selectedDrawables) {
+        vCanvas->removeDrawable(id);
+    }
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_detachingPreviewButton_clicked()
 {
     segmentationPreview();
 }
 
-void SkinMixerManager::on_skeletonSegmentationClearButton_clicked()
+void SkinMixerManager::on_detachingClearButton_clicked()
 {
     clearSegmentationPreview();
 }
 
-void SkinMixerManager::on_skeletonSegmentationCompactnessSpinBox_valueChanged(double arg1)
+void SkinMixerManager::on_detachingCompactnessSpinBox_valueChanged(double arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
     if (!vPreviewSegmentation.empty()) {
@@ -207,9 +327,10 @@ void SkinMixerManager::on_skeletonSegmentationCompactnessSpinBox_valueChanged(do
     }
 }
 
-void SkinMixerManager::on_skeletonSegmentationDetachButton_clicked()
+void SkinMixerManager::on_detachingDetachButton_clicked()
 {
     detachBySegmentation();
 }
 
 }
+

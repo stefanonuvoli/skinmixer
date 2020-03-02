@@ -7,28 +7,21 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>150</height>
+    <height>300</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Frame</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QGroupBox" name="groupBox">
+   <item row="1" column="0">
+    <widget class="QGroupBox" name="detachingGroupBox">
      <property name="title">
       <string>Detaching</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
-      <item row="4" column="0">
-       <widget class="QLabel" name="skeletonSegmentationCompactnessLabel">
-        <property name="text">
-         <string>Compactness:</string>
-        </property>
-       </widget>
-      </item>
       <item row="4" column="1">
-       <widget class="QDoubleSpinBox" name="skeletonSegmentationCompactnessSpinBox">
+       <widget class="QDoubleSpinBox" name="detachingCompactnessSpinBox">
         <property name="minimum">
          <double>0.010000000000000</double>
         </property>
@@ -43,24 +36,84 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="3">
-       <widget class="QPushButton" name="skeletonSegmentationDetachButton">
-        <property name="text">
-         <string>Detach</string>
-        </property>
-       </widget>
-      </item>
       <item row="2" column="0">
-       <widget class="QPushButton" name="skeletonSegmentationPreviewButton">
+       <widget class="QPushButton" name="detachingPreviewButton">
         <property name="text">
          <string>Preview</string>
         </property>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QPushButton" name="skeletonSegmentationClearButton">
+       <widget class="QPushButton" name="detachingClearButton">
         <property name="text">
          <string>Clear</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="detachingCompactnessLabel">
+        <property name="text">
+         <string>Compactness:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QPushButton" name="detachingDetachButton">
+        <property name="text">
+         <string>Detach</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QGroupBox" name="attachingGroupBox">
+     <property name="title">
+      <string>Attaching</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_3">
+      <item row="0" column="0">
+       <widget class="QPushButton" name="attachingMoveButton">
+        <property name="text">
+         <string>Move</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="attachingMoveButton_2">
+        <property name="text">
+         <string>Attach</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QGroupBox" name="modelsGroupBox">
+     <property name="title">
+      <string>Models</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_4">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="modelsRemoveButton">
+        <property name="text">
+         <string>Remove</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QPushButton" name="modelsLoadButton">
+        <property name="text">
+         <string>Load</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="modelsSaveButton">
+        <property name="text">
+         <string>Save</string>
         </property>
        </widget>
       </item>

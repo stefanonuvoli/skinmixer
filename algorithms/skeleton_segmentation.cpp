@@ -179,8 +179,8 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Face Face;
     typedef typename Mesh::VertexId VertexId;
-    typedef typename Mesh::Point Point;
-    typedef typename Mesh::Scalar Scalar;
+//    typedef typename Mesh::Point Point;
+//    typedef typename Mesh::Scalar Scalar;
     typedef typename Skeleton::JointId JointId;
 
     const Mesh& mesh = model.mesh;
@@ -292,59 +292,60 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
     //Get mesh adjacencies
     std::vector<std::vector<nvl::Index>> ffEdges;
     std::vector<std::vector<typename Mesh::FaceId>> ffAdj = nvl::meshFaceFaceAdjacencies(mesh, ffEdges);
-    std::vector<nvl::Index> faceComponentMap;
-    std::vector<std::vector<typename Mesh::FaceId>> connectedComponents = nvl::meshConnectedComponents(mesh, ffAdj, faceComponentMap);
-    std::vector<std::vector<nvl::Index>> borderEdges = nvl::meshFaceBorderEdges(mesh, ffEdges);
 
-    //Connect borders to some components (just in the ffAdj vector, non geometrical changes)
-    if (connectedComponents.size() > 1) {
-        for (FaceId f1Id = 0; f1Id < nFaces; f1Id++) {
-            if (mesh.isFaceDeleted(f1Id)) {
-                continue;
-            }
+//    //Connect borders to some components (just in the ffAdj vector, non geometrical changes)
+//    std::vector<nvl::Index> faceComponentMap;
+//    std::vector<std::vector<typename Mesh::FaceId>> connectedComponents = nvl::meshConnectedComponents(mesh, ffAdj, faceComponentMap);
+//    std::vector<std::vector<nvl::Index>> borderEdges = nvl::meshFaceBorderEdges(mesh, ffEdges);
 
-            const Face& face1 = mesh.face(f1Id);
+//    if (connectedComponents.size() > 1) {
+//        for (FaceId f1Id = 0; f1Id < nFaces; f1Id++) {
+//            if (mesh.isFaceDeleted(f1Id)) {
+//                continue;
+//            }
 
-            if (face1.vertexNumber() <= ffAdj[f1Id].size()) {
-                continue;
-            }
+//            const Face& face1 = mesh.face(f1Id);
 
-            for (nvl::Index edgePos1 : borderEdges[f1Id]) {
-                Point p1 = nvl::meshFaceEdgeMidpoint(mesh, f1Id, edgePos1);
+//            if (face1.vertexNumber() <= ffAdj[f1Id].size()) {
+//                continue;
+//            }
 
-                FaceId bestFace = nvl::MAX_ID;
-                Scalar bestDistance = std::numeric_limits<Scalar>::max();
+//            for (nvl::Index edgePos1 : borderEdges[f1Id]) {
+//                Point p1 = nvl::meshFaceEdgeMidpoint(mesh, f1Id, edgePos1);
 
-                for (FaceId f2Id = 0; f2Id < nFaces; f2Id++) {
-                    if (mesh.isFaceDeleted(f2Id)) {
-                        continue;
-                    }
+//                FaceId bestFace = nvl::MAX_ID;
+//                Scalar bestDistance = std::numeric_limits<Scalar>::max();
 
-                    if (faceComponentMap[f1Id] != faceComponentMap[f2Id]) {
-                        const Face& face2 = mesh.face(f2Id);
+//                for (FaceId f2Id = 0; f2Id < nFaces; f2Id++) {
+//                    if (mesh.isFaceDeleted(f2Id)) {
+//                        continue;
+//                    }
 
-                        for (nvl::Index edgePos2 = 0; edgePos2 < face2.vertexNumber(); edgePos2++) {
-                            Point p2 = nvl::meshFaceEdgeMidpoint(mesh, f2Id, edgePos2);
+//                    if (faceComponentMap[f1Id] != faceComponentMap[f2Id]) {
+//                        const Face& face2 = mesh.face(f2Id);
 
-                            Scalar distance = (p2 - p1).norm();
-                            if (distance < bestDistance) {
-                                bestFace = f2Id;
-                                bestDistance = distance;
-                            }
-                        }
-                    }
-                }
+//                        for (nvl::Index edgePos2 = 0; edgePos2 < face2.vertexNumber(); edgePos2++) {
+//                            Point p2 = nvl::meshFaceEdgeMidpoint(mesh, f2Id, edgePos2);
 
-                assert(bestFace < nvl::MAX_ID);
-                assert(bestDistance < std::numeric_limits<Scalar>::max());
+//                            Scalar distance = (p2 - p1).norm();
+//                            if (distance < bestDistance) {
+//                                bestFace = f2Id;
+//                                bestDistance = distance;
+//                            }
+//                        }
+//                    }
+//                }
 
-                ffAdj[bestFace].push_back(f1Id);
-                ffAdj[f1Id].push_back(bestFace);
-            }
+//                assert(bestFace < nvl::MAX_ID);
+//                assert(bestDistance < std::numeric_limits<Scalar>::max());
 
-            borderEdges[f1Id].clear();
-        }
-    }
+//                ffAdj[bestFace].push_back(f1Id);
+//                ffAdj[f1Id].push_back(bestFace);
+//            }
+
+//            borderEdges[f1Id].clear();
+//        }
+//    }
 
     //Data cost
     std::vector<double> dataCost(nFaces * 2);
@@ -370,8 +371,8 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
 
             assert(weight >= 0 && weight <= 1);
 
-            dataCost[fId * 2 + 0] = weight < 1 ? weight : MAXCOST;
-            dataCost[fId * 2 + 1] = weight > 0 ? 1 - weight : MAXCOST;
+            dataCost[fId * 2 + 0] = weight < 1 ? pow(weight, 2) : MAXCOST;
+            dataCost[fId * 2 + 1] = weight > 0 ? pow(1 - weight, 1.0/2.0) : MAXCOST;
         }
     }
 

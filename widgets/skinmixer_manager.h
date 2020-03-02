@@ -25,16 +25,21 @@ public:
 
 public Q_SLOTS:
 
-    void slot_selectedDrawableUpdated();
     void slot_drawableSelectionChanged();
+    void slot_selectedDrawableUpdated();
+    void slot_movableFrameChanged();
 
 
 private slots:
 
-    void on_skeletonSegmentationPreviewButton_clicked();
-    void on_skeletonSegmentationClearButton_clicked();
-    void on_skeletonSegmentationCompactnessSpinBox_valueChanged(double arg1);
-    void on_skeletonSegmentationDetachButton_clicked();
+    void on_modelsRemoveButton_clicked();
+    void on_modelsLoadButton_clicked();
+
+    void on_detachingPreviewButton_clicked();
+    void on_detachingClearButton_clicked();
+    void on_detachingCompactnessSpinBox_valueChanged(double arg1);
+    void on_detachingDetachButton_clicked();
+
 
 private:
 
@@ -47,6 +52,8 @@ private:
     void showModelSegmentationColor();
     void resetModelSegmentationColor();
 
+    void updateVertexValues();
+
     void initialize();
     void connectSignals();
 
@@ -54,8 +61,8 @@ private:
 
     nvl::Canvas* vCanvas;
 
-    std::vector<nvl::Model3d*> models;
-    std::vector<nvl::ModelDrawer<nvl::Model3d>*> modelDrawers;
+    std::vector<nvl::Model3d*> vModels;
+    std::vector<nvl::ModelDrawer<nvl::Model3d>*> vModelDrawers;
 
     nvl::ModelDrawer<nvl::Model3d>* vSelectedModelDrawer;
     nvl::Index vSelectedJointId;
