@@ -101,10 +101,26 @@ void SkinMixerManager::slot_drawableSelectionChanged()
 
 void SkinMixerManager::slot_movableFrameChanged()
 {
+    nvl::Quaterniond rot(vCanvas->movableFrame().rotation());
+    nvl::Translation3d tra(vCanvas->movableFrame().translation());
+
     for (nvl::Index id : vCanvas->selectedDrawables()) {
         if (vCanvas->isFrameable(id)) {
             nvl::Frameable* frameable = vCanvas->frameable(id);
-            frameable->setFrame(frameable->frame() * vCanvas->movableFrame());
+            const nvl::Affine3d& frame = frameable->frame();
+
+            nvl::Translation3d lastTra(frame.translation());
+            nvl::Quaterniond lastRot(frame.rotation());
+
+            nvl::Affine3d newFrame = nvl::Affine3d::Identity();
+
+            //Rotation
+            newFrame = rot * lastRot * newFrame;
+
+            //Translation
+            newFrame = tra * lastTra * newFrame;
+
+            frameable->setFrame(newFrame);
         }
     }
 
