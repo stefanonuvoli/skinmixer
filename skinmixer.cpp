@@ -4,15 +4,13 @@
 #include <nvl/viewer/widgets/drawable_list_widget.h>
 #include <nvl/viewer/widgets/drawable_widget.h>
 #include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
+#include <nvl/viewer/widgets/animation_widget.h>
 #include <nvl/viewer/widgets/model_drawer_widget.h>
 #include <nvl/viewer/widgets/qglviewer_canvas.h>
 
 #include "widgets/skinmixer_manager.h"
 
 int main(int argc, char *argv[]) {
-    typedef nvl::Model3d Model;
-    typedef nvl::ModelDrawer<Model> ModelDrawer;
-
     QApplication app(argc, argv);
 
     //Viewer
@@ -36,6 +34,8 @@ int main(int argc, char *argv[]) {
     viewer.addToRightDock(&meshDrawerWidget);
     nvl::SkeletonJointListWidget skeletonWidget(&canvas);
     viewer.addToRightDock(&skeletonWidget);
+    nvl::AnimationWidget animationWidget(&canvas);
+    viewer.addToRightDock(&animationWidget);
 
     //Left dock
     skinmixer::SkinMixerManager skinMixerManager(&canvas);

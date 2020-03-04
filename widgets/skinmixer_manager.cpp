@@ -9,6 +9,7 @@
 #include "algorithms/detach.h"
 
 #include <QFileDialog>
+#include <QMessageBox>
 
 namespace skinmixer {
 
@@ -297,20 +298,25 @@ void SkinMixerManager::on_modelsLoadButton_clicked()
 
         Model* model = new Model();
 
-        nvl::modelLoadFromFile(str.toStdString(), *model);
+        bool success = nvl::modelLoadFromFile(str.toStdString(), *model);
 
-        nvl::meshUpdateFaceNormals(model->mesh);
-        nvl::meshUpdateVertexNormals(model->mesh);
+        if (success) {
+            nvl::meshUpdateFaceNormals(model->mesh);
+            nvl::meshUpdateVertexNormals(model->mesh);
 
-        ModelDrawer* modelDrawer = new ModelDrawer(model);
-        modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
-        modelDrawer->meshDrawer().setWireframeVisible(true);
-        modelDrawer->skeletonDrawer().setVisible(true);
+            ModelDrawer* modelDrawer = new ModelDrawer(model);
+            modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
+            modelDrawer->meshDrawer().setWireframeVisible(true);
+            modelDrawer->skeletonDrawer().setVisible(true);
 
-        vModels.push_back(model);
-        vModelDrawers.push_back(modelDrawer);
+            vModels.push_back(model);
+            vModelDrawers.push_back(modelDrawer);
 
-        vCanvas->addDrawable(modelDrawer, fileInfo.file);
+            vCanvas->addDrawable(modelDrawer, fileInfo.file);
+        }
+        else {
+            QMessageBox::warning(this, tr("SkinMixer"), tr("Error loading model!"));
+        }
     }
 
     vCanvas->fitScene();
