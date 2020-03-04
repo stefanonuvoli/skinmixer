@@ -151,7 +151,6 @@ void SkinMixerManager::detachBySegmentation()
         vModels.push_back(newModel);
         vModelDrawers.push_back(newModelDrawer);
 
-        newModelDrawer->skeletonDrawer().setVisible(true);
         vCanvas->addDrawable(newModelDrawer, "Result");
 
         //TODO
@@ -307,7 +306,6 @@ void SkinMixerManager::on_modelsLoadButton_clicked()
             ModelDrawer* modelDrawer = new ModelDrawer(model);
             modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
             modelDrawer->meshDrawer().setWireframeVisible(true);
-            modelDrawer->skeletonDrawer().setVisible(true);
 
             vModels.push_back(model);
             vModelDrawers.push_back(modelDrawer);
