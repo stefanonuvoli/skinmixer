@@ -22,6 +22,7 @@ public:
     explicit SkinMixerManager(nvl::Canvas* canvas = nullptr, QWidget *parent = nullptr);
     ~SkinMixerManager();
 
+    void loadModelFromFile(const std::string& filename);
 
 public Q_SLOTS:
 
@@ -40,10 +41,12 @@ private slots:
     void on_detachingCompactnessSpinBox_valueChanged(double arg1);
     void on_detachingDetachButton_clicked();
 
+    void on_attachingMoveButton_clicked();
 
 private:
 
     void detachBySegmentation();
+    void moveModelInPosition();
 
     void updateView();
 
@@ -52,7 +55,7 @@ private:
     void showModelSegmentationColor();
     void resetModelSegmentationColor();
 
-    void updateVertexValues();
+    void updateSkinningWeightVertexValues();
 
     void initialize();
     void connectSignals();

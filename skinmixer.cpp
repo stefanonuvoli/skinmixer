@@ -44,6 +44,9 @@ int main(int argc, char *argv[]) {
     skinmixer::SkinMixerManager skinMixerManager(&canvas);
     viewer.addToLeftDock(&skinMixerManager);
 
+    skinMixerManager.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/dreyar.txt");
+    canvas.fitScene();
+
 
 //    for (const auto& joint : model.skeleton.joints()) {
 //        nvl::Color color = nvl::getRangeDifferentColor(maxLabel + 1, static_cast<int>(joint.id()));

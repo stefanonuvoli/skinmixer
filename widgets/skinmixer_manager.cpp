@@ -2,8 +2,11 @@
 #include "ui_skinmixer_manager.h"
 
 #include <nvl/utilities/colorize.h>
+
 #include <nvl/io/model_io.h>
+
 #include <nvl/models/mesh_normals.h>
+#include <nvl/models/model_transformations.h>
 
 #include "algorithms/skeleton_segmentation.h"
 #include "algorithms/detach.h"
@@ -58,7 +61,7 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
             vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
         }
 
-        updateVertexValues();
+        updateSkinningWeightVertexValues();
     }
 
     if (!vPreviewSegmentation.empty())
@@ -92,7 +95,7 @@ void SkinMixerManager::slot_drawableSelectionChanged()
             }
         }
 
-        updateVertexValues();
+        updateSkinningWeightVertexValues();
     }
 
     vCanvas->setMovableFrame(nvl::Affine3d::Identity());
@@ -108,18 +111,29 @@ void SkinMixerManager::slot_movableFrameChanged()
     for (nvl::Index id : vCanvas->selectedDrawables()) {
         if (vCanvas->isFrameable(id)) {
             nvl::Frameable* frameable = vCanvas->frameable(id);
+            nvl::Drawable* drawable = vCanvas->drawable(id);
+
             const nvl::Affine3d& frame = frameable->frame();
 
             nvl::Translation3d lastTra(frame.translation());
             nvl::Quaterniond lastRot(frame.rotation());
 
-            nvl::Affine3d newFrame = nvl::Affine3d::Identity();
+            nvl::Point3d center = drawable->sceneCenter();
+            nvl::Translation3d originTra(-center);
+
+            nvl::Affine3d newFrame = frame;
+
+            //Go to center
+            newFrame = originTra * newFrame;
 
             //Rotation
-            newFrame = rot * lastRot * newFrame;
+            newFrame = rot * newFrame;
+
+            //Back to initial position
+            newFrame = originTra.inverse() * newFrame;
 
             //Translation
-            newFrame = tra * lastTra * newFrame;
+            newFrame = tra * newFrame;
 
             frameable->setFrame(newFrame);
         }
@@ -157,6 +171,57 @@ void SkinMixerManager::detachBySegmentation()
     clearSegmentationPreview();
 
     vCanvas->updateGL();
+}
+
+void SkinMixerManager::moveModelInPosition()
+{
+    typedef nvl::Model3d Model;
+    if (vSelectedModelDrawer == nullptr) {
+        return;
+    }
+
+    Model& model = *vSelectedModelDrawer->model();
+
+    nvl::modelApplyTransformation(model, vSelectedModelDrawer->frame());
+    nvl::meshUpdateFaceNormals(model.mesh);
+    nvl::meshUpdateVertexNormals(model.mesh);
+
+    vSelectedModelDrawer->update();
+    vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
+
+    vCanvas->notifySelectedDrawableUpdated();
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::loadModelFromFile(const std::string& filename)
+{
+    if (filename.empty())
+        return;
+
+    typedef nvl::Model3d Model;
+    typedef nvl::ModelDrawer<Model> ModelDrawer;
+
+    Model* model = new Model();
+
+    bool success = nvl::modelLoadFromFile(filename, *model);
+
+    if (success) {
+        nvl::meshUpdateFaceNormals(model->mesh);
+        nvl::meshUpdateVertexNormals(model->mesh);
+
+        ModelDrawer* modelDrawer = new ModelDrawer(model);
+        modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
+        modelDrawer->meshDrawer().setWireframeVisible(true);
+
+        vModels.push_back(model);
+        vModelDrawers.push_back(modelDrawer);
+
+        nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(filename);
+        vCanvas->addDrawable(modelDrawer, fileInfo.file);
+    }
+    else {
+        QMessageBox::warning(this, tr("SkinMixer"), tr("Error loading model!"));
+    }
 }
 
 void SkinMixerManager::updateView()
@@ -237,13 +302,13 @@ void SkinMixerManager::resetModelSegmentationColor()
     updateView();
 }
 
-void SkinMixerManager::updateVertexValues()
+void SkinMixerManager::updateSkinningWeightVertexValues()
 {
     if (vSelectedModelDrawer != nullptr) {
         std::vector<double> vertexValues;
 
         if (vSelectedJointId != nvl::MAX_ID) {
-            vertexValues.resize(vSelectedModelDrawer->model()->mesh.vertexNumber(), 0);
+            vertexValues.resize(vSelectedModelDrawer->model()->mesh.vertexNumber(), 0.0);
             for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
                 vertexValues[vertex.id()] = vSelectedModelDrawer->model()->skinningWeights.weight(vertex.id(), vSelectedJointId);
             }
@@ -271,9 +336,6 @@ void SkinMixerManager::connectSignals()
 
 void SkinMixerManager::on_modelsLoadButton_clicked()
 {
-    typedef nvl::Model3d Model;
-    typedef nvl::ModelDrawer<Model> ModelDrawer;
-
     QFileDialog dialog(this);
     dialog.setDirectory(QDir::homePath());
     dialog.setFileMode(QFileDialog::ExistingFiles);
@@ -285,29 +347,7 @@ void SkinMixerManager::on_modelsLoadButton_clicked()
         files = dialog.selectedFiles();
 
     for (QString str : files) {
-
-        nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(str.toStdString());
-
-        Model* model = new Model();
-
-        bool success = nvl::modelLoadFromFile(str.toStdString(), *model);
-
-        if (success) {
-            nvl::meshUpdateFaceNormals(model->mesh);
-            nvl::meshUpdateVertexNormals(model->mesh);
-
-            ModelDrawer* modelDrawer = new ModelDrawer(model);
-            modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
-            modelDrawer->meshDrawer().setWireframeVisible(true);
-
-            vModels.push_back(model);
-            vModelDrawers.push_back(modelDrawer);
-
-            vCanvas->addDrawable(modelDrawer, fileInfo.file);
-        }
-        else {
-            QMessageBox::warning(this, tr("SkinMixer"), tr("Error loading model!"));
-        }
+        loadModelFromFile(str.toStdString());
     }
 
     vCanvas->fitScene();
@@ -343,6 +383,11 @@ void SkinMixerManager::on_detachingCompactnessSpinBox_valueChanged(double arg1)
 void SkinMixerManager::on_detachingDetachButton_clicked()
 {
     detachBySegmentation();
+}
+
+void SkinMixerManager::on_attachingMoveButton_clicked()
+{
+    moveModelInPosition();
 }
 
 }
