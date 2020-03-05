@@ -5,6 +5,7 @@
 #include <nvl/viewer/widgets/drawable_widget.h>
 #include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
 #include <nvl/viewer/widgets/animation_widget.h>
+#include <nvl/viewer/widgets/model_animation_widget.h>
 #include <nvl/viewer/widgets/model_drawer_widget.h>
 #include <nvl/viewer/widgets/qglviewer_canvas.h>
 
@@ -36,6 +37,8 @@ int main(int argc, char *argv[]) {
     viewer.addToRightDock(&skeletonWidget);
     nvl::AnimationWidget animationWidget(&canvas);
     viewer.addToRightDock(&animationWidget);
+    nvl::ModelAnimationWidget modelAnimationWidget(&canvas);
+    viewer.addToRightDock(&modelAnimationWidget);
 
     //Left dock
     skinmixer::SkinMixerManager skinMixerManager(&canvas);
@@ -48,9 +51,6 @@ int main(int argc, char *argv[]) {
 //    }
 
     viewer.showMaximized();
-
-    viewer.canvas()->setTargetFPS(60);
-    viewer.canvas()->startAnimations();
 
     return app.exec();
 }

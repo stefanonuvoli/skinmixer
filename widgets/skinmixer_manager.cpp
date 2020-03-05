@@ -152,13 +152,6 @@ void SkinMixerManager::detachBySegmentation()
         vModelDrawers.push_back(newModelDrawer);
 
         vCanvas->addDrawable(newModelDrawer, "Result");
-
-        //TODO
-        newModelDrawer->setAnimationTargetFPS(60);
-        newModelDrawer->setAnimationSkinningMode(ModelDrawer::SkinningMode::SKINNING_DUAL_QUATERNIONS);
-        newModelDrawer->setAnimationLoop(true);
-        newModelDrawer->setAnimationSpeed(1);
-        newModelDrawer->loadAnimation(0);
     }
 
     clearSegmentationPreview();
