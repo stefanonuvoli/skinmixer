@@ -70,7 +70,8 @@ private:
     nvl::ModelDrawer<nvl::Model3d>* vSelectedModelDrawer;
     nvl::Index vSelectedJointId;
 
-    std::vector<int> vPreviewSegmentation;
+    std::vector<int> vPreviewFaceSegmentation;
+    std::vector<int> vPreviewJointSegmentation;
 
 };
 

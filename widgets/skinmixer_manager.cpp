@@ -64,7 +64,7 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
         updateSkinningWeightVertexValues();
     }
 
-    if (!vPreviewSegmentation.empty())
+    if (!vPreviewFaceSegmentation.empty())
         segmentationPreview();
 
     updateView();
@@ -157,16 +157,28 @@ void SkinMixerManager::detachBySegmentation()
 
     const float compactness = ui->detachingCompactnessSpinBox->value();
 
-    std::vector<Model> detachResult = skinmixer::detachBySkeletonSegmentation(*vSelectedModelDrawer->model(), vSelectedJointId, compactness, vertexMaps, faceMaps, jointMaps);
+    std::vector<Model> detachResult =
+            skinmixer::detachFromSkeletonSegmentation(
+                *vSelectedModelDrawer->model(),
+                vSelectedJointId,
+                compactness,
+                ui->detachingKeepSkeletonCheckBox->isChecked(),
+                vertexMaps,
+                faceMaps,
+                jointMaps);
 
     for (Model result : detachResult) {
         Model* newModel = new Model(result);
         ModelDrawer* newModelDrawer = new ModelDrawer(newModel);
+
         vModels.push_back(newModel);
         vModelDrawers.push_back(newModelDrawer);
 
         vCanvas->addDrawable(newModelDrawer, "Result");
     }
+
+    vSelectedModelDrawer->setVisible(false);
+    vCanvas->notifySelectedDrawableUpdated();
 
     clearSegmentationPreview();
 
@@ -226,12 +238,14 @@ void SkinMixerManager::loadModelFromFile(const std::string& filename)
 
 void SkinMixerManager::updateView()
 {
-    bool drawableSelected = vSelectedModelDrawer != nullptr;
+    bool drawableSelected = vCanvas->selectedDrawableNumber() > 0;
     ui->modelsRemoveButton->setEnabled(drawableSelected);
-    ui->modelsSaveButton->setEnabled(drawableSelected);
 
-    bool jointSelected = drawableSelected && vSelectedJointId != nvl::MAX_ID;
-    bool preview = !vPreviewSegmentation.empty();
+    bool singleDrawableSelected = vSelectedModelDrawer != nullptr;
+    ui->modelsSaveButton->setEnabled(singleDrawableSelected);
+
+    bool jointSelected = singleDrawableSelected && vSelectedJointId != nvl::MAX_ID;
+    bool preview = !vPreviewFaceSegmentation.empty();
 
     ui->detachingPreviewButton->setEnabled(jointSelected && !preview);
     ui->detachingClearButton->setEnabled(preview);
@@ -247,7 +261,12 @@ void SkinMixerManager::segmentationPreview()
     }
 
     const float compactness = ui->detachingCompactnessSpinBox->value();
-    vPreviewSegmentation = skinmixer::skeletonBinarySegmentationGraphcut(*vSelectedModelDrawer->model(), compactness, vSelectedJointId);
+    vPreviewFaceSegmentation =
+            skinmixer::skeletonBinarySegmentationGraphcut(
+                *vSelectedModelDrawer->model(),
+                compactness,
+                vSelectedJointId,
+                vPreviewJointSegmentation);
 
     showModelSegmentationColor();
     updateView();
@@ -255,7 +274,8 @@ void SkinMixerManager::segmentationPreview()
 
 void SkinMixerManager::clearSegmentationPreview()
 {
-    vPreviewSegmentation.clear();
+    vPreviewFaceSegmentation.clear();
+    vPreviewJointSegmentation.clear();
     resetModelSegmentationColor();
 }
 
@@ -265,23 +285,27 @@ void SkinMixerManager::showModelSegmentationColor()
 
     resetModelSegmentationColor();
 
-    if (vSelectedModelDrawer == nullptr || vSelectedJointId == nvl::MAX_ID || vPreviewSegmentation.empty()) {
+    if (vSelectedModelDrawer == nullptr || vSelectedJointId == nvl::MAX_ID || vPreviewFaceSegmentation.empty()) {
         return;
     }
 
     Model* model = vSelectedModelDrawer->model();
 
-    std::vector<nvl::Color> colors = nvl::getLabelDifferentColor(vPreviewSegmentation);
-
     int maxLabel = -1;
-    for (const int& l : vPreviewSegmentation) {
+    for (const int& l : vPreviewFaceSegmentation) {
         maxLabel = std::max(maxLabel, l);
     }
+    for (const int& l : vPreviewJointSegmentation) {
+        maxLabel = std::max(maxLabel, l);
+    }
+    std::vector<nvl::Color> colors = nvl::getDifferentColors(maxLabel + 1);
 
     for (const auto& face : model->mesh.faces()) {
-        vSelectedModelDrawer->meshDrawer().setRenderingFaceColor(face.id(), colors[face.id()]);
+        vSelectedModelDrawer->meshDrawer().setRenderingFaceColor(face.id(), colors[vPreviewFaceSegmentation[face.id()]]);
     }
-
+    for (const auto& joint : model->skeleton.joints()) {
+        vSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(joint.id(), colors[vPreviewJointSegmentation[joint.id()]]);
+    }
     vSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(vSelectedJointId, nvl::Color(50,50,50));
 
     vCanvas->updateGL();
@@ -375,7 +399,7 @@ void SkinMixerManager::on_detachingClearButton_clicked()
 void SkinMixerManager::on_detachingCompactnessSpinBox_valueChanged(double arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
-    if (!vPreviewSegmentation.empty()) {
+    if (!vPreviewFaceSegmentation.empty()) {
         segmentationPreview();
     }
 }

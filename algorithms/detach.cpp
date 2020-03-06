@@ -12,10 +12,11 @@
 namespace skinmixer {
 
 template<class Model>
-std::vector<Model> detachBySkeletonSegmentation(
+std::vector<Model> detachFromSkeletonSegmentation(
         const Model& model,
         const typename Model::Skeleton::JointId targetJoint,
         float compactness,
+        bool keepEntireSkeleton,
         std::vector<std::vector<typename Model::Mesh::VertexId>>& vertexMaps,
         std::vector<std::vector<typename Model::Mesh::FaceId>>& faceMaps,
         std::vector<std::vector<typename Model::Skeleton::JointId>>& jointMaps)
@@ -28,6 +29,9 @@ std::vector<Model> detachBySkeletonSegmentation(
 
     std::vector<Model> result;
 
+    const Mesh& mesh = model.mesh;
+    const Skeleton& skeleton = model.skeleton;
+
     //Get segmentation
     std::vector<int> jointSegmentation;
     std::vector<int> faceSegmentation = skinmixer::skeletonBinarySegmentationGraphcut(model, compactness, targetJoint, jointSegmentation);
@@ -37,12 +41,10 @@ std::vector<Model> detachBySkeletonSegmentation(
         maxLabel = std::max(maxLabel, label);
     }
 
-    const Mesh& mesh = model.mesh;
-    const Skeleton& skeleton = model.skeleton;
 
-    for (int l = 0; l <= maxLabel; l++) {
+    for (int l = 0; l <= maxLabel; ++l) {
         std::vector<FaceId> faces;
-        for (FaceId fId = 0; fId < mesh.faceNumber(); fId++) {
+        for (FaceId fId = 0; fId < mesh.faceNumber(); ++fId) {
             if (mesh.isFaceDeleted(fId))
                 continue;
 
@@ -52,8 +54,8 @@ std::vector<Model> detachBySkeletonSegmentation(
         }
 
         std::vector<JointId> joints;
-        for (JointId jId = 0; jId < skeleton.jointNumber(); jId++) {
-            if (jointSegmentation[jId] == l) {
+        for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
+            if (keepEntireSkeleton || jointSegmentation[jId] == l) {
                 joints.push_back(jId);
             }
         }
@@ -63,35 +65,17 @@ std::vector<Model> detachBySkeletonSegmentation(
         }
 
         if (!faces.empty()) {
-            Model newModel;
-
             std::vector<VertexId> vertexMap;
             std::vector<FaceId> faceMap;
+            std::vector<JointId> jointMap;
 
-//            std::vector<JointId> jointMap;
-
-//            nvl::meshTransferFaces(mesh, faces, newModel.mesh, vertexMap, faceMap);
-//            nvl::skeletonTransferJoints(skeleton, joints, newModel.skeleton, jointMap);
-//            nvl::modelSkinningWeightsTransfer(model, vertexMap, jointMap, newModel);
-//            nvl::modelAnimationTransfer(model, jointMap, newModel);
-
-//            vertexMaps.push_back(vertexMap);
-//            faceMaps.push_back(faceMap);
-//            jointMaps.push_back(jointMap);
-
-
-            nvl::meshTransferFaces(mesh, faces, newModel.mesh, vertexMap, faceMap);
-            newModel.skeleton = skeleton;
-            nvl::modelSkinningWeightsTransferVertices(model, vertexMap, newModel);
-            for (const typename Model::Animation& animation : model.animations()) {
-                newModel.addAnimation(animation);
-            }
-
-            vertexMaps.push_back(vertexMap);
-            faceMaps.push_back(faceMap);
-
+            Model newModel;
+            nvl::modelTransfer(model, faces, joints, newModel, vertexMap, faceMap, jointMap);
 
             result.push_back(newModel);
+            vertexMaps.push_back(vertexMap);
+            faceMaps.push_back(faceMap);
+            jointMaps.push_back(jointMap);
         }
     }
 

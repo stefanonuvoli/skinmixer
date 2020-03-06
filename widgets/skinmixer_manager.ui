@@ -94,6 +94,13 @@
         </property>
        </widget>
       </item>
+      <item row="5" column="1">
+       <widget class="QCheckBox" name="detachingKeepSkeletonCheckBox">
+        <property name="text">
+         <string>Keep skeleton</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
