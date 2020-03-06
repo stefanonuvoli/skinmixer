@@ -351,7 +351,7 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
     std::vector<double> dataCost(nFaces * 2);
     for (FaceId fId = 0; fId < nFaces; ++fId) {
         if (mesh.isFaceDeleted(fId)) {
-            dataCost[fId * 2 + 0] = 0;
+            dataCost[fId * 2 + 0] = MAXCOST;
             dataCost[fId * 2 + 1] = MAXCOST;
             continue;
         }
@@ -371,8 +371,23 @@ std::vector<int> skeletonBinarySegmentationGraphcut(
 
             assert(weight >= 0 && weight <= 1);
 
-            dataCost[fId * 2 + 0] = weight < 1 ? pow(weight, 2) : MAXCOST;
-            dataCost[fId * 2 + 1] = weight > 0 ? pow(1 - weight, 1.0/2.0) : MAXCOST;
+            double min = 0.1;
+            double max = 0.9;
+
+            if (weight <= min) {
+                dataCost[fId * 2 + 0] = 0;
+                dataCost[fId * 2 + 1] = MAXCOST;
+
+            }
+            else if (weight >= max) {
+                dataCost[fId * 2 + 0] = MAXCOST;
+                dataCost[fId * 2 + 1] = 0;
+            }
+            else {
+                double normalizedWeight = (weight - min)/(max - min);
+                dataCost[fId * 2 + 0] = normalizedWeight;
+                dataCost[fId * 2 + 1] = 1 - normalizedWeight;
+            }
         }
     }
 

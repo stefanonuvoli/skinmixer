@@ -12,7 +12,7 @@
 namespace skinmixer {
 
 template<class Model>
-std::vector<Model> detachFromSkeletonSegmentation(
+std::vector<Model> detachBySkeletonSegmentation(
         const Model& model,
         const typename Model::Skeleton::JointId targetJoint,
         float compactness,
@@ -40,7 +40,6 @@ std::vector<Model> detachFromSkeletonSegmentation(
     for (const int& label : faceSegmentation) {
         maxLabel = std::max(maxLabel, label);
     }
-
 
     for (int l = 0; l <= maxLabel; ++l) {
         std::vector<FaceId> faces;

@@ -15,7 +15,7 @@ Model detachModelPart(
         std::vector<typename Model::Skeleton::JointId>& jointMaps);
 
 template<class Model>
-std::vector<Model> detachFromSkeletonSegmentation(
+std::vector<Model> detachBySkeletonSegmentation(
         const Model& model,
         const typename Model::Skeleton::JointId targetJoint,
         float compactness,

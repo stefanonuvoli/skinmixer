@@ -158,7 +158,7 @@ void SkinMixerManager::detachBySegmentation()
     const float compactness = ui->detachingCompactnessSpinBox->value();
 
     std::vector<Model> detachResult =
-            skinmixer::detachFromSkeletonSegmentation(
+            skinmixer::detachBySkeletonSegmentation(
                 *vSelectedModelDrawer->model(),
                 vSelectedJointId,
                 compactness,
