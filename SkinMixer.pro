@@ -5,9 +5,10 @@ NUVOLIB_PATH = $$PWD/libs/nuvolib
 MLO_PATH = $$PWD/libs/MultiLabelOptimization
 #EIGEN_PATH = /usr/include/eigen3
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
+VCGLIB_PATH = /usr/include/vcglib
 
 #Modules of nuvolib
-CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER
+CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER NVL_VCGLIB
 
 #App config
 TARGET = skinmixer

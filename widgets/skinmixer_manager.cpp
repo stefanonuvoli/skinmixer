@@ -333,10 +333,12 @@ void SkinMixerManager::updateSkinningWeightVertexValues()
 
         if (vSelectedJointId != nvl::MAX_ID) {
             vertexValues.resize(vSelectedModelDrawer->model()->mesh.vertexNumber(), 0.0);
+
             for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
                 vertexValues[vertex.id()] = vSelectedModelDrawer->model()->skinningWeights.weight(vertex.id(), vSelectedJointId);
             }
         }
+
         vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
 
         vCanvas->updateGL();
