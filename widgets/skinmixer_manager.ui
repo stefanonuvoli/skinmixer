@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>300</height>
+    <height>329</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -50,26 +50,26 @@
       <string>Detaching</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
-      <item row="4" column="1">
-       <widget class="QDoubleSpinBox" name="detachingCompactnessSpinBox">
-        <property name="minimum">
-         <double>0.010000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>200.000000000000000</double>
-        </property>
-        <property name="singleStep">
-         <double>1.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>8.000000000000000</double>
-        </property>
-       </widget>
-      </item>
       <item row="2" column="0">
        <widget class="QPushButton" name="detachingPreviewButton">
         <property name="text">
          <string>Preview</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QDoubleSpinBox" name="detachingOffsetSpinBox">
+        <property name="minimum">
+         <double>-0.490000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>0.490000000000000</double>
+        </property>
+        <property name="singleStep">
+         <double>0.010000000000000</double>
+        </property>
+        <property name="value">
+         <double>0.000000000000000</double>
         </property>
        </widget>
       </item>
@@ -80,24 +80,34 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="detachingCompactnessLabel">
-        <property name="text">
-         <string>Compactness:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
+      <item row="6" column="0">
        <widget class="QPushButton" name="detachingDetachButton">
         <property name="text">
          <string>Detach</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="4" column="0">
+       <widget class="QLabel" name="detachingOffsetLabel">
+        <property name="text">
+         <string>Offset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
        <widget class="QCheckBox" name="detachingKeepSkeletonCheckBox">
         <property name="text">
          <string>Keep skeleton</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QCheckBox" name="detachingSmoothCheckBox">
+        <property name="text">
+         <string>Smooth</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -118,7 +128,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QPushButton" name="attachingMoveButton_2">
+       <widget class="QPushButton" name="attachingAttachButton">
         <property name="text">
          <string>Attach</string>
         </property>

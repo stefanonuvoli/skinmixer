@@ -11,6 +11,7 @@
 
 #include "widgets/skinmixer_manager.h"
 
+#include <set>
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
