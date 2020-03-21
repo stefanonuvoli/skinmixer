@@ -217,9 +217,9 @@ void SkinMixerManager::updateDetachPreview()
         return;
     }
 
-    std::vector<std::vector<Model::Mesh::VertexId>> vertexMaps;
-    std::vector<std::vector<Model::Mesh::FaceId>> faceMaps;
-    std::vector<std::vector<Model::Skeleton::JointId>> jointMaps;
+    std::vector<std::vector<Model::Mesh::VertexId>> birthVertex;
+    std::vector<std::vector<Model::Mesh::FaceId>> birthFace;
+    std::vector<std::vector<Model::Skeleton::JointId>> birthJoint;
 
     std::vector<nvl::Segment<Point>> functionSegments;
 
@@ -231,9 +231,9 @@ void SkinMixerManager::updateDetachPreview()
                 ui->detachingKeepSkeletonCheckBox->isChecked(),
                 ui->detachingSmoothCheckBox->isChecked(),
                 functionSegments,
-                vertexMaps,
-                faceMaps,
-                jointMaps);
+                birthVertex,
+                birthFace,
+                birthJoint);
 
     detachPreviewMesh.clear();
 

@@ -95,9 +95,9 @@ std::vector<Model> detachBySkinningWeightFunction(
         const bool keepEntireSkeleton,
         const bool smooth,
         std::vector<nvl::Segment<typename Model::Mesh::Point>>& curveCoordinates,
-        std::vector<std::vector<typename Model::Mesh::VertexId>>& vertexMaps,
-        std::vector<std::vector<typename Model::Mesh::FaceId>>& faceMaps,
-        std::vector<std::vector<typename Model::Skeleton::JointId>>& jointMaps)
+        std::vector<std::vector<typename Model::Mesh::VertexId>>& birthVertex,
+        std::vector<std::vector<typename Model::Mesh::FaceId>>& birthFace,
+        std::vector<std::vector<typename Model::Skeleton::JointId>>& birthJoint)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
@@ -278,32 +278,32 @@ std::vector<Model> detachBySkinningWeightFunction(
             }
 
             if (!faces.empty()) {
-                std::vector<VertexId> vertexMap;
-                std::vector<FaceId> faceMap;
-                std::vector<JointId> jointMap;
+                std::vector<VertexId> currentBirthVertex;
+                std::vector<FaceId> currentBirthFace;
+                std::vector<JointId> currentBirthJoint;
 
                 Model newModel;
-                nvl::meshTransferFaces(refinedMesh, faces, newModel.mesh, vertexMap, faceMap);
+                nvl::meshTransferFaces(refinedMesh, faces, newModel.mesh, currentBirthVertex, currentBirthFace);
 
-                for (VertexId& vId : vertexMap) {
+                for (VertexId& vId : currentBirthVertex) {
                     if (vId != nvl::MAX_ID) {
                         vId = refineBirthVertex[vId];
                     }
                 }
-                for (FaceId& fId : faceMap) {
+                for (FaceId& fId : currentBirthFace) {
                     if (fId != nvl::MAX_ID) {
                         fId = refineBirthFace[fId];
                     }
                 }
 
-                nvl::skeletonTransferJoints(model.skeleton, joints, newModel.skeleton, jointMap);
-                nvl::modelSkinningWeightsTransfer(model, vertexMap, jointMap, newModel);
-                nvl::modelAnimationTransfer(model, jointMap, newModel);
+                nvl::skeletonTransferJoints(model.skeleton, joints, newModel.skeleton, currentBirthJoint);
+                nvl::modelSkinningWeightsTransfer(model, currentBirthVertex, currentBirthJoint, newModel);
+                nvl::modelAnimationTransfer(model, currentBirthJoint, newModel);
 
                 result.push_back(newModel);
-                vertexMaps.push_back(vertexMap);
-                faceMaps.push_back(faceMap);
-                jointMaps.push_back(jointMap);
+                birthVertex.push_back(currentBirthVertex);
+                birthFace.push_back(currentBirthFace);
+                birthJoint.push_back(currentBirthJoint);
             }
         }
     }
