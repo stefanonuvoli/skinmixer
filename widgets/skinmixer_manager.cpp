@@ -2,6 +2,7 @@
 #include "ui_skinmixer_manager.h"
 
 #include <nvl/utilities/colorize.h>
+#include <nvl/utilities/timer.h>
 
 #include <nvl/io/model_io.h>
 
@@ -13,6 +14,7 @@
 
 #include <QFileDialog>
 #include <QMessageBox>
+#include <iostream>
 
 namespace skinmixer {
 
@@ -167,6 +169,7 @@ void SkinMixerManager::detachBySkeletonWeights()
 
     std::vector<nvl::Segment<Point>> functionSegments;
 
+    nvl::Timer t("Detaching timer");
     std::vector<Model> detachResult =
             skinmixer::detachBySkinningWeightFunction(
                 *vSelectedModelDrawer->model(),
@@ -178,6 +181,7 @@ void SkinMixerManager::detachBySkeletonWeights()
                 vertexMaps,
                 faceMaps,
                 jointMaps);
+    t.print();
 
     for (Model result : detachResult) {
         Model* newModel = new Model(result);
