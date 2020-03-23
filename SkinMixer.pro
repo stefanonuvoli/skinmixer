@@ -56,19 +56,14 @@ FINAL_RELEASE {
 #Include nuvolib
 include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
 
-#Include MultiLabelOptimization
-include($$MLO_PATH/multilabeloptimization.pri)
-
 #Project files
 SOURCES += \
     algorithms/detach.cpp \
-    algorithms/skeleton_segmentation.cpp \
     skinmixer.cpp \
     widgets/skinmixer_manager.cpp
 
 HEADERS += \
     algorithms/detach.h \
-    algorithms/skeleton_segmentation.h \
     widgets/skinmixer_manager.h
 
 FORMS += \

@@ -55,13 +55,6 @@ private:
 
     void updateView();
 
-//    void detachBySegmentation();
-
-//    void segmentationPreview();
-//    void clearSegmentationPreview();
-//    void showModelSegmentationColor();
-//    void resetModelSegmentationColor();
-
     void updateSkinningWeightVertexValues();
 
     void initialize();
