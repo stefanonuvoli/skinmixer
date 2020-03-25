@@ -8,6 +8,8 @@
 #include <nvl/models/model.h>
 #include <nvl/models/meshes.h>
 
+#include "skinmixer/skinmixer_graph.h"
+
 namespace Ui {
 class SkinMixerManager;
 }
@@ -18,12 +20,24 @@ class SkinMixerManager : public QFrame
 {
     Q_OBJECT
 
+    typedef nvl::Index Index;
+    typedef nvl::Model3d Model;
+    typedef nvl::ModelDrawer<Model> ModelDrawer;
+    typedef nvl::PolylineMesh3d PolylineMesh;
+    typedef nvl::PolylineMeshDrawer<PolylineMesh> PolylineMeshDrawer;
+    typedef SkinMixerGraph<Model> Graph;
+    typedef Graph::Node SkinMixerNode;
+    typedef Graph::OperationType OperationType;
+
 public:
 
     explicit SkinMixerManager(nvl::Canvas* canvas = nullptr, QWidget *parent = nullptr);
     ~SkinMixerManager();
 
-    void loadModelFromFile(const std::string& filename);
+    Model* loadModelFromFile(const std::string& filename);
+
+    Index addModelFromNode(const Index& nodeId, const std::string& name);
+    Index addModelFromNode(SkinMixerNode& node, const std::string& name);
 
 public Q_SLOTS:
 
@@ -47,7 +61,7 @@ private slots:
 
 private:
 
-    void detachBySkeletonWeights();
+    void doDetach();
     void updateDetachPreview();
     void clearDetachPreview();
 
@@ -64,18 +78,20 @@ private:
 
     nvl::Canvas* vCanvas;
 
-    std::vector<nvl::Model3d*> vModels;
-    std::vector<nvl::ModelDrawer<nvl::Model3d>*> vModelDrawers;
+    Graph skinMixerGraph;
 
-    nvl::ModelDrawer<nvl::Model3d>* vSelectedModelDrawer;
-    nvl::Index vSelectedJointId;
+    std::vector<Model*> vModels;
+    std::vector<ModelDrawer*> vModelDrawers;
+
+    nvl::ModelDrawer<Model>* vSelectedModelDrawer;
+    Index vSelectedJointId;
 
 //    std::vector<int> vPreviewFaceSegmentation;
 //    std::vector<int> vPreviewJointSegmentation;
 
     bool detachPreview;
-    nvl::PolylineMesh3d detachPreviewMesh;
-    nvl::PolylineMeshDrawer<nvl::PolylineMesh3d> detachPreviewDrawer;
+    PolylineMesh detachPreviewMesh;
+    PolylineMeshDrawer detachPreviewDrawer;
 
 };
 

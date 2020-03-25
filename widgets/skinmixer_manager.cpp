@@ -9,7 +9,7 @@
 #include <nvl/models/mesh_normals.h>
 #include <nvl/models/model_transformations.h>
 
-#include "algorithms/detach.h"
+#include "skinmixer/detach.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -28,8 +28,8 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
 {
     ui->setupUi(this);
 
-    detachPreviewDrawer.setPolylineColorMode(nvl::PolylineMeshDrawer<nvl::PolylineMesh3d>::POLYLINE_COLOR_UNIFORM);
-    detachPreviewDrawer.setPolylineShapeMode(nvl::PolylineMeshDrawer<nvl::PolylineMesh3d>::POLYLINE_SHAPE_LINE);
+    detachPreviewDrawer.setPolylineColorMode(PolylineMeshDrawer::POLYLINE_COLOR_UNIFORM);
+    detachPreviewDrawer.setPolylineShapeMode(PolylineMeshDrawer::POLYLINE_SHAPE_LINE);
     detachPreviewDrawer.setPolylineUniformColor(nvl::Color(200, 50, 50));
     detachPreviewDrawer.setPolylineSize(10);
 
@@ -38,10 +38,7 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
 }
 
 SkinMixerManager::~SkinMixerManager()
-{    
-    typedef nvl::Model3d Model;
-    typedef nvl::ModelDrawer<Model> ModelDrawer;
-
+{
     for (Model*& model : vModels) {
         if (model != nullptr) {
             delete model;
@@ -66,7 +63,7 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
     if (vSelectedModelDrawer != nullptr) {
         const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
         if (selectionData.size() == 1) {
-            vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+            vSelectedJointId = static_cast<Index>(*selectionData.begin());
         }
 
         updateSkinningWeightVertexValues();
@@ -81,17 +78,14 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
 
 void SkinMixerManager::slot_drawableSelectionChanged()
 {
-    typedef nvl::Model3d Model;
-    typedef nvl::ModelDrawer<Model> ModelDrawer;
-
     clearDetachPreview();
 
     vSelectedModelDrawer = nullptr;
     vSelectedJointId = nvl::MAX_ID;
 
-    const std::unordered_set<nvl::Index>& selectedItems = vCanvas->selectedDrawables();
+    const std::unordered_set<Index>& selectedItems = vCanvas->selectedDrawables();
     if (selectedItems.size() == 1) {
-        nvl::Index firstItem = *selectedItems.begin();
+        Index firstItem = *selectedItems.begin();
         nvl::Drawable* drawable = vCanvas->drawable(firstItem);
 
         ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(drawable);
@@ -100,7 +94,7 @@ void SkinMixerManager::slot_drawableSelectionChanged()
 
             const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
             if (selectionData.size() == 1) {
-                vSelectedJointId = static_cast<nvl::Index>(*selectionData.begin());
+                vSelectedJointId = static_cast<Index>(*selectionData.begin());
             }
         }
 
@@ -117,7 +111,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     nvl::Quaterniond rot(vCanvas->movableFrame().rotation());
     nvl::Translation3d tra(vCanvas->movableFrame().translation());
 
-    for (nvl::Index id : vCanvas->selectedDrawables()) {
+    for (Index id : vCanvas->selectedDrawables()) {
         if (vCanvas->isFrameable(id)) {
             nvl::Frameable* frameable = vCanvas->frameable(id);
             nvl::Drawable* drawable = vCanvas->drawable(id);
@@ -151,11 +145,8 @@ void SkinMixerManager::slot_movableFrameChanged()
     vCanvas->setMovableFrame(nvl::Affine3d::Identity());
 }
 
-void SkinMixerManager::detachBySkeletonWeights()
+void SkinMixerManager::doDetach()
 {
-    typedef nvl::Model3d Model;
-    typedef nvl::ModelDrawer<Model> ModelDrawer;
-
     typedef Model::Mesh::Point Point;
 
     if (vSelectedModelDrawer == nullptr || vSelectedJointId == nvl::MAX_ID) {
@@ -169,53 +160,43 @@ void SkinMixerManager::detachBySkeletonWeights()
     std::vector<nvl::Segment<Point>> functionSegments;
 
     nvl::Timer t("Detaching timer");
-    std::vector<Model> detachResult =
-            skinmixer::detachBySkinningWeightFunction(
-                *vSelectedModelDrawer->model(),
+    std::vector<Index> newNodes =
+            skinmixer::detach(
+                skinMixerGraph,
+                vSelectedModelDrawer->model(),
                 vSelectedJointId,
                 ui->detachingOffsetSpinBox->value(),
                 ui->detachingKeepSkeletonCheckBox->isChecked(),
-                ui->detachingSmoothCheckBox->isChecked(),
-                functionSegments,
-                vertexMaps,
-                faceMaps,
-                jointMaps);
+                ui->detachingSmoothCheckBox->isChecked());
     t.print();
 
-    for (Model result : detachResult) {
-        Model* newModel = new Model(result);
-        nvl::meshUpdateFaceNormals(newModel->mesh);
-        nvl::meshUpdateVertexNormals(newModel->mesh);
+    if (!newNodes.empty()) {
+        for (Index newNode : newNodes) {
+            Index id = addModelFromNode(newNode, "Detaching " + std::to_string(newNode));
+            vModelDrawers[id]->setFrame(vSelectedModelDrawer->frame());
+        }
 
-        ModelDrawer* newModelDrawer = new ModelDrawer(newModel);
-        newModelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
-        newModelDrawer->meshDrawer().setWireframeVisible(true);
-        newModelDrawer->setFrame(vSelectedModelDrawer->frame());
+        vCanvas->removeDrawable(vSelectedModelDrawer);
+        vCanvas->select(vCanvas->drawableNumber() - 1);
 
-        vModels.push_back(newModel);
-        vModelDrawers.push_back(newModelDrawer);
+        clearDetachPreview();
 
-        vCanvas->addDrawable(newModelDrawer, "Result");
+        vCanvas->updateGL();
     }
-
-    vSelectedModelDrawer->setVisible(false);
-    vCanvas->notifySelectedDrawableUpdated();
-
-    clearDetachPreview();
-
-    vCanvas->updateGL();
+    else {
+        QMessageBox::warning(this, tr("SkinMixer"), tr("Error detaching the model! Probably you have selected a root or a final joint."));
+    }
 }
 
 void SkinMixerManager::updateDetachPreview()
 {
+    typedef Model::Mesh::Point Point;
+    typedef PolylineMesh::VertexId PolylineVertexId;
+
     if (detachPreview) {
         clearDetachPreview();
     }
 
-    typedef nvl::Model3d Model;
-    typedef Model::Mesh::Point Point;
-
-    typedef nvl::PolylineMesh3d::VertexId PolylineVertexId;
 
     if (vSelectedModelDrawer == nullptr || vSelectedJointId == nvl::MAX_ID) {
         return;
@@ -225,19 +206,12 @@ void SkinMixerManager::updateDetachPreview()
     std::vector<std::vector<Model::Mesh::FaceId>> birthFace;
     std::vector<std::vector<Model::Skeleton::JointId>> birthJoint;
 
-    std::vector<nvl::Segment<Point>> functionSegments;
-
-    std::vector<Model> detachResult =
-            skinmixer::detachBySkinningWeightFunction(
+    std::vector<nvl::Segment<Point>> functionSegments =
+            skinmixer::detachPreview(
                 *vSelectedModelDrawer->model(),
                 vSelectedJointId,
                 ui->detachingOffsetSpinBox->value(),
-                ui->detachingKeepSkeletonCheckBox->isChecked(),
-                ui->detachingSmoothCheckBox->isChecked(),
-                functionSegments,
-                birthVertex,
-                birthFace,
-                birthJoint);
+                ui->detachingSmoothCheckBox->isChecked());
 
     detachPreviewMesh.clear();
 
@@ -258,6 +232,8 @@ void SkinMixerManager::updateDetachPreview()
         assert(polylineVerticesMap.find(segment.p2()) != polylineVerticesMap.end());
         detachPreviewMesh.addPolyline(polylineVerticesMap.at(segment.p1()), polylineVerticesMap.at(segment.p2()));
     }
+
+    detachPreviewDrawer.setFrame(vSelectedModelDrawer->frame());
 
     detachPreviewDrawer.update();
 
@@ -300,7 +276,6 @@ void SkinMixerManager::updateView()
 
 void SkinMixerManager::moveModelInPosition()
 {
-    typedef nvl::Model3d Model;
     if (vSelectedModelDrawer == nullptr) {
         return;
     }
@@ -318,35 +293,50 @@ void SkinMixerManager::moveModelInPosition()
     vCanvas->updateGL();
 }
 
-void SkinMixerManager::loadModelFromFile(const std::string& filename)
+SkinMixerManager::Model* SkinMixerManager::loadModelFromFile(const std::string& filename)
 {
     if (filename.empty())
-        return;
-
-    typedef nvl::Model3d Model;
-    typedef nvl::ModelDrawer<Model> ModelDrawer;
+        return nullptr;
 
     Model* model = new Model();
 
     bool success = nvl::modelLoadFromFile(filename, *model);
 
     if (success) {
-        nvl::meshUpdateFaceNormals(model->mesh);
-        nvl::meshUpdateVertexNormals(model->mesh);
+        Index nodeId = skinMixerGraph.addNode(model, OperationType::NONE);
 
-        ModelDrawer* modelDrawer = new ModelDrawer(model);
-        modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
-        modelDrawer->meshDrawer().setWireframeVisible(true);
+        addModelFromNode(nodeId, filename);
 
-        vModels.push_back(model);
-        vModelDrawers.push_back(modelDrawer);
-
-        nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(filename);
-        vCanvas->addDrawable(modelDrawer, fileInfo.file);
+        return model;
     }
     else {
         QMessageBox::warning(this, tr("SkinMixer"), tr("Error loading model!"));
+        return nullptr;
     }
+}
+
+SkinMixerManager::Index SkinMixerManager::addModelFromNode(const Index& nodeId, const std::string& name)
+{
+    return addModelFromNode(skinMixerGraph.node(nodeId), name);
+}
+
+SkinMixerManager::Index SkinMixerManager::addModelFromNode(SkinMixerNode& node, const std::string& name)
+{
+    Model* model = node.model;
+
+    nvl::meshUpdateFaceNormals(model->mesh);
+    nvl::meshUpdateVertexNormals(model->mesh);
+    vModels.push_back(model);
+
+    ModelDrawer* modelDrawer = new ModelDrawer(model);
+    modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
+    modelDrawer->meshDrawer().setWireframeVisible(true);
+    vModelDrawers.push_back(modelDrawer);
+
+    nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(name);
+    vCanvas->addDrawable(modelDrawer, fileInfo.file);
+
+    return vModels.size() - 1;
 }
 
 void SkinMixerManager::updateSkinningWeightVertexValues()
@@ -440,7 +430,7 @@ void SkinMixerManager::on_detachingSmoothCheckBox_stateChanged(int arg1)
 
 void SkinMixerManager::on_detachingDetachButton_clicked()
 {
-    detachBySkeletonWeights();
+    doDetach();
 }
 
 void SkinMixerManager::on_attachingMoveButton_clicked()

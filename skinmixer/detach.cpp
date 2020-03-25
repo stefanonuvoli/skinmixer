@@ -19,25 +19,35 @@
 namespace skinmixer {
 
 template<class Model>
-std::vector<Model> detachBySkinningWeightFunction(
-        const Model& model,
+std::vector<nvl::Index> detach(
+        SkinMixerGraph<Model>& skinMixerGraph,
+        const nvl::Index& nodeId,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
         const bool keepEntireSkeleton,
-        const bool smooth,
-        std::vector<nvl::Segment<typename Model::Mesh::Point>>& curveCoordinates,
-        std::vector<std::vector<typename Model::Mesh::VertexId>>& birthVertex,
-        std::vector<std::vector<typename Model::Mesh::FaceId>>& birthFace,
-        std::vector<std::vector<typename Model::Skeleton::JointId>>& birthJoint)
+        const bool smooth)
 {
+    typedef SkinMixerNode<Model> Node;
+    typedef nvl::Index Index;
     typedef typename Model::Mesh Mesh;
+    typedef typename Model::Skeleton Skeleton;
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::FaceId FaceId;
+    typedef typename Skeleton::JointId JointId;
+
+    std::vector<nvl::Index> newNodes;
 
     Mesh resultMesh;
+    std::vector<nvl::Segment<typename Model::Mesh::Point>> curveCoordinates;
+
     std::vector<int> faceSegmentation;
     std::vector<int> jointSegmentation;
 
-    return detachBySkinningWeightFunction(
-                model,
+    std::vector<std::vector<VertexId>> birthVertex;
+    std::vector<std::vector<FaceId>> birthFace;
+    std::vector<std::vector<JointId>> birthJoint;
+    std::vector<Model> models = detachModel(
+                *(skinMixerGraph.node(nodeId).model),
                 targetJoint,
                 offset,
                 keepEntireSkeleton,
@@ -49,10 +59,40 @@ std::vector<Model> detachBySkinningWeightFunction(
                 resultMesh,
                 faceSegmentation,
                 jointSegmentation);
+
+    for (Index i = 0; i < models.size(); i++) {
+        const Model& model = models[i];
+        Node node(new Model(model), Node::OperationType::DETACH);
+        node.parents.push_back(nodeId);
+
+        node.birthVertex = birthVertex[i];
+        node.birthFace = birthFace[i];
+        node.birthJoint = birthJoint[i];
+
+        node.birthVertexParent = std::vector<Index>(birthVertex.size(), 0);
+        node.birthFaceParent = std::vector<Index>(birthFace.size(), 0);
+        node.birthJointParent = std::vector<Index>(birthJoint.size(), 0);
+
+        newNodes.push_back(skinMixerGraph.addNode(node));
+    }
+
+    return newNodes;
 }
 
 template<class Model>
-std::vector<Model> detachBySkinningWeightFunction(
+std::vector<nvl::Index> detach(
+        SkinMixerGraph<Model>& skinMixerGraph,
+        Model* model,
+        const typename Model::Skeleton::JointId& targetJoint,
+        const double offset,
+        const bool keepEntireSkeleton,
+        const bool smooth)
+{
+    return detach(skinMixerGraph, skinMixerGraph.getIdByModel(model), targetJoint, offset, keepEntireSkeleton, smooth);
+}
+
+template<class Model>
+std::vector<Model> detachModel(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
@@ -62,7 +102,7 @@ std::vector<Model> detachBySkinningWeightFunction(
         std::vector<std::vector<typename Model::Mesh::VertexId>>& birthVertex,
         std::vector<std::vector<typename Model::Mesh::FaceId>>& birthFace,
         std::vector<std::vector<typename Model::Skeleton::JointId>>& birthJoint,
-        typename Model::Mesh& newMesh,
+        typename Model::Mesh& resultMesh,
         std::vector<int>& faceSegmentation,
         std::vector<int>& jointSegmentation)
 {
@@ -75,6 +115,7 @@ std::vector<Model> detachBySkinningWeightFunction(
     typedef typename Skeleton::JointId JointId;
     typedef typename Model::SkinningWeights SkinningWeights;
     typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
+    typedef typename nvl::Segment<typename Mesh::Point> Segment;
 
     const SkinningWeightsScalar rigidityLimit = 0.7;
 
@@ -82,37 +123,10 @@ std::vector<Model> detachBySkinningWeightFunction(
 
     const Mesh& mesh = model.mesh;
     const Skeleton& skeleton = model.skeleton;
-    const SkinningWeights& skinningWeights = model.skinningWeights;
 
     std::vector<JointId> descendandJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
 
-    std::vector<SkinningWeightsScalar> vertexFunction(mesh.vertexNumber(), nvl::maxLimitValue<SkinningWeightsScalar>());
-
-    //Create function
-    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
-        if (mesh.isVertexDeleted(vId))
-            continue;
-
-        vertexFunction[vId] = skinningWeights.weight(vId, targetJoint) - 0.5 + offset;
-    }
-    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
-        if (mesh.isVertexDeleted(vId))
-            continue;
-
-        for (JointId jId : descendandJoints) {
-            vertexFunction[vId] += skinningWeights.weight(vId, jId);
-        }
-    }
-    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
-        if (mesh.isVertexDeleted(vId))
-            continue;
-
-        vertexFunction[vId] = std::min(std::max(vertexFunction[vId] * 2.0, -1.0), 1.0);
-    }
-
-    //Smooth function? Not useful!
-//    std::vector<std::vector<VertexId>> vvAdj = nvl::meshVertexVertexAdjacencies(mesh);
-//    nvl::laplacianSmoothing(vertexFunction, vvAdj, 10, 0.8);
+    std::vector<SkinningWeightsScalar> vertexFunction = getDetachingVertexFunction(model, targetJoint, descendandJoints, offset);
 
     std::vector<std::vector<FaceId>> ffAdj = nvl::meshFaceFaceAdjacencies(mesh);
 
@@ -126,7 +140,7 @@ std::vector<Model> detachBySkinningWeightFunction(
     std::vector<FaceId> resultBirthFace;
 
     //Copy vertices
-    nvl::meshTransferVertices(mesh, newMesh, resultBirthVertex);
+    nvl::meshTransferVertices(mesh, resultMesh, resultBirthVertex);
     std::vector<VertexId> resultVertexMap = nvl::getInverseMap(resultBirthVertex);
 
     std::vector<std::pair<VertexId, VertexId>> curveVertices;
@@ -156,16 +170,17 @@ std::vector<Model> detachBySkinningWeightFunction(
         std::vector<VertexId> refineBirthVertex;
         std::vector<FaceId> refineBirthFace;
         std::vector<std::pair<VertexId, VertexId>> refineCurveVertices;
+        std::vector<nvl::Segment<typename Model::Mesh::Point>> refineCurveCoordinates;
 
         //Refine if rigid component
         if (minFunction <= -rigidityLimit && maxFunction >= rigidityLimit) {
             if (smooth) {
                 std::vector<nvl::Segment<typename Model::Mesh::Point>> functionCoordinates;
                 nvl::meshImplicitFunction(componentMesh, componentFunction, functionCoordinates);
-                nvl::curveOnManifold(componentMesh, functionCoordinates, refinedMesh, curveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace, 40, 20, 0.05, false, false);
+                nvl::curveOnManifold(componentMesh, functionCoordinates, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace, 40, 20, 0.05, false, false);
             }
             else {
-                nvl::refineByImplicitFunction(componentMesh, componentFunction, refinedMesh, curveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace);
+                nvl::refineByImplicitFunction(componentMesh, componentFunction, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace);
             }
         }
         //Non rigid function
@@ -198,7 +213,7 @@ std::vector<Model> detachBySkinningWeightFunction(
             const Vertex& vertex = refinedMesh.vertex(vId);
 
             if (currentBirthVertex[vId] == nvl::MAX_ID) {
-                VertexId newVId = newMesh.addVertex(vertex);
+                VertexId newVId = resultMesh.addVertex(vertex);
 
                 vertexMap[vId] = newVId;
 
@@ -227,7 +242,7 @@ std::vector<Model> detachBySkinningWeightFunction(
                 newVertices[j] = vId;
             }
 
-            FaceId newFId = newMesh.addFace(newVertices);
+            FaceId newFId = resultMesh.addFace(newVertices);
 
             assert(resultBirthFace.size() == newFId);
             resultBirthFace.push_back(currentBirthFace[fId]);
@@ -241,6 +256,9 @@ std::vector<Model> detachBySkinningWeightFunction(
                                 vertexMap[vertices.first],
                                 vertexMap[vertices.second]));
             }
+            for (Segment& segment : refineCurveCoordinates) {
+                curveCoordinates.push_back(segment);
+            }
         }
     }
 
@@ -251,9 +269,9 @@ std::vector<Model> detachBySkinningWeightFunction(
             jointSegmentation[jId] = 1;
         }
 
-        std::vector<std::vector<FaceId>> ffAdj = nvl::meshFaceFaceAdjacencies(newMesh);
+        std::vector<std::vector<FaceId>> ffAdj = nvl::meshFaceFaceAdjacencies(resultMesh);
 
-        faceSegmentation.resize(newMesh.nextFaceId(), -1);
+        faceSegmentation.resize(resultMesh.nextFaceId(), -1);
 
         std::set<std::pair<VertexId, VertexId>> detachingVerticesSet(curveVertices.begin(), curveVertices.end());
         bool segmentationDone;
@@ -263,14 +281,14 @@ std::vector<Model> detachBySkinningWeightFunction(
             size_t maxFId = nvl::MAX_ID;
             size_t minFId = nvl::MAX_ID;
             double maxFunction = nvl::minLimitValue<SkinningWeightsScalar>();
-            for (FaceId i = 0; i < newMesh.nextFaceId(); ++i) {
-                if (newMesh.isFaceDeleted(i))
+            for (FaceId i = 0; i < resultMesh.nextFaceId(); ++i) {
+                if (resultMesh.isFaceDeleted(i))
                     continue;
 
                 if (faceSegmentation[i] == -1) {
                     segmentationDone = false;
 
-                    const Face& face = newMesh.face(i);
+                    const Face& face = resultMesh.face(i);
 
                     double functionSum = 0;
                     for (FaceId j = 0; j < face.vertexNumber(); ++j) {
@@ -313,7 +331,7 @@ std::vector<Model> detachBySkinningWeightFunction(
                 std::stack<FaceId> stack;
                 stack.push(currentFaceId);
 
-                std::vector<bool> visited(newMesh.nextFaceId(), false);
+                std::vector<bool> visited(resultMesh.nextFaceId(), false);
                 while (!stack.empty()) {
                     FaceId fId = stack.top();
                     stack.pop();
@@ -326,14 +344,14 @@ std::vector<Model> detachBySkinningWeightFunction(
                     assert(faceSegmentation[fId] == label || faceSegmentation[fId] == -1);
                     faceSegmentation[fId] = label;
 
-                    const Face& face = newMesh.face(fId);
+                    const Face& face = resultMesh.face(fId);
 
                     std::vector<VertexId> faceVertices = face.vertexIds();
                     std::sort(faceVertices.begin(), faceVertices.end());
 
                     std::vector<FaceId>& adjacentFaces = ffAdj[fId];
                     for (FaceId adjId : adjacentFaces) {
-                        const Face& adjFace = newMesh.face(adjId);
+                        const Face& adjFace = resultMesh.face(adjId);
 
                         std::vector<VertexId> adjVertices = adjFace.vertexIds();
                         std::sort(adjVertices.begin(), adjVertices.end());
@@ -358,8 +376,8 @@ std::vector<Model> detachBySkinningWeightFunction(
 
         for (int l = 0; l <= 1; ++l) {
             std::vector<FaceId> faces;
-            for (FaceId fId = 0; fId < newMesh.nextFaceId(); ++fId) {
-                if (newMesh.isFaceDeleted(fId))
+            for (FaceId fId = 0; fId < resultMesh.nextFaceId(); ++fId) {
+                if (resultMesh.isFaceDeleted(fId))
                     continue;
 
                 if (faceSegmentation[fId] == l) {
@@ -384,7 +402,7 @@ std::vector<Model> detachBySkinningWeightFunction(
                 std::vector<JointId> currentBirthJoint;
 
                 Model newModel;
-                nvl::meshTransferFaces(newMesh, faces, newModel.mesh, currentBirthVertex, currentBirthFace);
+                nvl::meshTransferFaces(resultMesh, faces, newModel.mesh, currentBirthVertex, currentBirthFace);
 
                 for (VertexId& vId : currentBirthVertex) {
                     if (vId != nvl::MAX_ID) {
@@ -410,6 +428,143 @@ std::vector<Model> detachBySkinningWeightFunction(
     }
 
     return result;
+}
+
+
+template<class Model>
+std::vector<nvl::Segment<typename Model::Mesh::Point>> detachPreview(
+        const Model& model,
+        const typename Model::Skeleton::JointId& targetJoint,
+        const double offset,
+        const bool smooth)
+{
+    typedef typename Model::Mesh Mesh;
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::FaceId FaceId;
+    typedef typename Model::Skeleton Skeleton;
+    typedef typename Skeleton::JointId JointId;
+    typedef typename Model::SkinningWeights SkinningWeights;
+    typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
+    typedef typename nvl::Segment<typename Mesh::Point> Segment;
+
+    std::vector<nvl::Segment<typename Model::Mesh::Point>> curveCoordinates;
+
+    const SkinningWeightsScalar rigidityLimit = 0.7;
+
+    std::vector<Model> result;
+
+    const Mesh& mesh = model.mesh;
+    const Skeleton& skeleton = model.skeleton;
+
+    std::vector<JointId> descendandJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
+
+    std::vector<SkinningWeightsScalar> vertexFunction = getDetachingVertexFunction(model, targetJoint, descendandJoints, offset);
+
+    std::vector<std::vector<FaceId>> ffAdj = nvl::meshFaceFaceAdjacencies(mesh);
+
+    std::vector<FaceId> faceComponentMap;
+    std::vector<std::vector<FaceId>> connectedComponents = nvl::meshConnectedComponents(mesh, ffAdj, faceComponentMap);
+
+    //Copy vertices
+    std::vector<std::pair<VertexId, VertexId>> curveVertices;
+    for (const std::vector<FaceId>& componentFaces : connectedComponents) {
+        //Create connected component mesh
+        Mesh componentMesh;
+        std::vector<VertexId> transferBirthVertex;
+        std::vector<FaceId> transferBirthFace;
+        nvl::meshTransferFaces(mesh, componentFaces, componentMesh, transferBirthVertex, transferBirthFace);
+
+        //Transfer the function
+        SkinningWeightsScalar minFunction = nvl::maxLimitValue<SkinningWeightsScalar>();
+        SkinningWeightsScalar maxFunction = nvl::minLimitValue<SkinningWeightsScalar>();
+        std::vector<SkinningWeightsScalar> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<SkinningWeightsScalar>());
+        for (VertexId vId = 0; vId < componentMesh.nextVertexId(); ++vId) {
+            if (componentMesh.isVertexDeleted(vId))
+                continue;
+
+            assert(transferBirthVertex[vId] != nvl::MAX_ID);
+            componentFunction[vId] = vertexFunction[transferBirthVertex[vId]];
+            minFunction = nvl::min(minFunction, componentFunction[vId]);
+            maxFunction = nvl::max(maxFunction, componentFunction[vId]);
+        }
+
+        std::vector<nvl::Segment<typename Model::Mesh::Point>> refineCurveCoordinates;
+
+        //If rigid component
+        if (minFunction <= -rigidityLimit && maxFunction >= rigidityLimit) {
+            Mesh refinedMesh;
+            std::vector<VertexId> refineBirthVertex;
+            std::vector<FaceId> refineBirthFace;
+            std::vector<std::pair<VertexId, VertexId>> refineCurveVertices;
+            if (smooth) {
+                std::vector<nvl::Segment<typename Model::Mesh::Point>> functionCoordinates;
+                nvl::meshImplicitFunction(componentMesh, componentFunction, functionCoordinates);
+                nvl::curveOnManifold(componentMesh, functionCoordinates, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace, 40, 20, 0.05, false, false);
+            }
+            else {
+                nvl::refineByImplicitFunction(componentMesh, componentFunction, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace);
+            }
+        }
+
+        if (refineCurveCoordinates.size() >= 3) {
+            for (Segment& segment : refineCurveCoordinates) {
+                curveCoordinates.push_back(segment);
+            }
+        }
+    }
+
+    return curveCoordinates;
+}
+
+
+template<class Model>
+std::vector<typename Model::SkinningWeights::Scalar> getDetachingVertexFunction(
+        const Model& model,
+        const typename Model::Skeleton::JointId& targetJoint,
+        const std::vector<typename Model::Skeleton::JointId>& descendandJoints,
+        const double offset)
+{
+    typedef typename Model::Mesh Mesh;
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Model::Skeleton Skeleton;
+    typedef typename Skeleton::JointId JointId;
+    typedef typename Model::SkinningWeights SkinningWeights;
+    typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
+
+
+    const Mesh& mesh = model.mesh;
+    const SkinningWeights& skinningWeights = model.skinningWeights;
+
+    std::vector<SkinningWeightsScalar> vertexFunction(mesh.vertexNumber(), nvl::maxLimitValue<SkinningWeightsScalar>());
+
+    //Create function
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        vertexFunction[vId] = skinningWeights.weight(vId, targetJoint) - 0.5 + offset;
+    }
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        for (JointId jId : descendandJoints) {
+            vertexFunction[vId] += skinningWeights.weight(vId, jId);
+        }
+    }
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        vertexFunction[vId] = std::min(std::max(vertexFunction[vId] * 2.0, -1.0), 1.0);
+    }
+
+
+    //Smooth function? Not useful!
+//    std::vector<std::vector<VertexId>> vvAdj = nvl::meshVertexVertexAdjacencies(mesh);
+//    nvl::laplacianSmoothing(vertexFunction, vvAdj, 10, 0.8);
+
+    return vertexFunction;
 }
 
 }

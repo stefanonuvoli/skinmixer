@@ -1,0 +1,6 @@
+#include "operation_graph.h"
+
+OperationGraphNode::OperationGraphNode()
+{
+
+}
