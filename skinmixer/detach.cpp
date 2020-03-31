@@ -1,7 +1,5 @@
 #include "detach.h"
 
-#include <limits>
-
 #include <nvl/models/mesh_transfer.h>
 #include <nvl/models/skeleton_transfer.h>
 #include <nvl/models/model_transfer.h>
@@ -16,6 +14,8 @@
 #include <nvl/math/laplacian.h>
 #include <nvl/math/numeric_limits.h>
 
+#include "skinmixer/blend_weights.h"
+
 namespace skinmixer {
 
 template<class Model>
@@ -24,6 +24,7 @@ std::vector<nvl::Index> detach(
         const nvl::Index& nodeId,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool keepEntireSkeleton,
         const bool smooth)
 {
@@ -50,6 +51,7 @@ std::vector<nvl::Index> detach(
                 *(skinMixerGraph.node(nodeId).model),
                 targetJoint,
                 offset,
+                rigidity,
                 keepEntireSkeleton,
                 smooth,
                 curveCoordinates,
@@ -62,18 +64,27 @@ std::vector<nvl::Index> detach(
 
     for (Index i = 0; i < models.size(); i++) {
         const Model& model = models[i];
-        Node node(new Model(model), Node::OperationType::DETACH);
+
+        Node node;
+        node.model = new Model(model);
+        node.operation = Node::OperationType::DETACH;
+
         node.parents.push_back(nodeId);
 
         node.birthVertex = birthVertex[i];
         node.birthFace = birthFace[i];
         node.birthJoint = birthJoint[i];
 
-        node.birthVertexParent = std::vector<Index>(birthVertex.size(), 0);
-        node.birthFaceParent = std::vector<Index>(birthFace.size(), 0);
-        node.birthJointParent = std::vector<Index>(birthJoint.size(), 0);
+        node.birthVertexParentNodeId = std::vector<Index>(node.birthVertex.size(), 0);
+        node.birthFaceParentNodeId = std::vector<Index>(node.birthFace.size(), 0);
+        node.birthJointParentNodeId = std::vector<Index>(node.birthJoint.size(), 0);
 
-        newNodes.push_back(skinMixerGraph.addNode(node));
+        node.detachingJointId = targetJoint;
+
+        size_t newNodeId = skinMixerGraph.addNode(node);
+        newNodes.push_back(newNodeId);
+
+        blendSkinningWeights(skinMixerGraph, newNodeId);
     }
 
     return newNodes;
@@ -85,10 +96,11 @@ std::vector<nvl::Index> detach(
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool keepEntireSkeleton,
         const bool smooth)
 {
-    return detach(skinMixerGraph, skinMixerGraph.getIdByModel(model), targetJoint, offset, keepEntireSkeleton, smooth);
+    return detach(skinMixerGraph, skinMixerGraph.getIdByModel(model), targetJoint, offset, rigidity, keepEntireSkeleton, smooth);
 }
 
 template<class Model>
@@ -96,6 +108,7 @@ std::vector<Model> detachModel(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool keepEntireSkeleton,
         const bool smooth,
         std::vector<nvl::Segment<typename Model::Mesh::Point>>& curveCoordinates,
@@ -116,8 +129,6 @@ std::vector<Model> detachModel(
     typedef typename Model::SkinningWeights SkinningWeights;
     typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
     typedef typename nvl::Segment<typename Mesh::Point> Segment;
-
-    const SkinningWeightsScalar rigidityLimit = 0.7;
 
     std::vector<Model> result;
 
@@ -172,8 +183,8 @@ std::vector<Model> detachModel(
         std::vector<std::pair<VertexId, VertexId>> refineCurveVertices;
         std::vector<nvl::Segment<typename Model::Mesh::Point>> refineCurveCoordinates;
 
-        //Refine if rigid component
-        if (minFunction <= -rigidityLimit && maxFunction >= rigidityLimit) {
+        //If rigid component
+        if (minFunction - offset <= -rigidity + nvl::EPSILON && maxFunction - offset >= rigidity - nvl::EPSILON) {
             if (smooth) {
                 std::vector<nvl::Segment<typename Model::Mesh::Point>> functionCoordinates;
                 nvl::meshImplicitFunction(componentMesh, componentFunction, functionCoordinates);
@@ -436,6 +447,7 @@ std::vector<nvl::Segment<typename Model::Mesh::Point>> detachPreview(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool smooth)
 {
     typedef typename Model::Mesh Mesh;
@@ -448,8 +460,6 @@ std::vector<nvl::Segment<typename Model::Mesh::Point>> detachPreview(
     typedef typename nvl::Segment<typename Mesh::Point> Segment;
 
     std::vector<nvl::Segment<typename Model::Mesh::Point>> curveCoordinates;
-
-    const SkinningWeightsScalar rigidityLimit = 0.7;
 
     std::vector<Model> result;
 
@@ -491,7 +501,7 @@ std::vector<nvl::Segment<typename Model::Mesh::Point>> detachPreview(
         std::vector<nvl::Segment<typename Model::Mesh::Point>> refineCurveCoordinates;
 
         //If rigid component
-        if (minFunction <= -rigidityLimit && maxFunction >= rigidityLimit) {
+        if (minFunction - offset <= -rigidity + nvl::EPSILON && maxFunction - offset >= rigidity - nvl::EPSILON) {
             Mesh refinedMesh;
             std::vector<VertexId> refineBirthVertex;
             std::vector<FaceId> refineBirthFace;
@@ -499,7 +509,7 @@ std::vector<nvl::Segment<typename Model::Mesh::Point>> detachPreview(
             if (smooth) {
                 std::vector<nvl::Segment<typename Model::Mesh::Point>> functionCoordinates;
                 nvl::meshImplicitFunction(componentMesh, componentFunction, functionCoordinates);
-                nvl::curveOnManifold(componentMesh, functionCoordinates, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace, 40, 20, 0.05, false, false);
+                nvl::curveOnManifold(componentMesh, functionCoordinates, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace, 15, 10, 0.05, false, false);
             }
             else {
                 nvl::refineByImplicitFunction(componentMesh, componentFunction, refinedMesh, refineCurveCoordinates, refineCurveVertices, refineBirthVertex, refineBirthFace);
@@ -542,7 +552,7 @@ std::vector<typename Model::SkinningWeights::Scalar> getDetachingVertexFunction(
         if (mesh.isVertexDeleted(vId))
             continue;
 
-        vertexFunction[vId] = skinningWeights.weight(vId, targetJoint) - 0.5 + offset;
+        vertexFunction[vId] = skinningWeights.weight(vId, targetJoint) - 0.5;
     }
     for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
         if (mesh.isVertexDeleted(vId))
@@ -552,17 +562,17 @@ std::vector<typename Model::SkinningWeights::Scalar> getDetachingVertexFunction(
             vertexFunction[vId] += skinningWeights.weight(vId, jId);
         }
     }
+
+    //Smooth function
+    std::vector<std::vector<VertexId>> vvAdj = nvl::meshVertexVertexAdjacencies(mesh);
+    nvl::laplacianSmoothing(vertexFunction, vvAdj, 10, 0.8);
+
     for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
         if (mesh.isVertexDeleted(vId))
             continue;
 
-        vertexFunction[vId] = std::min(std::max(vertexFunction[vId] * 2.0, -1.0), 1.0);
+        vertexFunction[vId] = std::min(std::max(vertexFunction[vId] * 2.0, -1.0), 1.0) + offset;
     }
-
-
-    //Smooth function? Not useful!
-//    std::vector<std::vector<VertexId>> vvAdj = nvl::meshVertexVertexAdjacencies(mesh);
-//    nvl::laplacianSmoothing(vertexFunction, vvAdj, 10, 0.8);
 
     return vertexFunction;
 }

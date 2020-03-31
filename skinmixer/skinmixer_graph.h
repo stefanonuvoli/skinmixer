@@ -21,9 +21,10 @@ public:
     typedef typename Node::OperationType OperationType;
 
     SkinMixerGraph();
+    ~SkinMixerGraph();
 
     Index addNode(const Node& node);
-    Index addNode(Model* model, OperationType operation = OperationType::NONE);
+    Index addNode(Model& model, OperationType operation = OperationType::NONE);
 
     Node& node(Index id);
     const Node& node(Index id) const;
@@ -31,6 +32,9 @@ public:
     const Node& node(Model* model) const;
 
     const Index& getIdByModel(Model* model) const;
+
+    void clear();
+
 
 private:
 

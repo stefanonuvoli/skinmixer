@@ -3,8 +3,6 @@
 
 #include <nvl/math/segment.h>
 
-#include <nvl/utilities/dummy_variables.h>
-
 #include <vector>
 
 #include "skinmixer/skinmixer_graph.h"
@@ -17,6 +15,7 @@ std::vector<nvl::Index> detach(
         const nvl::Index& nodeId,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool keepEntireSkeleton,
         const bool smooth);
 
@@ -26,6 +25,7 @@ std::vector<nvl::Index> detach(
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool keepEntireSkeleton,
         const bool smooth);
 
@@ -34,6 +34,7 @@ std::vector<Model> detachModel(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool keepEntireSkeleton,
         const bool smooth,
         std::vector<nvl::Segment<typename Model::Mesh::Point>>& curveCoordinates,
@@ -49,6 +50,7 @@ std::vector<nvl::Segment<typename Model::Mesh::Point>> detachPreview(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const double offset,
+        const double rigidity,
         const bool smooth);
 
 template<class Model>

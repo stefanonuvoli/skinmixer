@@ -31,7 +31,7 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
     detachPreviewDrawer.setPolylineColorMode(PolylineMeshDrawer::POLYLINE_COLOR_UNIFORM);
     detachPreviewDrawer.setPolylineShapeMode(PolylineMeshDrawer::POLYLINE_SHAPE_LINE);
     detachPreviewDrawer.setPolylineUniformColor(nvl::Color(200, 50, 50));
-    detachPreviewDrawer.setPolylineSize(10);
+    detachPreviewDrawer.setPolylineSize(5);
 
     initialize();
     connectSignals();
@@ -39,12 +39,7 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
 
 SkinMixerManager::~SkinMixerManager()
 {
-    for (Model*& model : vModels) {
-        if (model != nullptr) {
-            delete model;
-            model = nullptr;
-        }
-    }
+    skinMixerGraph.clear();
 
     for (ModelDrawer*& drawers : vModelDrawers) {
         if (drawers != nullptr) {
@@ -166,13 +161,14 @@ void SkinMixerManager::doDetach()
                 vSelectedModelDrawer->model(),
                 vSelectedJointId,
                 ui->detachingOffsetSpinBox->value(),
+                ui->detachingRigiditySpinBox->value(),
                 ui->detachingKeepSkeletonCheckBox->isChecked(),
                 ui->detachingSmoothCheckBox->isChecked());
     t.print();
 
     if (!newNodes.empty()) {
         for (Index newNode : newNodes) {
-            Index id = addModelFromNode(newNode, "Detaching " + std::to_string(newNode));
+            Index id = addModelDrawerFromNode(newNode, "Detaching " + std::to_string(newNode));
             vModelDrawers[id]->setFrame(vSelectedModelDrawer->frame());
         }
 
@@ -211,6 +207,7 @@ void SkinMixerManager::updateDetachPreview()
                 *vSelectedModelDrawer->model(),
                 vSelectedJointId,
                 ui->detachingOffsetSpinBox->value(),
+                ui->detachingRigiditySpinBox->value(),
                 ui->detachingSmoothCheckBox->isChecked());
 
     detachPreviewMesh.clear();
@@ -280,47 +277,47 @@ void SkinMixerManager::moveModelInPosition()
         return;
     }
 
-    Model& model = *vSelectedModelDrawer->model();
+    Model* model = vSelectedModelDrawer->model();
 
-    nvl::modelApplyTransformation(model, vSelectedModelDrawer->frame());
-    nvl::meshUpdateFaceNormals(model.mesh);
-    nvl::meshUpdateVertexNormals(model.mesh);
+    nvl::Affine3d frameTransformation = vSelectedModelDrawer->frame();
 
-    vSelectedModelDrawer->update();
+    //Apply transformation to the node
+    SkinMixerNode& node = skinMixerGraph.node(model);
+    node.transformation = frameTransformation * node.transformation;
+
+    //Apply transformation to the model
+    nvl::modelApplyTransformation(*model, frameTransformation);
+    nvl::meshUpdateFaceNormals(model->mesh);
+    nvl::meshUpdateVertexNormals(model->mesh);
+
     vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
+    vSelectedModelDrawer->update();
 
     vCanvas->notifySelectedDrawableUpdated();
     vCanvas->updateGL();
 }
 
-SkinMixerManager::Model* SkinMixerManager::loadModelFromFile(const std::string& filename)
+void SkinMixerManager::loadModelFromFile(const std::string& filename)
 {
-    if (filename.empty())
-        return nullptr;
+    Model model;
 
-    Model* model = new Model();
-
-    bool success = nvl::modelLoadFromFile(filename, *model);
+    bool success = nvl::modelLoadFromFile(filename, model);
 
     if (success) {
         Index nodeId = skinMixerGraph.addNode(model, OperationType::NONE);
-
-        addModelFromNode(nodeId, filename);
-
-        return model;
+        addModelDrawerFromNode(nodeId, filename);
     }
     else {
         QMessageBox::warning(this, tr("SkinMixer"), tr("Error loading model!"));
-        return nullptr;
     }
 }
 
-SkinMixerManager::Index SkinMixerManager::addModelFromNode(const Index& nodeId, const std::string& name)
+SkinMixerManager::Index SkinMixerManager::addModelDrawerFromNode(const Index& nodeId, const std::string& name)
 {
-    return addModelFromNode(skinMixerGraph.node(nodeId), name);
+    return addModelDrawerFromNode(skinMixerGraph.node(nodeId), name);
 }
 
-SkinMixerManager::Index SkinMixerManager::addModelFromNode(SkinMixerNode& node, const std::string& name)
+SkinMixerManager::Index SkinMixerManager::addModelDrawerFromNode(SkinMixerNode& node, const std::string& name)
 {
     Model* model = node.model;
 
@@ -419,6 +416,15 @@ void SkinMixerManager::on_detachingOffsetSpinBox_valueChanged(double arg1)
     }
 }
 
+void SkinMixerManager::on_detachingRigiditySpinBox_valueChanged(double arg1)
+{
+    NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
+    if (detachPreview) {
+        clearDetachPreview();
+        updateDetachPreview();
+    }
+}
+
 void SkinMixerManager::on_detachingSmoothCheckBox_stateChanged(int arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
@@ -438,5 +444,5 @@ void SkinMixerManager::on_attachingMoveButton_clicked()
     moveModelInPosition();
 }
 
-
 }
+

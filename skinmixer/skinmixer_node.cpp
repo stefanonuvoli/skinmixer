@@ -1,14 +1,10 @@
 #include "skinmixer_node.h"
 
 template<class Model>
-SkinMixerNode<Model>::SkinMixerNode()
+SkinMixerNode<Model>::SkinMixerNode() :
+    model(nullptr),
+    operation(NONE),
+    transformation(nvl::Affine3d::Identity())
 {
 
-}
-
-template<class Model>
-SkinMixerNode<Model>::SkinMixerNode(Model* model, OperationType operation)
-{
-    this->model = model;
-    this->operation = operation;
 }

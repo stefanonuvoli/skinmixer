@@ -58,15 +58,19 @@ include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
 
 #Project files
 SOURCES += \
+    skinmixer/blend_weights.cpp \
     skinmixer/detach.cpp \
     skinmixer.cpp \
     skinmixer/skinmixer_graph.cpp \
+    skinmixer/skinmixer_graph_algorithms.cpp \
     skinmixer/skinmixer_node.cpp \
     widgets/skinmixer_manager.cpp
 
 HEADERS += \
+    skinmixer/blend_weights.h \
     skinmixer/detach.h \
     skinmixer/skinmixer_graph.h \
+    skinmixer/skinmixer_graph_algorithms.h \
     skinmixer/skinmixer_node.h \
     widgets/skinmixer_manager.h
 

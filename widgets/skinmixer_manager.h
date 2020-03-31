@@ -26,18 +26,18 @@ class SkinMixerManager : public QFrame
     typedef nvl::PolylineMesh3d PolylineMesh;
     typedef nvl::PolylineMeshDrawer<PolylineMesh> PolylineMeshDrawer;
     typedef SkinMixerGraph<Model> Graph;
-    typedef Graph::Node SkinMixerNode;
-    typedef Graph::OperationType OperationType;
+    typedef typename Graph::Node SkinMixerNode;
+    typedef typename Graph::OperationType OperationType;
 
 public:
 
     explicit SkinMixerManager(nvl::Canvas* canvas = nullptr, QWidget *parent = nullptr);
     ~SkinMixerManager();
 
-    Model* loadModelFromFile(const std::string& filename);
+    void loadModelFromFile(const std::string& filename);
 
-    Index addModelFromNode(const Index& nodeId, const std::string& name);
-    Index addModelFromNode(SkinMixerNode& node, const std::string& name);
+    Index addModelDrawerFromNode(const Index& nodeId, const std::string& name);
+    Index addModelDrawerFromNode(SkinMixerNode& node, const std::string& name);
 
 public Q_SLOTS:
 
@@ -53,7 +53,8 @@ private slots:
 
     void on_detachingPreviewButton_clicked();
     void on_detachingClearButton_clicked();
-    void on_detachingOffsetSpinBox_valueChanged(double arg1);    
+    void on_detachingOffsetSpinBox_valueChanged(double arg1);
+    void on_detachingRigiditySpinBox_valueChanged(double arg1);
     void on_detachingSmoothCheckBox_stateChanged(int arg1);
     void on_detachingDetachButton_clicked();
 
