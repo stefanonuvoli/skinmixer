@@ -27,8 +27,8 @@ bool findVertexBirthNode(
         const Node& currentNode = graph.node(currentNodeId);
         assert(!currentNode.birthVertex.empty());
 
-        nvl::Index birthVertexParentNodeId = currentNode.birthVertexParentNodeId[vertexId];
-        VertexId birthVertex = currentNode.birthVertex[vertexId];
+        nvl::Index birthVertexParentNodeId = currentNode.birthVertexParentNodeId[currentVertexId];
+        VertexId birthVertex = currentNode.birthVertex[currentVertexId];
 
         isNewVertex =
             birthVertexParentNodeId == nvl::MAX_ID ||
@@ -75,8 +75,8 @@ bool findJointBirthNode(
         const Node& currentNode = graph.node(currentNodeId);
         assert(!currentNode.birthJoint.empty());
 
-        nvl::Index birthJointParentNodeId = currentNode.birthJointParentNodeId[jointId];
-        JointId birthJoint = currentNode.birthJoint[jointId];
+        nvl::Index birthJointParentNodeId = currentNode.birthJointParentNodeId[currentJointId];
+        JointId birthJoint = currentNode.birthJoint[currentJointId];
 
         isNewJoint =
             birthJointParentNodeId == nvl::MAX_ID ||

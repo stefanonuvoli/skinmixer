@@ -62,6 +62,8 @@ std::vector<nvl::Index> detach(
                 faceSegmentation,
                 jointSegmentation);
 
+
+
     for (Index i = 0; i < models.size(); i++) {
         const Model& model = models[i];
 
@@ -83,8 +85,12 @@ std::vector<nvl::Index> detach(
 
         size_t newNodeId = skinMixerGraph.addNode(node);
         newNodes.push_back(newNodeId);
+    }
 
+    Node& rootNode = skinMixerGraph.node(nodeId);
+    for (Index newNodeId : newNodes) {
         blendSkinningWeights(skinMixerGraph, newNodeId);
+        rootNode.children.push_back(newNodeId);
     }
 
     return newNodes;
