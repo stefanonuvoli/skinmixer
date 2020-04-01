@@ -62,8 +62,6 @@ std::vector<nvl::Index> detach(
                 faceSegmentation,
                 jointSegmentation);
 
-
-
     for (Index i = 0; i < models.size(); i++) {
         const Model& model = models[i];
 
@@ -106,7 +104,7 @@ std::vector<nvl::Index> detach(
         const bool keepEntireSkeleton,
         const bool smooth)
 {
-    return detach(skinMixerGraph, skinMixerGraph.getIdByModel(model), targetJoint, offset, rigidity, keepEntireSkeleton, smooth);
+    return detach(skinMixerGraph, skinMixerGraph.nodeId(model), targetJoint, offset, rigidity, keepEntireSkeleton, smooth);
 }
 
 template<class Model>

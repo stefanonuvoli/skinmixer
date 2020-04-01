@@ -58,7 +58,13 @@ private slots:
     void on_detachingSmoothCheckBox_stateChanged(int arg1);
     void on_detachingDetachButton_clicked();
 
-    void on_attachingMoveButton_clicked();
+    void on_transformationMoveButton_clicked();
+
+    void on_attachingSelect1Button_clicked();
+    void on_attachingSelect2Button_clicked();
+    void on_attachingAbortButton_clicked();
+    void on_attachingFindPositionButton_clicked();
+    void on_attachingAttachButton_clicked();
 
 private:
 
@@ -66,7 +72,10 @@ private:
     void updateDetachPreview();
     void clearDetachPreview();
 
-    void moveModelInPosition();
+    void clearAttachSelection();
+    void attachFindPosition();
+
+    void nodeApplyFrameTransformation();
 
     void updateView();
 
@@ -79,7 +88,7 @@ private:
 
     nvl::Canvas* vCanvas;
 
-    Graph skinMixerGraph;
+    Graph vSkinMixerGraph;
 
     std::vector<Model*> vModels;
     std::vector<ModelDrawer*> vModelDrawers;
@@ -87,12 +96,14 @@ private:
     nvl::ModelDrawer<Model>* vSelectedModelDrawer;
     Index vSelectedJointId;
 
-//    std::vector<int> vPreviewFaceSegmentation;
-//    std::vector<int> vPreviewJointSegmentation;
+    bool vDetachPreview;
+    PolylineMesh vDetachPreviewMesh;
+    PolylineMeshDrawer vDetachPreviewDrawer;
 
-    bool detachPreview;
-    PolylineMesh detachPreviewMesh;
-    PolylineMeshDrawer detachPreviewDrawer;
+    nvl::ModelDrawer<Model>* vAttachSelectedModelDrawer1;
+    Index vAttachSelectedJoint1;
+    nvl::ModelDrawer<Model>* vAttachSelectedModelDrawer2;
+    Index vAttachSelectedJoint2;
 
 };
 

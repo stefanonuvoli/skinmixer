@@ -23,15 +23,19 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
     vCanvas(canvas),
     vSelectedModelDrawer(nullptr),
     vSelectedJointId(nvl::MAX_ID),
-    detachPreview(false),
-    detachPreviewDrawer(&detachPreviewMesh)
+    vDetachPreview(false),
+    vDetachPreviewDrawer(&vDetachPreviewMesh),
+    vAttachSelectedModelDrawer1(nullptr),
+    vAttachSelectedJoint1(nvl::MAX_ID),
+    vAttachSelectedModelDrawer2(nullptr),
+    vAttachSelectedJoint2(nvl::MAX_ID)
 {
     ui->setupUi(this);
 
-    detachPreviewDrawer.setPolylineColorMode(PolylineMeshDrawer::POLYLINE_COLOR_UNIFORM);
-    detachPreviewDrawer.setPolylineShapeMode(PolylineMeshDrawer::POLYLINE_SHAPE_LINE);
-    detachPreviewDrawer.setPolylineUniformColor(nvl::Color(200, 50, 50));
-    detachPreviewDrawer.setPolylineSize(5);
+    vDetachPreviewDrawer.setPolylineColorMode(PolylineMeshDrawer::POLYLINE_COLOR_UNIFORM);
+    vDetachPreviewDrawer.setPolylineShapeMode(PolylineMeshDrawer::POLYLINE_SHAPE_LINE);
+    vDetachPreviewDrawer.setPolylineUniformColor(nvl::Color(200, 50, 50));
+    vDetachPreviewDrawer.setPolylineSize(5);
 
     initialize();
     connectSignals();
@@ -39,7 +43,7 @@ SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
 
 SkinMixerManager::~SkinMixerManager()
 {
-    skinMixerGraph.clear();
+    vSkinMixerGraph.clear();
 
     for (ModelDrawer*& drawers : vModelDrawers) {
         if (drawers != nullptr) {
@@ -64,7 +68,7 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
         updateSkinningWeightVertexValues();
     }
 
-    if (detachPreview) {
+    if (vDetachPreview) {
         updateDetachPreview();
     }
 
@@ -157,7 +161,7 @@ void SkinMixerManager::doDetach()
     nvl::Timer t("Detaching timer");
     std::vector<Index> newNodes =
             skinmixer::detach(
-                skinMixerGraph,
+                vSkinMixerGraph,
                 vSelectedModelDrawer->model(),
                 vSelectedJointId,
                 ui->detachingOffsetSpinBox->value(),
@@ -189,7 +193,7 @@ void SkinMixerManager::updateDetachPreview()
     typedef Model::Mesh::Point Point;
     typedef PolylineMesh::VertexId PolylineVertexId;
 
-    if (detachPreview) {
+    if (vDetachPreview) {
         clearDetachPreview();
     }
 
@@ -210,50 +214,60 @@ void SkinMixerManager::updateDetachPreview()
                 ui->detachingRigiditySpinBox->value(),
                 ui->detachingSmoothCheckBox->isChecked());
 
-    detachPreviewMesh.clear();
+    vDetachPreviewMesh.clear();
 
     std::map<Point, PolylineVertexId> polylineVerticesMap;
 
     for (const nvl::Segment<Point>& segment : functionSegments) {
         if (polylineVerticesMap.find(segment.p1()) == polylineVerticesMap.end()) {
-            polylineVerticesMap.insert(std::make_pair(segment.p1(), detachPreviewMesh.addVertex(segment.p1())));
+            polylineVerticesMap.insert(std::make_pair(segment.p1(), vDetachPreviewMesh.addVertex(segment.p1())));
         }
 
         if (polylineVerticesMap.find(segment.p2()) == polylineVerticesMap.end()) {
-            polylineVerticesMap.insert(std::make_pair(segment.p2(), detachPreviewMesh.addVertex(segment.p2())));
+            polylineVerticesMap.insert(std::make_pair(segment.p2(), vDetachPreviewMesh.addVertex(segment.p2())));
         }
     }
 
     for (const nvl::Segment<Point>& segment : functionSegments) {
         assert(polylineVerticesMap.find(segment.p1()) != polylineVerticesMap.end());
         assert(polylineVerticesMap.find(segment.p2()) != polylineVerticesMap.end());
-        detachPreviewMesh.addPolyline(polylineVerticesMap.at(segment.p1()), polylineVerticesMap.at(segment.p2()));
+        vDetachPreviewMesh.addPolyline(polylineVerticesMap.at(segment.p1()), polylineVerticesMap.at(segment.p2()));
     }
 
-    detachPreviewDrawer.setFrame(vSelectedModelDrawer->frame());
+    vDetachPreviewDrawer.setFrame(vSelectedModelDrawer->frame());
 
-    detachPreviewDrawer.update();
+    vDetachPreviewDrawer.update();
 
-    vCanvas->addDrawable(&detachPreviewDrawer, "Detach preview");
+    vCanvas->addDrawable(&vDetachPreviewDrawer, "Detach preview");
     vCanvas->updateGL();
 
-    detachPreview = true;
+    vDetachPreview = true;
 
     updateView();
 }
 
 void SkinMixerManager::clearDetachPreview()
 {
-    if (detachPreview) {
-        detachPreviewMesh.clear();
+    if (vDetachPreview) {
+        vDetachPreviewMesh.clear();
 
-        vCanvas->removeDrawable(&detachPreviewDrawer);
+        vCanvas->removeDrawable(&vDetachPreviewDrawer);
         vCanvas->updateGL();
 
-        detachPreview = false;
+        vDetachPreview = false;
 
         updateView();
     }
+}
+
+void SkinMixerManager::clearAttachSelection()
+{
+    vAttachSelectedModelDrawer1 = nullptr;
+    vAttachSelectedJoint1 = nvl::MAX_ID;
+    vAttachSelectedModelDrawer2 = nullptr;
+    vAttachSelectedJoint2 = nvl::MAX_ID;
+
+    updateView();
 }
 
 void SkinMixerManager::updateView()
@@ -266,12 +280,28 @@ void SkinMixerManager::updateView()
 
     bool jointSelected = singleDrawableSelected && vSelectedJointId != nvl::MAX_ID;
 
-    ui->detachingPreviewButton->setEnabled(jointSelected && !detachPreview);
-    ui->detachingClearButton->setEnabled(detachPreview);
+    bool attachingSelected1 = vAttachSelectedJoint1 != nvl::MAX_ID;
+    bool attachingSelected2 = vAttachSelectedJoint2 != nvl::MAX_ID;
+
+    ui->detachingPreviewButton->setEnabled(jointSelected && !vDetachPreview);
+    ui->detachingClearButton->setEnabled(vDetachPreview);
     ui->detachingDetachButton->setEnabled(jointSelected);
+
+    ui->attachingSelect1Button->setEnabled(!attachingSelected1);
+    ui->attachingSelect2Button->setEnabled(attachingSelected1 && !attachingSelected2);
+    ui->attachingAbortButton->setEnabled(attachingSelected1 || attachingSelected2);
+    ui->attachingFindPositionButton->setEnabled(attachingSelected2);
+    ui->attachingAttachButton->setEnabled(attachingSelected2);
+
+    ui->transformationMoveButton->setEnabled(singleDrawableSelected);
 }
 
-void SkinMixerManager::moveModelInPosition()
+void SkinMixerManager::attachFindPosition()
+{
+
+}
+
+void SkinMixerManager::nodeApplyFrameTransformation()
 {
     if (vSelectedModelDrawer == nullptr) {
         return;
@@ -282,13 +312,7 @@ void SkinMixerManager::moveModelInPosition()
     nvl::Affine3d frameTransformation = vSelectedModelDrawer->frame();
 
     //Apply transformation to the node
-    SkinMixerNode& node = skinMixerGraph.node(model);
-    node.transformation = frameTransformation * node.transformation;
-
-    //Apply transformation to the model
-    nvl::modelApplyTransformation(*model, frameTransformation);
-    nvl::meshUpdateFaceNormals(model->mesh);
-    nvl::meshUpdateVertexNormals(model->mesh);
+    skinmixer::applyTransformationToNode(vSkinMixerGraph.node(model), frameTransformation);
 
     vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
     vSelectedModelDrawer->update();
@@ -304,7 +328,7 @@ void SkinMixerManager::loadModelFromFile(const std::string& filename)
     bool success = nvl::modelLoadFromFile(filename, model);
 
     if (success) {
-        Index nodeId = skinMixerGraph.addNode(model, OperationType::NONE);
+        Index nodeId = vSkinMixerGraph.addNode(model, OperationType::NONE);
         addModelDrawerFromNode(nodeId, filename);
     }
     else {
@@ -314,7 +338,7 @@ void SkinMixerManager::loadModelFromFile(const std::string& filename)
 
 SkinMixerManager::Index SkinMixerManager::addModelDrawerFromNode(const Index& nodeId, const std::string& name)
 {
-    return addModelDrawerFromNode(skinMixerGraph.node(nodeId), name);
+    return addModelDrawerFromNode(vSkinMixerGraph.node(nodeId), name);
 }
 
 SkinMixerManager::Index SkinMixerManager::addModelDrawerFromNode(SkinMixerNode& node, const std::string& name)
@@ -400,17 +424,21 @@ void SkinMixerManager::on_modelsRemoveButton_clicked()
 void SkinMixerManager::on_detachingPreviewButton_clicked()
 {
     updateDetachPreview();
+
+    clearAttachSelection();
 }
 
 void SkinMixerManager::on_detachingClearButton_clicked()
 {
     clearDetachPreview();
+
+    clearAttachSelection();
 }
 
 void SkinMixerManager::on_detachingOffsetSpinBox_valueChanged(double arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
-    if (detachPreview) {
+    if (vDetachPreview) {
         clearDetachPreview();
         updateDetachPreview();
     }
@@ -419,7 +447,7 @@ void SkinMixerManager::on_detachingOffsetSpinBox_valueChanged(double arg1)
 void SkinMixerManager::on_detachingRigiditySpinBox_valueChanged(double arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
-    if (detachPreview) {
+    if (vDetachPreview) {
         clearDetachPreview();
         updateDetachPreview();
     }
@@ -428,7 +456,7 @@ void SkinMixerManager::on_detachingRigiditySpinBox_valueChanged(double arg1)
 void SkinMixerManager::on_detachingSmoothCheckBox_stateChanged(int arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
-    if (detachPreview) {
+    if (vDetachPreview) {
         clearDetachPreview();
         updateDetachPreview();
     }
@@ -436,13 +464,76 @@ void SkinMixerManager::on_detachingSmoothCheckBox_stateChanged(int arg1)
 
 void SkinMixerManager::on_detachingDetachButton_clicked()
 {
+    clearAttachSelection();
+
     doDetach();
 }
 
-void SkinMixerManager::on_attachingMoveButton_clicked()
+void SkinMixerManager::on_transformationMoveButton_clicked()
 {
-    moveModelInPosition();
+    clearAttachSelection();
+
+    nodeApplyFrameTransformation();
+}
+
+void SkinMixerManager::on_attachingSelect1Button_clicked()
+{
+    assert(vAttachSelectedJoint1 == nvl::MAX_ID && vAttachSelectedJoint2 == nvl::MAX_ID);
+
+    if (vSelectedModelDrawer != nullptr && vSelectedJointId != nvl::MAX_ID) {
+        vAttachSelectedModelDrawer1 = vSelectedModelDrawer;
+        vAttachSelectedJoint1 = vSelectedJointId;
+    }
+    else {
+        QMessageBox::warning(this, tr("SkinMixer"), tr("Select the joint of a model."));
+    }
+
+    updateView();
+}
+
+void SkinMixerManager::on_attachingSelect2Button_clicked()
+{
+    assert(vAttachSelectedJoint1 != nvl::MAX_ID && vAttachSelectedJoint2 == nvl::MAX_ID);
+
+    if (vSelectedModelDrawer != nullptr && vSelectedJointId != nvl::MAX_ID) {
+        if (vAttachSelectedModelDrawer1 != vSelectedModelDrawer) {
+            vAttachSelectedModelDrawer2 = vSelectedModelDrawer;
+            vAttachSelectedJoint2 = vSelectedJointId;
+        }
+        else {
+            QMessageBox::warning(this, tr("SkinMixer"), tr("You cannot select the same model!"));
+        }
+    }
+    else {
+        QMessageBox::warning(this, tr("SkinMixer"), tr("Select the joint of a model."));
+    }
+
+    updateView();
+}
+
+void SkinMixerManager::on_attachingAbortButton_clicked()
+{
+    assert(vAttachSelectedJoint1 != nvl::MAX_ID || vAttachSelectedJoint2 != nvl::MAX_ID);
+
+    clearAttachSelection();
+}
+
+void SkinMixerManager::on_attachingFindPositionButton_clicked()
+{
+    assert(vAttachSelectedJoint1 != nvl::MAX_ID && vAttachSelectedJoint2 != nvl::MAX_ID);
+
+    //TODO
+
+    updateView();
+}
+
+void SkinMixerManager::on_attachingAttachButton_clicked()
+{
+    assert(vAttachSelectedJoint1 != nvl::MAX_ID && vAttachSelectedJoint2 != nvl::MAX_ID);
+
+    //TODO
+
+    clearAttachSelection();
 }
 
 }
-

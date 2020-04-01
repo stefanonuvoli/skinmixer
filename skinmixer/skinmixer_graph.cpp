@@ -50,17 +50,23 @@ const typename SkinMixerGraph<Model>::Node& SkinMixerGraph<Model>::node(Index id
 template<class Model>
 typename SkinMixerGraph<Model>::Node& SkinMixerGraph<Model>::node(Model* model)
 {
-    return this->node(getIdByModel(model));
+    return this->node(nodeId(model));
 }
 
 template<class Model>
 const typename SkinMixerGraph<Model>::Node& SkinMixerGraph<Model>::node(Model* model) const
 {
-    return this->node(getIdByModel(model));
+    return this->node(nodeId(model));
 }
 
 template<class Model>
-const typename SkinMixerGraph<Model>::Index& SkinMixerGraph<Model>::getIdByModel(Model *model) const
+typename SkinMixerGraph<Model>::Index SkinMixerGraph<Model>::nodeId(const Node& node) const
+{
+    return std::distance(vNodes.begin(), std::find(vNodes.begin(), vNodes.end(), node));
+}
+
+template<class Model>
+typename SkinMixerGraph<Model>::Index SkinMixerGraph<Model>::nodeId(Model *model) const
 {
     return vModelMap.at(model);
 }

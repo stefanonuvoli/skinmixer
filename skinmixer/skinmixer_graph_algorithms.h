@@ -25,6 +25,26 @@ bool findJointBirthNode(
         nvl::Index& birthNode,
         typename Model::Skeleton::JointId& birthJoint);
 
+template<class Model>
+bool findOriginalPosition(
+        const SkinMixerGraph<Model>& graph,
+        const nvl::Index& nodeId,
+        const nvl::Index& rootNodeId,
+        const typename Model::Mesh::Point& position,
+        typename Model::Mesh::Point& originalPosition);
+
+
+template<class Model>
+void applyTransformationToNode(
+        SkinMixerNode<Model>& node,
+        const nvl::Affine3d& transformation);
+
+template<class Model>
+void applyTransformationToNode(
+        SkinMixerGraph<Model>& graph,
+        const nvl::Index& nodeId,
+        const nvl::Affine3d& transformation);
+
 }
 
 #include "skinmixer_graph_algorithms.cpp"

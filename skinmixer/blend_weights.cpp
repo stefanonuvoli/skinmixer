@@ -103,9 +103,13 @@ void blendSkinningWeights(
             FaceId triangleFaceId;
             Point barycentricCoordinates;
 
-            faceId = currentGrid->getClosestFace(point, closestPoint, triangleFaceId, barycentricCoordinates);
+            Point originalPosition;
+            bool foundOriginalPosition = findOriginalPosition(skinMixerGraph, nodeId, currentRootNode, point, originalPosition);
+            assert(foundOriginalPosition);
 
-            Scalar distance = (point - closestPoint).norm();
+            faceId = currentGrid->getClosestFace(originalPosition, closestPoint, triangleFaceId, barycentricCoordinates);
+
+            Scalar distance = (originalPosition - closestPoint).norm();
 
             if (distance < bestDistance) {
                 bestRootNode = currentRootNode;

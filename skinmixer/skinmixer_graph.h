@@ -31,7 +31,8 @@ public:
     Node& node(Model* model);
     const Node& node(Model* model) const;
 
-    const Index& getIdByModel(Model* model) const;
+    Index nodeId(Model* model) const;
+    Index nodeId(const Node& node) const;
 
     void clear();
 

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>361</height>
+    <height>436</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -143,17 +143,54 @@
       <string>Attaching</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="0">
-       <widget class="QPushButton" name="attachingMoveButton">
+      <item row="0" column="2">
+       <widget class="QPushButton" name="attachingAbortButton">
         <property name="text">
-         <string>Move</string>
+         <string>Abort</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="attachingFindPositionButton">
+        <property name="text">
+         <string>Attach</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QPushButton" name="attachingSelect1Button">
+        <property name="text">
+         <string>Select 1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QPushButton" name="attachingAttachButton">
+        <property name="text">
+         <string>Find position</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QPushButton" name="attachingAttachButton">
+       <widget class="QPushButton" name="attachingSelect2Button">
         <property name="text">
-         <string>Attach</string>
+         <string>Select 2</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="transformationGroup">
+     <property name="title">
+      <string>Transformations</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QPushButton" name="transformationMoveButton">
+        <property name="text">
+         <string>Move</string>
         </property>
        </widget>
       </item>
