@@ -10,6 +10,7 @@
 #include <nvl/models/model_transformations.h>
 
 #include "skinmixer/detach.h"
+#include "skinmixer/attach.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -152,10 +153,6 @@ void SkinMixerManager::doDetach()
         return;
     }
 
-    std::vector<std::vector<Model::Mesh::VertexId>> vertexMaps;
-    std::vector<std::vector<Model::Mesh::FaceId>> faceMaps;
-    std::vector<std::vector<Model::Skeleton::JointId>> jointMaps;
-
     std::vector<nvl::Segment<Point>> functionSegments;
 
     nvl::Timer t("Detaching timer");
@@ -177,6 +174,7 @@ void SkinMixerManager::doDetach()
         }
 
         vCanvas->removeDrawable(vSelectedModelDrawer);
+        assert(vCanvas->drawableNumber() > 0);
         vCanvas->select(vCanvas->drawableNumber() - 1);
 
         clearDetachPreview();
@@ -298,7 +296,77 @@ void SkinMixerManager::updateView()
 
 void SkinMixerManager::attachFindPosition()
 {
+    if (vAttachSelectedJoint1 == nvl::MAX_ID || vAttachSelectedJoint2 == nvl::MAX_ID) {
+        return;
+    }
 
+    Model* model1 = vAttachSelectedModelDrawer1->model();
+    Model* model2 = vAttachSelectedModelDrawer2->model();
+
+    nvl::Index nodeId1 = vSkinMixerGraph.nodeId(model1);
+    nvl::Index nodeId2 = vSkinMixerGraph.nodeId(model2);
+
+    nvl::Affine3d frameTransformation1 = vAttachSelectedModelDrawer1->frame();
+    nvl::Affine3d frameTransformation2 = vAttachSelectedModelDrawer2->frame();
+
+    nvl::Affine3d transformation2 = skinmixer::attachFindTransformation(
+                vSkinMixerGraph,
+                nodeId1,
+                nodeId2,
+                vAttachSelectedJoint1,
+                vAttachSelectedJoint2,
+                frameTransformation1,
+                frameTransformation2);
+
+    vAttachSelectedModelDrawer2->setFrame(transformation2 * vAttachSelectedModelDrawer2->frame());
+    vAttachSelectedModelDrawer2->update();
+
+    vCanvas->notifySelectedDrawableUpdated();
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::doAttach()
+{
+
+    Model* model1 = vAttachSelectedModelDrawer1->model();
+    Model* model2 = vAttachSelectedModelDrawer2->model();
+
+    nvl::Index nodeId1 = vSkinMixerGraph.nodeId(model1);
+    nvl::Index nodeId2 = vSkinMixerGraph.nodeId(model2);
+
+    nvl::Affine3d frameTransformation1 = vAttachSelectedModelDrawer1->frame();
+    nvl::Affine3d frameTransformation2 = vAttachSelectedModelDrawer2->frame();
+
+    nvl::Timer t("Attaching timer");
+    std::vector<Index> newNodes =
+            skinmixer::attach(
+                vSkinMixerGraph,
+                nodeId1,
+                nodeId2,
+                vAttachSelectedJoint1,
+                vAttachSelectedJoint2,
+                frameTransformation1,
+                frameTransformation2);
+    t.print();
+
+    if (!newNodes.empty()) {
+        for (Index newNode : newNodes) {
+            Index id = addModelDrawerFromNode(newNode, "Attaching " + std::to_string(newNode));
+            vModelDrawers[id]->setFrame(vSelectedModelDrawer->frame());
+        }
+
+        vCanvas->removeDrawable(vAttachSelectedModelDrawer1);
+        vCanvas->removeDrawable(vAttachSelectedModelDrawer2);
+        assert(vCanvas->drawableNumber() > 0);
+        vCanvas->select(vCanvas->drawableNumber() - 1);
+
+        clearDetachPreview();
+
+        vCanvas->updateGL();
+    }
+    else {
+        QMessageBox::warning(this, tr("SkinMixer"), tr("Error detaching the model! Probably you have selected a root or a final joint."));
+    }
 }
 
 void SkinMixerManager::nodeApplyFrameTransformation()
@@ -480,6 +548,8 @@ void SkinMixerManager::on_attachingSelect1Button_clicked()
 {
     assert(vAttachSelectedJoint1 == nvl::MAX_ID && vAttachSelectedJoint2 == nvl::MAX_ID);
 
+    clearDetachPreview();
+
     if (vSelectedModelDrawer != nullptr && vSelectedJointId != nvl::MAX_ID) {
         vAttachSelectedModelDrawer1 = vSelectedModelDrawer;
         vAttachSelectedJoint1 = vSelectedJointId;
@@ -495,6 +565,8 @@ void SkinMixerManager::on_attachingSelect2Button_clicked()
 {
     assert(vAttachSelectedJoint1 != nvl::MAX_ID && vAttachSelectedJoint2 == nvl::MAX_ID);
 
+    clearDetachPreview();
+
     if (vSelectedModelDrawer != nullptr && vSelectedJointId != nvl::MAX_ID) {
         if (vAttachSelectedModelDrawer1 != vSelectedModelDrawer) {
             vAttachSelectedModelDrawer2 = vSelectedModelDrawer;
@@ -507,13 +579,14 @@ void SkinMixerManager::on_attachingSelect2Button_clicked()
     else {
         QMessageBox::warning(this, tr("SkinMixer"), tr("Select the joint of a model."));
     }
-
     updateView();
 }
 
 void SkinMixerManager::on_attachingAbortButton_clicked()
 {
     assert(vAttachSelectedJoint1 != nvl::MAX_ID || vAttachSelectedJoint2 != nvl::MAX_ID);
+
+    clearDetachPreview();
 
     clearAttachSelection();
 }
@@ -522,7 +595,9 @@ void SkinMixerManager::on_attachingFindPositionButton_clicked()
 {
     assert(vAttachSelectedJoint1 != nvl::MAX_ID && vAttachSelectedJoint2 != nvl::MAX_ID);
 
-    //TODO
+    clearDetachPreview();
+
+    attachFindPosition();
 
     updateView();
 }
@@ -530,6 +605,8 @@ void SkinMixerManager::on_attachingFindPositionButton_clicked()
 void SkinMixerManager::on_attachingAttachButton_clicked()
 {
     assert(vAttachSelectedJoint1 != nvl::MAX_ID && vAttachSelectedJoint2 != nvl::MAX_ID);
+
+    clearDetachPreview();
 
     //TODO
 

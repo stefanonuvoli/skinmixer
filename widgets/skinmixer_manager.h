@@ -74,6 +74,7 @@ private:
 
     void clearAttachSelection();
     void attachFindPosition();
+    void doAttach();
 
     void nodeApplyFrameTransformation();
 

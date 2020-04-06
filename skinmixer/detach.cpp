@@ -39,7 +39,7 @@ std::vector<nvl::Index> detach(
     std::vector<nvl::Index> newNodes;
 
     Mesh resultMesh;
-    std::vector<nvl::Segment<typename Model::Mesh::Point>> curveCoordinates;
+    std::vector<nvl::Segment<typename Mesh::Point>> curveCoordinates;
 
     std::vector<int> faceSegmentation;
     std::vector<int> jointSegmentation;
@@ -64,6 +64,8 @@ std::vector<nvl::Index> detach(
 
     for (Index i = 0; i < models.size(); i++) {
         const Model& model = models[i];
+        const Skeleton& skeleton = model.skeleton;
+        const Mesh& mesh = model.mesh;
 
         Node node;
         node.model = new Model(model);
@@ -79,7 +81,17 @@ std::vector<nvl::Index> detach(
         node.birthFaceParentNodeId = std::vector<Index>(node.birthFace.size(), 0);
         node.birthJointParentNodeId = std::vector<Index>(node.birthJoint.size(), 0);
 
-        node.detachingJointId = targetJoint;
+        for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
+            if (node.birthJoint[jId] == targetJoint) {
+                node.vDetachingJointId = jId;
+                break;
+            }
+        }
+        for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+            if (node.birthVertex[vId] == nvl::MAX_ID) {
+                node.vDetachingVertices.push_back(vId);
+            }
+        }
 
         size_t newNodeId = skinMixerGraph.addNode(node);
         newNodes.push_back(newNodeId);

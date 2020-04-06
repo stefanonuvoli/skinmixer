@@ -30,7 +30,8 @@ public:
     std::vector<nvl::Index> birthFaceParentNodeId;
     std::vector<nvl::Index> birthJointParentNodeId;
 
-    typename Model::Skeleton::JointId detachingJointId;
+    typename Model::Skeleton::JointId vDetachingJointId;
+    std::vector<typename Model::Mesh::VertexId> vDetachingVertices;
 
     nvl::Affine3d transformation;
 };
