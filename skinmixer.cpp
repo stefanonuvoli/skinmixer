@@ -12,7 +12,6 @@
 
 #include "widgets/skinmixer_manager.h"
 
-#include <set>
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
@@ -49,6 +48,7 @@ int main(int argc, char *argv[]) {
     viewer.addToLeftDock(&skinMixerManager);
 
     skinMixerManager.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/dreyar.mdl");
+
     canvas.fitScene();
 
     viewer.showMaximized();
