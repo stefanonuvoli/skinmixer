@@ -78,7 +78,7 @@ std::vector<nvl::Index> attach(
 //                faceSegmentation,
 //                jointSegmentation);
 
-//    for (Index i = 0; i < models.size(); i++) {
+//    for (Index i = 0; i < models.size(); ++i) {
 //        const Model& model = models[i];
 //        const Skeleton& skeleton = model.skeleton;
 

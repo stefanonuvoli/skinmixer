@@ -62,7 +62,7 @@ std::vector<nvl::Index> detach(
                 faceSegmentation,
                 jointSegmentation);
 
-    for (Index i = 0; i < models.size(); i++) {
+    for (Index i = 0; i < models.size(); ++i) {
         const Model& model = models[i];
         const Skeleton& skeleton = model.skeleton;
         const Mesh& mesh = model.mesh;
@@ -217,13 +217,13 @@ std::vector<Model> detachModel(
 
         //Get birth vertices and faces related to mesh
         std::vector<VertexId> currentBirthVertex(refineBirthVertex.size(), nvl::MAX_ID);
-        for (VertexId vId = 0; vId < refineBirthVertex.size(); vId++) {
+        for (VertexId vId = 0; vId < refineBirthVertex.size(); ++vId) {
             if (refineBirthVertex[vId] != nvl::MAX_ID) {
                 currentBirthVertex[vId] = transferBirthVertex[refineBirthVertex[vId]];
             }
         }
         std::vector<FaceId> currentBirthFace(refineBirthFace.size(), nvl::MAX_ID);
-        for (FaceId fId = 0; fId < refineBirthFace.size(); fId++) {
+        for (FaceId fId = 0; fId < refineBirthFace.size(); ++fId) {
             if (refineBirthFace[fId] != nvl::MAX_ID) {
                 currentBirthFace[fId] = transferBirthFace[refineBirthFace[fId]];
             }

@@ -18,12 +18,16 @@
 
 namespace skinmixer {
 
-SkinMixerManager::SkinMixerManager(nvl::Canvas* canvas, QWidget *parent) :
+SkinMixerManager::SkinMixerManager(
+        nvl::Canvas* canvas,
+        nvl::DrawableListWidget* drawableListWidget,
+        nvl::SkeletonJointListWidget* skeletonJointListWidget,
+        QWidget *parent) :
     QFrame(parent),
     ui(new Ui::SkinMixerManager),
     vCanvas(canvas),
-    vSelectedModelDrawer(nullptr),
-    vSelectedJointId(nvl::MAX_ID),
+    vDrawableListWidget(drawableListWidget),
+    vSkeletonJointListWidget(skeletonJointListWidget),
     vDetachPreview(false),
     vDetachPreviewDrawer(&vDetachPreviewMesh),
     vAttachSelectedModelDrawer1(nullptr),
@@ -56,14 +60,68 @@ SkinMixerManager::~SkinMixerManager()
     delete ui;
 }
 
-void SkinMixerManager::slot_selectedDrawableUpdated()
+void SkinMixerManager::slot_picking(const std::vector<long long int>& data) {
+    bool shiftPressed = QApplication::keyboardModifiers() & Qt::ShiftModifier;
+    if (data.size() >= 1) {
+        size_t drawableId = data[0];
+
+        const std::unordered_set<Index>& selectedDrawables = vDrawableListWidget->selectedDrawables();
+
+        if (selectedDrawables.size() != 1 || *selectedDrawables.begin() != drawableId) {
+            if (shiftPressed) {
+                if (selectedDrawables.find(drawableId) == selectedDrawables.end()) {
+                    vDrawableListWidget->selectDrawable(drawableId);
+                }
+                else {
+                    vDrawableListWidget->unselectDrawable(drawableId);
+                }
+            }
+            else {
+                vDrawableListWidget->unselectAllDrawables();
+                vDrawableListWidget->selectDrawable(drawableId);
+            }
+        }
+
+        if (data.size() >= 3) {
+            long long int pickingIdentifier = data[1];
+            if (pickingIdentifier == nvl::Pickable::PICKING_SKELETON_JOINT) {
+                Index jointId = data[2];
+
+                vSkeletonJointListWidget->updateJointList();
+
+                const std::unordered_set<Index>& selectedJoints = vSkeletonJointListWidget->selectedJoints();
+                if (shiftPressed) {
+                    if (selectedJoints.find(jointId) == selectedJoints.end()) {
+                        vSkeletonJointListWidget->selectJoint(jointId);
+                    }
+                    else {
+                        vSkeletonJointListWidget->unselectJoint(jointId);
+                    }
+                }
+                else {
+                    if (selectedJoints.size() != 1 || *selectedJoints.begin() != jointId) {
+                        vSkeletonJointListWidget->unselectAllJoints();
+                        vSkeletonJointListWidget->selectJoint(jointId);
+                    }
+                }
+            }
+        }
+        else {
+            vSkeletonJointListWidget->unselectAllJoints();
+        }
+    }
+}
+
+void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::Skeleton3d::JointId>& selectedJoints)
 {
+    NVL_SUPPRESS_UNUSEDVARIABLE(selectedJoints);
+
     vSelectedJointId = nvl::MAX_ID;
 
     if (vSelectedModelDrawer != nullptr) {
-        const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
+        const std::unordered_set<nvl::Skeleton3d::JointId>& selectionData = vSkeletonJointListWidget->selectedJoints();
         if (selectionData.size() == 1) {
-            vSelectedJointId = static_cast<Index>(*selectionData.begin());
+            vSelectedJointId = static_cast<nvl::Skeleton3d::JointId>(*selectionData.begin());
         }
 
         updateSkinningWeightVertexValues();
@@ -76,14 +134,16 @@ void SkinMixerManager::slot_selectedDrawableUpdated()
     updateView();
 }
 
-void SkinMixerManager::slot_drawableSelectionChanged()
+void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<nvl::Skeleton3d::JointId>& selectedDrawables)
 {
+    NVL_SUPPRESS_UNUSEDVARIABLE(selectedDrawables);
+
     clearDetachPreview();
 
     vSelectedModelDrawer = nullptr;
     vSelectedJointId = nvl::MAX_ID;
 
-    const std::unordered_set<Index>& selectedItems = vCanvas->selectedDrawables();
+    const std::unordered_set<Index>& selectedItems = vDrawableListWidget->selectedDrawables();
     if (selectedItems.size() == 1) {
         Index firstItem = *selectedItems.begin();
         nvl::Drawable* drawable = vCanvas->drawable(firstItem);
@@ -91,17 +151,12 @@ void SkinMixerManager::slot_drawableSelectionChanged()
         ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(drawable);
         if (modelDrawer != nullptr) {
             vSelectedModelDrawer = modelDrawer;
-
-            const std::vector<long long int>& selectionData = vSelectedModelDrawer->skeletonDrawer().selectionData();
-            if (selectionData.size() == 1) {
-                vSelectedJointId = static_cast<Index>(*selectionData.begin());
-            }
         }
-
-        updateSkinningWeightVertexValues();
     }
 
     vCanvas->setMovableFrame(nvl::Affine3d::Identity());
+
+    updateSkinningWeightVertexValues();
 
     updateView();
 }
@@ -111,7 +166,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     nvl::Quaterniond rot(vCanvas->movableFrame().rotation());
     nvl::Translation3d tra(vCanvas->movableFrame().translation());
 
-    for (Index id : vCanvas->selectedDrawables()) {
+    for (Index id : vDrawableListWidget->selectedDrawables()) {
         if (vCanvas->isFrameable(id)) {
             nvl::Frameable* frameable = vCanvas->frameable(id);
             nvl::Drawable* drawable = vCanvas->drawable(id);
@@ -175,7 +230,8 @@ void SkinMixerManager::doDetach()
 
         vCanvas->removeDrawable(vSelectedModelDrawer);
         assert(vCanvas->drawableNumber() > 0);
-        vCanvas->select(vCanvas->drawableNumber() - 1);
+
+        vDrawableListWidget->selectDrawable(vCanvas->drawableNumber() - 1);
 
         clearDetachPreview();
 
@@ -270,7 +326,7 @@ void SkinMixerManager::clearAttachSelection()
 
 void SkinMixerManager::updateView()
 {
-    bool drawableSelected = vCanvas->selectedDrawableNumber() > 0;
+    bool drawableSelected = vDrawableListWidget->selectedDrawableNumber() > 0;
     ui->modelsRemoveButton->setEnabled(drawableSelected);
 
     bool singleDrawableSelected = vSelectedModelDrawer != nullptr;
@@ -321,7 +377,6 @@ void SkinMixerManager::attachFindPosition()
     vAttachSelectedModelDrawer2->setFrame(transformation2 * vAttachSelectedModelDrawer2->frame());
     vAttachSelectedModelDrawer2->update();
 
-    vCanvas->notifySelectedDrawableUpdated();
     vCanvas->updateGL();
 }
 
@@ -358,7 +413,8 @@ void SkinMixerManager::doAttach()
         vCanvas->removeDrawable(vAttachSelectedModelDrawer1);
         vCanvas->removeDrawable(vAttachSelectedModelDrawer2);
         assert(vCanvas->drawableNumber() > 0);
-        vCanvas->select(vCanvas->drawableNumber() - 1);
+
+        vDrawableListWidget->selectDrawable(vCanvas->drawableNumber() - 1);
 
         clearDetachPreview();
 
@@ -385,7 +441,6 @@ void SkinMixerManager::nodeApplyFrameTransformation()
     vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
     vSelectedModelDrawer->update();
 
-    vCanvas->notifySelectedDrawableUpdated();
     vCanvas->updateGL();
 }
 
@@ -420,6 +475,7 @@ SkinMixerManager::Index SkinMixerManager::addModelDrawerFromNode(SkinMixerNode& 
     ModelDrawer* modelDrawer = new ModelDrawer(model);
     modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_FACE);
     modelDrawer->meshDrawer().setWireframeVisible(true);
+    modelDrawer->meshDrawer().setPickable(false);
     vModelDrawers.push_back(modelDrawer);
 
     nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(name);
@@ -456,9 +512,10 @@ void SkinMixerManager::connectSignals()
 {
     if (vCanvas != nullptr) {
         //Connect signals to the viewer
-        connect(vCanvas, &nvl::Canvas::signal_drawableSelectionChanged, this, &SkinMixerManager::slot_drawableSelectionChanged);
-        connect(vCanvas, &nvl::Canvas::signal_selectedDrawableUpdated, this, &SkinMixerManager::slot_selectedDrawableUpdated);
+        connect(vDrawableListWidget, &nvl::DrawableListWidget::signal_drawableSelectionChanged, this, &SkinMixerManager::slot_drawableSelectionChanged);
+        connect(vSkeletonJointListWidget, &nvl::SkeletonJointListWidget::signal_jointSelectionChanged, this, &SkinMixerManager::slot_jointSelectionChanged);
         connect(vCanvas, &nvl::Canvas::signal_movableFrameChanged, this, &SkinMixerManager::slot_movableFrameChanged);
+        connect(vCanvas, &nvl::Canvas::signal_picking, this, &SkinMixerManager::slot_picking);
     }
 }
 
@@ -467,7 +524,7 @@ void SkinMixerManager::on_modelsLoadButton_clicked()
     QFileDialog dialog(this);
     dialog.setDirectory(QDir::homePath());
     dialog.setFileMode(QFileDialog::ExistingFiles);
-    dialog.setNameFilter("Model (*.txt)");
+    dialog.setNameFilter("Model (*.mdl)");
 
     QStringList files;
 
@@ -483,8 +540,8 @@ void SkinMixerManager::on_modelsLoadButton_clicked()
 
 void SkinMixerManager::on_modelsRemoveButton_clicked()
 {
-    while (!vCanvas->selectedDrawables().empty()) {
-        vCanvas->removeDrawable(*vCanvas->selectedDrawables().begin());
+    while (!vDrawableListWidget->selectedDrawables().empty()) {
+        vCanvas->removeDrawable(*vDrawableListWidget->selectedDrawables().begin());
     }
     vCanvas->updateGL();
 }

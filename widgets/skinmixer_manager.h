@@ -2,8 +2,11 @@
 #define DETACHER_MANAGER_H
 
 #include <QFrame>
+#include <QWidget>
 
 #include <nvl/viewer/widgets/canvas.h>
+#include <nvl/viewer/widgets/drawable_list_widget.h>
+#include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
 #include <nvl/viewer/drawables/model_drawer.h>
 #include <nvl/models/model.h>
 #include <nvl/models/meshes.h>
@@ -31,23 +34,32 @@ class SkinMixerManager : public QFrame
 
 public:
 
-    explicit SkinMixerManager(nvl::Canvas* canvas = nullptr, QWidget *parent = nullptr);
+    explicit SkinMixerManager(
+            nvl::Canvas* canvas,
+            nvl::DrawableListWidget* drawableListWidget,
+            nvl::SkeletonJointListWidget* skeletonJointListWidget,
+            QWidget *parent = nullptr);
     ~SkinMixerManager();
 
+    //TODO TOGLIERE
     void loadModelFromFile(const std::string& filename);
 
+    //TODO TOGLIERE
     Index addModelDrawerFromNode(const Index& nodeId, const std::string& name);
     Index addModelDrawerFromNode(SkinMixerNode& node, const std::string& name);
 
 public Q_SLOTS:
 
-    void slot_drawableSelectionChanged();
-    void slot_selectedDrawableUpdated();
+    //MOVE IN PICKING SELECTOR
+    void slot_picking(const std::vector<long long int>& data);
+    void slot_jointSelectionChanged(const std::unordered_set<Index>& selectedJoints);
+    void slot_drawableSelectionChanged(const std::unordered_set<Index>& selectDrawables);
     void slot_movableFrameChanged();
 
 
 private slots:
 
+    //TODO TOGLIERE
     void on_modelsRemoveButton_clicked();
     void on_modelsLoadButton_clicked();
 
@@ -88,14 +100,17 @@ private:
     Ui::SkinMixerManager *ui;
 
     nvl::Canvas* vCanvas;
+    nvl::DrawableListWidget* vDrawableListWidget;
+    nvl::SkeletonJointListWidget* vSkeletonJointListWidget;
 
     Graph vSkinMixerGraph;
 
     std::vector<Model*> vModels;
     std::vector<ModelDrawer*> vModelDrawers;
 
+    //TODO TOGLIERE EVENTO CHE LI SALVA
     nvl::ModelDrawer<Model>* vSelectedModelDrawer;
-    Index vSelectedJointId;
+    nvl::Skeleton3d::JointId vSelectedJointId;
 
     bool vDetachPreview;
     PolylineMesh vDetachPreviewMesh;
