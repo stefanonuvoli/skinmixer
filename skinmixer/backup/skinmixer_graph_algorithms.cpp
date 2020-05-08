@@ -9,7 +9,7 @@ namespace internal {
 
 template<class Model>
 bool findOriginalPositionRecursive(
-        const OperationGraph<Model>& graph,
+        const SkinMixerGraph<Model>& graph,
         const nvl::Index& nodeId,
         const nvl::Index& rootNodeId,
         typename Model::Mesh::Point& position);
@@ -18,14 +18,14 @@ bool findOriginalPositionRecursive(
 
 template<class Model>
 bool findVertexBirthNode(
-        const OperationGraph<Model>& graph,
+        const SkinMixerGraph<Model>& graph,
         const nvl::Index& nodeId,
         const typename Model::Mesh::VertexId& vertexId,
         nvl::Index& birthNode,
         typename Model::Mesh::VertexId& birthVertex)
 {
     typedef typename Model::Mesh::VertexId VertexId;
-    typedef typename OperationGraph<Model>::Node Node;
+    typedef typename SkinMixerGraph<Model>::Node Node;
 
     birthNode = nvl::MAX_ID;
     birthVertex = nvl::MAX_ID;
@@ -66,14 +66,14 @@ bool findVertexBirthNode(
 
 template<class Model>
 bool findJointBirthNode(
-        const OperationGraph<Model>& graph,
+        const SkinMixerGraph<Model>& graph,
         const nvl::Index& nodeId,
         const typename Model::Skeleton::JointId& jointId,
         nvl::Index& birthNode,
         typename Model::Skeleton::JointId& birthJoint)
 {
     typedef typename Model::Skeleton::JointId JointId;
-    typedef typename OperationGraph<Model>::Node Node;
+    typedef typename SkinMixerGraph<Model>::Node Node;
 
     birthNode = nvl::MAX_ID;
     birthJoint = nvl::MAX_ID;
@@ -114,7 +114,7 @@ bool findJointBirthNode(
 
 template<class Model>
 bool findOriginalPosition(
-        const OperationGraph<Model>& graph,
+        const SkinMixerGraph<Model>& graph,
         const nvl::Index& nodeId,
         const nvl::Index& rootNodeId,
         const typename Model::Mesh::Point& position,
@@ -129,7 +129,7 @@ bool findOriginalPosition(
 
 template<class Model>
 void applyTransformationToNode(
-        OperationGraphNode<Model>& node,
+        SkinMixerNode<Model>& node,
         const nvl::Affine3d& transformation)
 {
     Model* model = node.model;
@@ -145,7 +145,7 @@ void applyTransformationToNode(
 
 template<class Model>
 void applyTransformationToNode(
-        OperationGraph<Model>& graph,
+        SkinMixerGraph<Model>& graph,
         const nvl::Index& nodeId,
         const nvl::Affine3d& transformation)
 {
@@ -156,12 +156,12 @@ namespace internal {
 
 template<class Model>
 bool findOriginalPositionRecursive(
-        const OperationGraph<Model>& graph,
+        const SkinMixerGraph<Model>& graph,
         const nvl::Index& nodeId,
         const nvl::Index& rootNodeId,
         typename Model::Mesh::Point& position)
 {
-    typedef typename OperationGraph<Model>::Node Node;
+    typedef typename SkinMixerGraph<Model>::Node Node;
     typedef typename nvl::Index Index;
     typedef typename Model::Mesh::Point Point;
 

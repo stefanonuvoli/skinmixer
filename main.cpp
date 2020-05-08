@@ -5,7 +5,7 @@
 #include <nvl/viewer/widgets/drawable_widget.h>
 #include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
 #include <nvl/viewer/widgets/animation_widget.h>
-#include <nvl/viewer/widgets/drawable_handler_widget.h>
+#include <nvl/viewer/widgets/model_loader_widget.h>
 #include <nvl/viewer/widgets/model_animation_widget.h>
 #include <nvl/viewer/widgets/model_drawer_widget.h>
 #include <nvl/viewer/widgets/qglviewer_canvas.h>
@@ -42,12 +42,13 @@ int main(int argc, char *argv[]) {
     viewer.addToRightDock(&modelAnimationWidget);
 
     //Left dock
-    nvl::DrawableHandlerWidget drawableHandlerWidget(&canvas, &drawableListWidget);
-    viewer.addToLeftDock(&drawableHandlerWidget);
-    skinmixer::SkinMixerManager skinMixerManager(&canvas, &drawableListWidget, &skeletonWidget);
+    nvl::ModelLoaderWidget modelLoaderWidget(&canvas, &drawableListWidget);
+    viewer.addToLeftDock(&modelLoaderWidget);
+    SkinMixerManager skinMixerManager(&canvas, &drawableListWidget, &skeletonWidget, &modelLoaderWidget);
     viewer.addToLeftDock(&skinMixerManager);
 
-    skinMixerManager.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/dreyar.mdl");
+    //Add a model
+    modelLoaderWidget.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/dreyar.mdl");
 
     canvas.fitScene();
 

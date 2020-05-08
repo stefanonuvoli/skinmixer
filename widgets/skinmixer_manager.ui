@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>467</height>
+    <height>271</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,45 +15,39 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QGroupBox" name="modelsGroupBox">
+    <widget class="QGroupBox" name="operationGroupBox">
      <property name="title">
-      <string>Models</string>
+      <string>Operations</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_4">
-      <item row="0" column="0">
-       <widget class="QPushButton" name="modelsLoadButton">
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="3">
+       <widget class="QRadioButton" name="operationSplitRadio">
         <property name="text">
-         <string>Load</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="modelsSaveButton">
-        <property name="text">
-         <string>Save</string>
+         <string>Split</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QPushButton" name="modelsRemoveButton">
+       <widget class="QRadioButton" name="operationRemoveRadio">
         <property name="text">
          <string>Remove</string>
         </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="detachingGroupBox">
-     <property name="title">
-      <string>Detaching</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_2">
-      <item row="7" column="1">
-       <widget class="QCheckBox" name="detachingKeepSkeletonCheckBox">
+      <item row="0" column="2">
+       <widget class="QRadioButton" name="operationDetachRadio">
         <property name="text">
-         <string>Keep skeleton</string>
+         <string>Detach</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="operationPreviewCheckBox">
+        <property name="text">
+         <string>Preview</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -61,120 +55,23 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QPushButton" name="detachingClearButton">
+       <widget class="QPushButton" name="operationApplyButton">
         <property name="text">
-         <string>Clear</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <widget class="QPushButton" name="detachingDetachButton">
-        <property name="text">
-         <string>Detach</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QCheckBox" name="detachingSmoothCheckBox">
-        <property name="text">
-         <string>Smooth</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QPushButton" name="detachingPreviewButton">
-        <property name="text">
-         <string>Preview</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QDoubleSpinBox" name="detachingOffsetSpinBox">
-        <property name="minimum">
-         <double>-0.990000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>0.990000000000000</double>
-        </property>
-        <property name="singleStep">
-         <double>0.010000000000000</double>
-        </property>
-        <property name="value">
-         <double>0.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="detachingOffsetLabel">
-        <property name="text">
-         <string>Offset</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="detachingRigidityLabel">
-        <property name="text">
-         <string>Rigidity</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="QDoubleSpinBox" name="detachingRigiditySpinBox">
-        <property name="maximum">
-         <double>1.000000000000000</double>
-        </property>
-        <property name="singleStep">
-         <double>0.100000000000000</double>
-        </property>
-        <property name="value">
-         <double>0.800000000000000</double>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="attachingGroupBox">
-     <property name="title">
-      <string>Attaching</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="2">
-       <widget class="QPushButton" name="attachingAbortButton">
-        <property name="text">
-         <string>Abort</string>
+         <string>Apply</string>
         </property>
        </widget>
       </item>
       <item row="1" column="2">
-       <widget class="QPushButton" name="attachingAttachButton">
+       <widget class="QRadioButton" name="operationReplaceRadio">
         <property name="text">
-         <string>Attach</string>
+         <string>Replace</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QPushButton" name="attachingSelect1Button">
+      <item row="1" column="1">
+       <widget class="QRadioButton" name="operationAddRadio">
         <property name="text">
-         <string>Select 1</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QPushButton" name="attachingFindPositionButton">
-        <property name="text">
-         <string>Find position</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="attachingSelect2Button">
-        <property name="text">
-         <string>Select 2</string>
+         <string>Add</string>
         </property>
        </widget>
       </item>
@@ -182,19 +79,81 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="transformationGroup">
-     <property name="title">
-      <string>Transformations</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0">
-       <widget class="QPushButton" name="transformationMoveButton">
-        <property name="text">
-         <string>Move</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
+    <widget class="QTabWidget" name="transformationGroup">
+     <widget class="QWidget" name="cutPage">
+      <attribute name="title">
+       <string>Detaching</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="1" column="1">
+        <widget class="QSlider" name="cutRigiditySlider">
+         <property name="maximum">
+          <number>100</number>
+         </property>
+         <property name="value">
+          <number>60</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="cutRigidityLabel">
+         <property name="text">
+          <string>Rigidity</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QCheckBox" name="cutSmoothCheckBox">
+         <property name="text">
+          <string>Smooth</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="cutOffsetLabel">
+         <property name="text">
+          <string>Offset</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QSlider" name="cutOffsetSlider">
+         <property name="minimum">
+          <number>-50</number>
+         </property>
+         <property name="maximum">
+          <number>50</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QPushButton" name="cutOffsetResetButton">
+         <property name="text">
+          <string>Reset</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="cutOffsetRigidityButton">
+         <property name="text">
+          <string>Reset</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
