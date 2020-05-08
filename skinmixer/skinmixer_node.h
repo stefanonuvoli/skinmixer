@@ -5,19 +5,20 @@
 
 #include <nvl/math/transformations.h>
 
+#include "skinmixer/skinmixer_operation.h"
+
 #include <vector>
 
+namespace skinmixer {
+
 template<class Model>
-struct SkinMixerNode
+struct OperationGraphNode
 {
 public:
 
-    enum OperationType { NONE, DETACH, ATTACH };
+    OperationGraphNode();
 
-    SkinMixerNode();
-
-    Model* model;    
-    OperationType operation;
+    Model* model;
 
     std::vector<nvl::Index> parents;
     std::vector<nvl::Index> children;
@@ -30,11 +31,15 @@ public:
     std::vector<nvl::Index> birthFaceParentNodeId;
     std::vector<nvl::Index> birthJointParentNodeId;
 
-    typename Model::Skeleton::JointId vDetachingJointId;
-    std::vector<typename Model::Mesh::VertexId> vDetachingVertices;
+    Operation operation;
+
+    typename Model::Skeleton::JointId vCutJointId;
+    std::vector<typename Model::Mesh::VertexId> vCutVertices;
 
     nvl::Affine3d transformation;
 };
+
+}
 
 #include "skinmixer_node.cpp"
 
