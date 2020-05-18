@@ -9,7 +9,7 @@
 
 namespace skinmixer {
 
-    enum OperationType { NONE, REMOVE, DETACH, ATTACH };
+    enum Operation { NONE, REMOVE, DETACH, SPLIT, ADD, REPLACE };
 
 }
 

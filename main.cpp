@@ -42,13 +42,11 @@ int main(int argc, char *argv[]) {
     viewer.addToRightDock(&modelAnimationWidget);
 
     //Left dock
-    nvl::ModelLoaderWidget modelLoaderWidget(&canvas, &drawableListWidget);
-    viewer.addToLeftDock(&modelLoaderWidget);
-    SkinMixerManager skinMixerManager(&canvas, &drawableListWidget, &skeletonWidget, &modelLoaderWidget);
+    SkinMixerManager skinMixerManager(&canvas, &drawableListWidget, &skeletonWidget);
     viewer.addToLeftDock(&skinMixerManager);
 
     //Add a model
-    modelLoaderWidget.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/dreyar.mdl");
+    skinMixerManager.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/dreyar.mdl");
 
     canvas.fitScene();
 
