@@ -35,9 +35,33 @@ void SkinMixerData<Model>::deleteEntry(Model* model)
 }
 
 template<class Model>
+const std::vector<typename SkinMixerData<Model>::Entry>& SkinMixerData<Model>::entries() const
+{
+    return vEntries;
+}
+
+template<class Model>
+std::vector<typename SkinMixerData<Model>::Entry>& SkinMixerData<Model>::entries()
+{
+    return vEntries;
+}
+
+template<class Model>
 typename SkinMixerData<Model>::Entry& SkinMixerData<Model>::entry(Model* model)
 {
     return vEntries.at(vModelMap.at(model));
+}
+
+template<class Model>
+const std::vector<typename SkinMixerData<Model>::Action>& SkinMixerData<Model>::actions() const
+{
+    return vActions;
+}
+
+template<class Model>
+void SkinMixerData<Model>::addAction(const Action& action)
+{
+    vActions.push_back(action);
 }
 
 template<class Model>

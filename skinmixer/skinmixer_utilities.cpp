@@ -1,24 +1,31 @@
 #include "skinmixer.h"
 
-#include <nvl/models/mesh_transfer.h>
-#include <nvl/models/skeleton_transfer.h>
-#include <nvl/models/model_transfer.h>
 #include <nvl/models/skeleton_adjacencies.h>
-#include <nvl/models/mesh_normals.h>
-#include <nvl/models/mesh_implicit_function.h>
-#include <nvl/models/mesh_geometric_information.h>
+#include <nvl/models/mesh_adjacencies.h>
 
-#include <nvl/math/comparisons.h>
 #include <nvl/math/laplacian.h>
 #include <nvl/math/numeric_limits.h>
 
 namespace skinmixer {
 
 template<class Model>
-std::vector<typename Model::SkinningWeights::Scalar> jointJunctionImplicitFunction(
+std::vector<typename Model::SkinningWeights::Scalar> jointJunctionFunction(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const std::vector<typename Model::Skeleton::JointId>& descendandJoints)
+        const unsigned int smoothingIteration)
+{
+    typedef typename Model::Skeleton Skeleton;
+
+    const Skeleton& skeleton = model.skeleton;
+    return jointJunctionFunction(model, targetJoint, nvl::skeletonJointDescendants(skeleton, targetJoint), smoothingIteration);
+}
+
+template<class Model>
+std::vector<typename Model::SkinningWeights::Scalar> jointJunctionFunction(
+        const Model& model,
+        const typename Model::Skeleton::JointId& targetJoint,
+        const std::vector<typename Model::Skeleton::JointId>& descendandJoints,
+        const unsigned int smoothingIteration)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
@@ -30,23 +37,35 @@ std::vector<typename Model::SkinningWeights::Scalar> jointJunctionImplicitFuncti
     const Mesh& mesh = model.mesh;
     const SkinningWeights& skinningWeights = model.skinningWeights;
 
-    std::vector<SkinningWeightsScalar> cutFunction(mesh.vertexNumber(), nvl::maxLimitValue<SkinningWeightsScalar>());
+    std::vector<SkinningWeightsScalar> function(mesh.vertexNumber(), nvl::maxLimitValue<SkinningWeightsScalar>());
 
     //Create function
     for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
         if (mesh.isVertexDeleted(vId))
             continue;
 
-        cutFunction[vId] = skinningWeights.weight(vId, targetJoint);
+        function[vId] = skinningWeights.weight(vId, targetJoint);
 
         for (JointId jId : descendandJoints) {
-            cutFunction[vId] += skinningWeights.weight(vId, jId);
+            function[vId] += skinningWeights.weight(vId, jId);
         }
-
-        cutFunction[vId] = std::min(std::max(cutFunction[vId], 0.0), 1.0);
     }
 
-    return cutFunction;
+    //Smooth function
+    if (smoothingIteration > 0) {
+        std::vector<std::vector<VertexId>> vvAdj = nvl::meshVertexVertexAdjacencies(mesh);
+        nvl::laplacianSmoothing(function, vvAdj, smoothingIteration, 0.8);
+    }
+
+    //Limit values between 0 and 1
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        function[vId] = std::min(std::max(function[vId], 0.0), 1.0);
+    }
+
+    return function;
 }
 
 template<class Model>

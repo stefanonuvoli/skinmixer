@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>390</height>
+    <height>472</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,6 +20,27 @@
       <string>Models</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
+      <item row="3" column="0">
+       <widget class="QPushButton" name="modelDuplicateButton">
+        <property name="text">
+         <string>Duplicate</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="normalsLabel">
+        <property name="text">
+         <string>Normals:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="modelSaveButton">
+        <property name="text">
+         <string>Save</string>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="0">
        <widget class="QPushButton" name="modelLoadButton">
         <property name="text">
@@ -34,14 +55,7 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="normalsLabel">
-        <property name="text">
-         <string>Normals:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
+      <item row="2" column="1">
        <widget class="QCheckBox" name="updateVertexNormalsCheckBox">
         <property name="text">
          <string>Vertices</string>
@@ -51,14 +65,7 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="modelSaveButton">
-        <property name="text">
-         <string>Save</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2">
+      <item row="2" column="2">
        <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
         <property name="text">
          <string>Faces</string>
@@ -68,10 +75,13 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QPushButton" name="modelDuplicateButton">
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="scaleOn1CheckBox">
         <property name="text">
-         <string>Duplicate</string>
+         <string>Scale on 1</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -84,6 +94,23 @@
       <string>Operations</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="2">
+       <widget class="QPushButton" name="operationDetachButton">
+        <property name="text">
+         <string>Detach</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="operationRemoveButton">
+        <property name="text">
+         <string>Remove</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
       <item row="5" column="2">
        <widget class="QPushButton" name="operationAbortButton">
         <property name="text">
@@ -98,23 +125,6 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="operationRemoveButton">
-        <property name="text">
-         <string>Remove</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="operationDetachButton">
-        <property name="text">
-         <string>Detach</string>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="3">
        <widget class="QPushButton" name="operationAttachButton">
         <property name="text">
@@ -126,69 +136,123 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="parametersGroup">
+    <widget class="QGroupBox" name="resultsGroupBox">
      <property name="title">
-      <string>Parameters</string>
+      <string>Results</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="1" column="1">
-       <widget class="QSlider" name="cutRigiditySlider">
-        <property name="maximum">
-         <number>100</number>
-        </property>
-        <property name="value">
-         <number>60</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
+     <layout class="QGridLayout" name="gridLayout_4">
       <item row="0" column="0">
-       <widget class="QLabel" name="cutOffsetLabel">
+       <widget class="QPushButton" name="mixButton">
         <property name="text">
-         <string>Offset</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QSlider" name="cutOffsetSlider">
-        <property name="minimum">
-         <number>-50</number>
-        </property>
-        <property name="maximum">
-         <number>50</number>
-        </property>
-        <property name="value">
-         <number>0</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="cutOffsetResetButton">
-        <property name="text">
-         <string>Reset</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2">
-       <widget class="QPushButton" name="cutOffsetRigidityButton">
-        <property name="text">
-         <string>Reset</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="cutRigidityLabel">
-        <property name="text">
-         <string>Rigidity</string>
+         <string>Mix</string>
         </property>
        </widget>
       </item>
      </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="parametersTabWidget">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="accessibleName">
+      <string/>
+     </property>
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="generalParametersPage">
+      <attribute name="title">
+       <string>General</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_5">
+       <item row="0" column="0">
+        <widget class="QLabel" name="functionSmoothingLabel">
+         <property name="text">
+          <string>Func smoothing</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QSlider" name="functionSmoothingSlider">
+         <property name="value">
+          <number>10</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="cutParametersPage">
+      <attribute name="title">
+       <string>Cut</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="1" column="1">
+        <widget class="QSlider" name="cutRigiditySlider">
+         <property name="maximum">
+          <number>100</number>
+         </property>
+         <property name="value">
+          <number>60</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="cutOffsetLabel">
+         <property name="text">
+          <string>Offset</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QSlider" name="cutOffsetSlider">
+         <property name="minimum">
+          <number>-50</number>
+         </property>
+         <property name="maximum">
+          <number>50</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QPushButton" name="cutOffsetResetButton">
+         <property name="text">
+          <string>Reset</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="cutOffsetRigidityButton">
+         <property name="text">
+          <string>Reset</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="cutRigidityLabel">
+         <property name="text">
+          <string>Rigidity</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>

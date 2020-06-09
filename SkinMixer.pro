@@ -27,6 +27,10 @@ macx{
     LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
 }
 
+#OpenVDB
+CONFIG += c++11
+LIBS += -L"usr/local/lib/" -lopenvdb
+LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
 
 ######################### FLAGS AND OPTIMIZATION #######################
 
@@ -63,12 +67,16 @@ SOURCES += \
     main.cpp \
     skinmixer/skinmixer.cpp \
     skinmixer/skinmixer_data.cpp \
+    skinmixer/skinmixer_fuzzy.cpp \
+    skinmixer/skinmixer_mix.cpp \
     skinmixer/skinmixer_utilities.cpp \
     widgets/skinmixer_manager.cpp
 
 HEADERS += \
     skinmixer/skinmixer.h \
     skinmixer/skinmixer_data.h \
+    skinmixer/skinmixer_fuzzy.h \
+    skinmixer/skinmixer_mix.h \
     skinmixer/skinmixer_operation.h \
     skinmixer/skinmixer_utilities.h \
     widgets/skinmixer_manager.h

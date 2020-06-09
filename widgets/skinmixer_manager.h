@@ -56,7 +56,7 @@ public:
 public Q_SLOTS:
 
     void slot_canvasPicking(const std::vector<PickingData>& data);
-    void slot_jointSelectionChanged(const std::unordered_set<Index>& selectedJoints);
+    void slot_jointSelectionChanged(const std::unordered_set<nvl::Skeleton3d::JointId>& selectedJoints);
     void slot_drawableSelectionChanged(const std::unordered_set<Index>& selectDrawables);
     void slot_movableFrameChanged();    
     void slot_drawableAdded(const Index& id, nvl::Drawable* drawable);
@@ -81,14 +81,20 @@ private slots:
 
     void on_operationApplyButton_clicked();
 
+    void on_mixButton_clicked();
+
 private:
 
     ModelDrawer* getSelectedModelDrawer();
     JointId getSelectedJointId();
 
+    void mix();
+
     void applyOperation();
+    void abortOperation();    
 
     void updateCanvasView();
+    void prepareModelForAttach();
     void updateView();
 
     void colorizeModelDrawerWithFuzzyValues(
@@ -104,7 +110,7 @@ private:
     void connectSignals();
 
     void clear();
-    void updateModelNormals(Model* model);
+    void initializeLoadedModel(Model* model);
 
     //Fields
     std::unordered_set<Model*> vModels;
@@ -118,14 +124,14 @@ private:
     nvl::DrawableListWidget* vDrawableListWidget;
     nvl::SkeletonJointListWidget* vSkeletonJointListWidget;
 
-    OperationType currentOperation;
-    SkinMixerData skinMixerData;
+    OperationType vCurrentOperation;
+    SkinMixerData vSkinMixerData;
 
-    ModelDrawer* lastSelectedModelDrawer;
-
-    ModelDrawer* attachFirstModelDrawer;
-    JointId attachFirstJointId;
-    nvl::Affine3d attachBackupFrame;
+    ModelDrawer* vSelectedModelDrawer;
+    JointId vSelectedJoint;
+    ModelDrawer* vAttachModelDrawer;
+    JointId vAttachJoint;
+    nvl::Affine3d vBackupFrame;
 
 };
 
