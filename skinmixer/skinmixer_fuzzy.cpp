@@ -55,7 +55,7 @@ void removeFuzzy(
                 continue;
 
             assert(componentBirthVertex[vId] != nvl::MAX_ID);
-            componentFunction[vId] = 1.0 - jointFunction[componentBirthVertex[vId]];
+            componentFunction[vId] = std::max(std::min(1.0f - jointFunction[componentBirthVertex[vId]], 1.0), 0.0);
             minFunction = nvl::min(minFunction, componentFunction[vId]);
             maxFunction = nvl::max(maxFunction, componentFunction[vId]);
             avgFunction += componentFunction[vId];
@@ -75,7 +75,7 @@ void removeFuzzy(
                 vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], componentFunction[vId]);
             }
             else {
-                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : 0.0f));
+                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
             }
         }
     }
@@ -135,7 +135,7 @@ void detachFuzzy(
                 continue;
 
             assert(componentBirthVertex[vId] != nvl::MAX_ID);
-            componentFunction[vId] = jointFunction[componentBirthVertex[vId]];
+            componentFunction[vId] = std::max(std::min(jointFunction[componentBirthVertex[vId]], 1.0), 0.0);
             minFunction = nvl::min(minFunction, componentFunction[vId]);
             maxFunction = nvl::max(maxFunction, componentFunction[vId]);
             avgFunction += componentFunction[vId];
@@ -155,7 +155,7 @@ void detachFuzzy(
                 vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], componentFunction[vId]);
             }
             else {
-                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : 0.0f));
+                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
             }
         }
     }

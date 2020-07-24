@@ -7,6 +7,12 @@ NUVOLIB_PATH = $$PWD/libs/nuvolib
 VCGLIB_PATH = /usr/include/vcglib
 LIBIGL_PATH = /usr/include/libigl
 
+# TO DELETEEEE!
+#HEADERS += \
+#    $$VCGLIB_PATH/wrap/ply/plylib.h
+#SOURCES += \
+#    $$VCGLIB_PATH/wrap/ply/plylib.cpp
+
 #MLO_PATH = $$PWD/libs/MultiLabelOptimization
 
 #Modules of nuvolib
@@ -66,17 +72,17 @@ include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
 SOURCES += \
     main.cpp \
     skinmixer/skinmixer.cpp \
+    skinmixer/skinmixer_blend.cpp \
     skinmixer/skinmixer_data.cpp \
     skinmixer/skinmixer_fuzzy.cpp \
-    skinmixer/skinmixer_mix.cpp \
     skinmixer/skinmixer_utilities.cpp \
     widgets/skinmixer_manager.cpp
 
 HEADERS += \
     skinmixer/skinmixer.h \
+    skinmixer/skinmixer_blend.h \
     skinmixer/skinmixer_data.h \
     skinmixer/skinmixer_fuzzy.h \
-    skinmixer/skinmixer_mix.h \
     skinmixer/skinmixer_operation.h \
     skinmixer/skinmixer_utilities.h \
     widgets/skinmixer_manager.h

@@ -163,7 +163,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="generalParametersPage">
       <attribute name="title">
@@ -200,7 +200,7 @@
           <number>100</number>
          </property>
          <property name="value">
-          <number>60</number>
+          <number>80</number>
          </property>
          <property name="orientation">
           <enum>Qt::Horizontal</enum>

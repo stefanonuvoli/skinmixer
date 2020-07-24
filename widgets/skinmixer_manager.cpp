@@ -248,8 +248,15 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
 
 void SkinMixerManager::slot_movableFrameChanged()
 {
-    nvl::Quaterniond rot(vCanvas->movableFrame().rotation());
-    nvl::Translation3d tra(vCanvas->movableFrame().translation());
+    nvl::Affine3d transform = vCanvas->movableFrame();
+
+    nvl::Affine3d::LinearMatrixType scaMatrix;
+    transform.computeScalingRotation(&scaMatrix, static_cast<nvl::Affine3d::LinearMatrixType*>(0));
+    nvl::Scaling3d sca(scaMatrix.diagonal());
+
+    nvl::Quaterniond rot(transform.rotation());
+
+    nvl::Translation3d tra(transform.translation());
 
     for (Index id : vDrawableListWidget->selectedDrawables()) {
         if (vCanvas->isFrameable(id)) {
@@ -269,6 +276,9 @@ void SkinMixerManager::slot_movableFrameChanged()
             //Go to center
             newFrame = originTra * newFrame;
 
+            //Scale
+            newFrame = sca * newFrame;
+
             //Rotation
             newFrame = rot * newFrame;
 
@@ -283,6 +293,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     }
 
     vCanvas->setMovableFrame(nvl::Affine3d::Identity());
+    vCanvas->updateGL();
 }
 
 void SkinMixerManager::slot_drawableAdded(const SkinMixerManager::Index& id, nvl::Drawable* drawable)
@@ -478,7 +489,7 @@ void SkinMixerManager::updateCanvasView()
                         faceAffected = true;
                     }
 
-                    float alphaValue = std::max(previewVertexFuzzyValue[vId], 0.1f);
+                    float alphaValue = std::max(std::min(previewVertexFuzzyValue[vId], 1.0f), 0.1f);
                     avgValue += alphaValue;
                 }
                 avgValue /= face.vertexNumber();
@@ -495,7 +506,7 @@ void SkinMixerManager::updateCanvasView()
                     continue;
 
                 if (previewVertexFuzzyValue[vId] < originalVertexFuzzyValue[vId]) {
-                    float alphaValue = std::max(previewVertexFuzzyValue[vId], 0.0f);
+                    float alphaValue = std::max(std::min(previewVertexFuzzyValue[vId], 1.0f), 0.1f);
 
                     nvl::Color vertexC = vSelectedModelDrawer->meshDrawer().renderingVertexColor(vId);
                     vertexC.setAlphaF(alphaValue);
@@ -505,7 +516,7 @@ void SkinMixerManager::updateCanvasView()
 
             for (JointId jId = 0; jId < skeleton.jointNumber(); jId++) {
                 if (previewJointFuzzyValue[jId] < originalJointFuzzyValue[jId]) {
-                    float jointAlphaValue = std::max(previewJointFuzzyValue[jId], 0.1f);
+                    float jointAlphaValue = std::max(std::min(previewJointFuzzyValue[jId], 1.0f), 0.1f);
 
                     nvl::Color jointC = vSelectedModelDrawer->skeletonDrawer().renderingJointColor(jId);
                     jointC.setAlphaF(jointAlphaValue);
@@ -622,7 +633,7 @@ void SkinMixerManager::colorizeModelDrawerWithFuzzyValues(
         const Face& face = mesh.face(fId);
         for (VertexId j = 0; j < face.vertexNumber(); j++) {
             VertexId vId = face.vertexId(j);
-            float value = vertexFuzzyValue[vId];
+            float value = std::max(std::min(vertexFuzzyValue[vId], 1.0f), 0.0f);
             avgValue += value;
         }
         avgValue /= face.vertexNumber();
@@ -637,7 +648,7 @@ void SkinMixerManager::colorizeModelDrawerWithFuzzyValues(
         if (mesh.isVertexDeleted(vId))
             continue;
 
-        float value = vertexFuzzyValue[vId];
+        float value = std::max(std::min(vertexFuzzyValue[vId], 1.0f), 0.0f);;
 
         nvl::Color vertexC = modelDrawer->meshDrawer().renderingVertexColor(vId);
         vertexC.setAlphaF(value);

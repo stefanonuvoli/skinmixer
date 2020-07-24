@@ -3,7 +3,7 @@
 #include "skinmixer/skinmixer_operation.h"
 #include "skinmixer/skinmixer_utilities.h"
 #include "skinmixer/skinmixer_fuzzy.h"
-#include "skinmixer/skinmixer_mix.h"
+#include "skinmixer/skinmixer_blend.h"
 
 #include <nvl/models/model_transformations.h>
 #include <nvl/models/mesh_normals.h>
@@ -19,22 +19,28 @@ std::vector<Model*> mix(
 
     std::vector<Model*> newModels;
 
-    std::vector<Mesh*> models;
+    std::vector<Mesh*> meshes;
     std::vector<std::vector<float>> vertexFuzzyValue;
     std::vector<std::vector<float>> jointFuzzyValue;
 
     //TODO CLUSTERS
     for (Entry entry : data.entries()) {
-        models.push_back(&(entry.model->mesh));
+        meshes.push_back(&(entry.model->mesh));
         vertexFuzzyValue.push_back(entry.vertexFuzzyValue);
         jointFuzzyValue.push_back(entry.jointFuzzyValue);
     }
 
-    Mesh mesh = mixMeshes(models, vertexFuzzyValue);
-    Model* model = new Model();
-    model->mesh = mesh;
+    Model* preservedModel = new Model();
+    Model* newSurfaceModel = new Model();
 
-    newModels.push_back(model);
+    std::vector<typename Mesh::VertexId> preservedBirthVertices;
+    std::vector<typename Mesh::FaceId> preservedBirthFaces;
+    std::vector<nvl::Index> preservedVerticesBirthModel;
+    std::vector<nvl::Index> preservedFacesBirthModel;
+    blendMeshes(meshes, vertexFuzzyValue, preservedModel->mesh, newSurfaceModel->mesh, preservedBirthVertices, preservedBirthFaces, preservedVerticesBirthModel, preservedFacesBirthModel);
+
+    newModels.push_back(preservedModel);
+    newModels.push_back(newSurfaceModel);
 
     return newModels;
 }
