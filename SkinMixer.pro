@@ -6,6 +6,7 @@ NUVOLIB_PATH = $$PWD/libs/nuvolib
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
 VCGLIB_PATH = /usr/include/vcglib
 LIBIGL_PATH = /usr/include/libigl
+GUROBI_PATH = /usr/include/gurobi900/linux64
 
 # TO DELETEEEE!
 #HEADERS += \
@@ -37,6 +38,10 @@ macx{
 CONFIG += c++11
 LIBS += -L"usr/local/lib/" -lopenvdb
 LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
+
+#gurobi
+INCLUDEPATH += $$GUROBI_PATH/include
+LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
 
 ######################### FLAGS AND OPTIMIZATION #######################
 
