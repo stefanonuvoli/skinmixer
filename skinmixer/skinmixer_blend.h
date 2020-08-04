@@ -10,7 +10,7 @@ namespace skinmixer {
 template<class Mesh>
 void blendMeshes(
         const std::vector<Mesh*>& meshes,
-        const std::vector<std::vector<float>>& vertexFuzzyValue,
+        const std::vector<std::vector<float>>& vertexSelectValue,
         Mesh& preservedMesh,
         Mesh& newSurfaceMesh,
         std::vector<typename Mesh::VertexId>& preservedBirthVertices,

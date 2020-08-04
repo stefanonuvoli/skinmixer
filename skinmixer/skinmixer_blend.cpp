@@ -21,6 +21,7 @@
 #include <nvl/models/mesh_transfer.h>
 #include <nvl/models/mesh_split.h>
 #include <nvl/models/mesh_eigen_convert.h>
+#include <nvl/models/mesh_smoothing.h>
 
 #include <nvl/vcglib/vcg_collapse_borders.h>
 
@@ -32,11 +33,12 @@
 
 #define KEEP_THRESHOLD 0.99
 #define DISCARD_THRESHOLD 0.01
-#define MIN_CHAIN 8
+#define SMOOTHING_THRESHOLD 0.94
 
 namespace skinmixer {
 
 namespace internal {
+
 template<class Mesh>
 struct OpenVDBAdapter {
     OpenVDBAdapter() : mesh(nullptr) { }
@@ -59,14 +61,15 @@ void attachMeshToMeshByBorders(
         Mesh& mesh,
         const Mesh& destMesh,
         const std::unordered_set<typename Mesh::VertexId>& meshNonSnappableVertices,
-        const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices);
+        const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices,
+        std::vector<typename Mesh::VertexId>& snappedVertices);
 
 }
 
 template<class Mesh>
 void blendMeshes(
         const std::vector<Mesh*>& meshes,
-        const std::vector<std::vector<float>>& vertexFuzzyValue,
+        const std::vector<std::vector<float>>& vertexSelectValue,
         Mesh& preMesh,
         Mesh& newMesh,
         std::vector<typename Mesh::VertexId>& preBirthVertices,
@@ -81,8 +84,6 @@ void blendMeshes(
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
-    typedef typename Mesh::Vertex Vertex;
-    typedef typename Mesh::Face Face;
     typedef typename Mesh::Point Point;
     typedef typename Mesh::Scalar Scalar;
     typedef typename nvl::Index Index;
@@ -95,7 +96,6 @@ void blendMeshes(
         Scalar avgLength = nvl::meshAverageEdgeLength(*meshPtr);
         voxelSize = std::min(voxelSize, avgLength / 2.0);
     }
-
 
     double scaleFactor = 1.0 / voxelSize;
     nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
@@ -119,7 +119,7 @@ void blendMeshes(
     std::vector<std::vector<FaceId>> gridBirthFace(meshes.size());
 
     for (Index mId = 0; mId < meshes.size(); ++mId) {
-        Mesh* meshPtr = meshes[mId];
+        const Mesh* meshPtr = meshes[mId];
 
         //Data
         Mesh currentMesh;
@@ -133,7 +133,7 @@ void blendMeshes(
             if (meshPtr->isVertexDeleted(vId))
                 continue;
 
-            if (vertexFuzzyValue[mId][vId] > DISCARD_THRESHOLD) {
+            if (vertexSelectValue[mId][vId] > DISCARD_THRESHOLD) {
                 vertices.push_back(vId);
             }
         }
@@ -285,14 +285,12 @@ void blendMeshes(
             for (int k = min.z(); k < max.z(); k++) {
                 openvdb::math::Coord coord(i,j,k);
 
-                int nInvolvedGrids = 0;
-                float sumFuzzy = 0.0;
+                std::vector<std::pair<FloatGrid::ValueType, double>> involvedEntries;
+                std::vector<Index> overThresholdValues;
 
-                bool overThresholdMoreThanOne = false;
-                Index overThresholdMeshId = nvl::MAX_ID;
-
+                float selectValueSum = 0.0;
                 for (Index mId = 0; mId < meshes.size(); ++mId) {
-                    Mesh* meshPtr = meshes[mId];
+                    const Mesh* meshPtr = meshes[mId];
 
                     FloatGridPtr& currentGrid = signedGrids[mId];
                     IntGridPtr& currentPolygonIndexGrid = polygonIndexGrid[mId];
@@ -303,82 +301,52 @@ void blendMeshes(
                     FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
                     IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
 
-                    float fuzzyValue = 0.0;
                     if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
-                        FaceId fId = gridBirthFace[mId][currentPolygonIndex];
-                        for (VertexId j : meshPtr->face(fId).vertexIds()) {
-                            fuzzyValue += vertexFuzzyValue[mId][j];
+                        FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
+
+                        float selectValue = 0.0;
+                        for (VertexId j : meshPtr->face(originFaceId).vertexIds()) {
+                            selectValue += vertexSelectValue[mId][j];
                         }
-                        fuzzyValue /= meshPtr->face(fId).vertexNumber();
+                        selectValue /= meshPtr->face(originFaceId).vertexNumber();
 
-                        sumFuzzy += fuzzyValue;
+                        selectValueSum += selectValue;
 
-                        if (fuzzyValue > KEEP_THRESHOLD) {
-                            if (overThresholdMeshId == nvl::MAX_ID) {
-                                overThresholdMeshId = mId;
-                            }
-                            else {
-                                overThresholdMoreThanOne = true;
-                            }
+                        involvedEntries.push_back(std::make_pair(currentValue, selectValue));
+                        if (selectValue >= KEEP_THRESHOLD) {
+                            overThresholdValues.push_back(involvedEntries.size() - 1);
                         }
-
-                        nInvolvedGrids++;
                     }
                 }
 
                 FloatGrid::ValueType resultValue = 0.0;
 
-                if (overThresholdMeshId == nvl::MAX_ID || overThresholdMoreThanOne) {
-                    for (Index mId = 0; mId < meshes.size(); ++mId) {
-                        Mesh* meshPtr = meshes[mId];
-
-                        FloatGridPtr& currentGrid = signedGrids[mId];
-                        IntGridPtr& currentPolygonIndexGrid = polygonIndexGrid[mId];
-
-                        FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
-                        IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonIndexGrid->getConstAccessor();
-
-                        FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
-                        IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
-
-                        if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
-                            if (sumFuzzy > DISCARD_THRESHOLD) {
-                                float fuzzyValue = 0.0;
-
-                                FaceId fId = gridBirthFace[mId][currentPolygonIndex];
-                                for (VertexId j : meshPtr->face(fId).vertexIds()) {
-                                    fuzzyValue += vertexFuzzyValue[mId][j];
-                                }
-                                fuzzyValue /= meshPtr->face(fId).vertexNumber();
-
-                                fuzzyValue /= sumFuzzy;
-
-                                resultValue += currentValue * fuzzyValue;
-                            }
-                            else {
-                                if (nInvolvedGrids == 0) {
-                                    if (resultValue >= 0) {
-                                        assert(currentValue == maxDistance || currentValue == -maxDistance);
-                                        resultValue = currentValue;
-                                    }
-                                }
-                                else {
-                                    resultValue += (1.0 / nInvolvedGrids) * currentValue;
-                                }
-                            }
-                        }
-                    }
+                if (involvedEntries.size() == 0) {
+                    resultValue = maxDistance;
+                }
+                else if (overThresholdValues.size() == 1) {
+                    FloatGrid::ValueType currentDistance = involvedEntries[overThresholdValues[0]].first;
+                    resultValue = currentDistance;
                 }
                 else {
-                    FloatGridPtr& currentGrid = signedGrids[overThresholdMeshId];
-                    IntGridPtr& currentPolygonIndexGrid = polygonIndexGrid[overThresholdMeshId];
+                    if (selectValueSum >= DISCARD_THRESHOLD) {
+                        for (Index m = 0; m < involvedEntries.size(); ++m) {
+                            FloatGrid::ValueType currentDistance = involvedEntries[m].first;
+                            double selectValue = involvedEntries[m].second;
 
-                    FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
-                    IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonIndexGrid->getConstAccessor();
+                            assert(currentDistance < maxDistance && currentDistance > -maxDistance);
 
-                    FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
+                            selectValue /= selectValueSum;
 
-                    resultValue = currentValue;
+                            resultValue += currentDistance * selectValue;
+                        }
+                    }
+                    else {
+                        for (Index m = 0; m < involvedEntries.size(); ++m) {
+                            FloatGrid::ValueType currentDistance = involvedEntries[m].first;
+                            resultValue += (1.0 / involvedEntries.size()) * currentDistance;
+                        }
+                    }
                 }
 
                 resultAccessor.setValue(coord, resultValue);
@@ -424,11 +392,11 @@ void blendMeshes(
 
             float fuzzyValue = 0.0;
             for (VertexId j : meshPtr->face(fId).vertexIds()) {
-                fuzzyValue += vertexFuzzyValue[mId][j];
+                fuzzyValue += vertexSelectValue[mId][j];
             }
             fuzzyValue /= meshPtr->face(fId).vertexNumber();
 
-            if (fuzzyValue > KEEP_THRESHOLD) {
+            if (fuzzyValue >= KEEP_THRESHOLD) {
                 meshFacesToKeep[mId].insert(fId);
             }
         }
@@ -489,9 +457,9 @@ void blendMeshes(
                 IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
 
                 if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue <= 2.0) {
-                    FaceId meshOriginFId = gridBirthFace[mId][currentPolygonIndex];
+                    FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
-                    if (meshFacesToKeep[mId].find(meshOriginFId) != meshFacesToKeep[mId].end()) {
+                    if (meshFacesToKeep[mId].find(originFaceId) != meshFacesToKeep[mId].end()) {
                         isNewSurface = false;
                     }
                 }
@@ -512,7 +480,59 @@ void blendMeshes(
     //TODO DELETE
     nvl::meshSaveToFile("results/newMeshRegularized.obj", newMesh);
 
-    internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preNonSnappableVertices);
+    std::vector<VertexId> snappedVertices;
+    internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preNonSnappableVertices, snappedVertices);
+
+    std::vector<VertexId> verticesToSmooth;
+    std::vector<double> verticesToSmoothWeights;
+    std::vector<std::vector<FaceId>> newMeshFFAdj = nvl::meshFaceFaceAdjacencies(newMesh);
+    for (VertexId vId = 0; vId < newMesh.nextVertexId(); ++vId) {
+        if (newMesh.isVertexDeleted(vId))
+            continue;
+
+        if (nvl::meshIsBorderVertex(newMesh, vId, newMeshFFAdj))
+            continue;
+
+        const Point& point = newMesh.vertex(vId).point();
+
+        Point scaledPoint = scaleTransform * point;
+        openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+        bool found = false;
+        for (Index mId = 0; mId < meshes.size() && !found; ++mId) {
+            const Mesh* meshPtr = meshes[mId];
+
+            FloatGridPtr& currentGrid = signedGrids[mId];
+            IntGridPtr& currentPolygonIndexGrid = polygonIndexGrid[mId];
+
+            FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
+            IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonIndexGrid->getConstAccessor();
+
+            FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
+            IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
+
+            if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue <= 2.0) {
+                FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
+
+                double selectValue = 0.0;
+                for (VertexId j : meshPtr->face(originFaceId).vertexIds()) {
+                    selectValue += vertexSelectValue[mId][j];
+                }
+                selectValue /= meshPtr->face(originFaceId).vertexNumber();
+
+                if (selectValue >= SMOOTHING_THRESHOLD) {
+                    verticesToSmooth.push_back(vId);
+
+                    const double smoothingWeight = 0.5 + 0.5 * (selectValue - SMOOTHING_THRESHOLD) / (1.0 - SMOOTHING_THRESHOLD);
+                    verticesToSmoothWeights.push_back(smoothingWeight);
+
+                    found = true;
+                }
+            }
+        }
+    }
+
+    nvl::meshLaplacianSmoothing(newMesh, verticesToSmooth, verticesToSmoothWeights, 40);
 
     //TODO DELETE
     nvl::meshSaveToFile("results/newMesh.obj", newMesh);
@@ -527,7 +547,8 @@ void attachMeshToMeshByBorders(
         Mesh& mesh,
         const Mesh& destMesh,
         const std::unordered_set<typename Mesh::VertexId>& meshNonSnappableVertices,
-        const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices)
+        const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices,
+        std::vector<typename Mesh::VertexId>& snappedVertices)
 {
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
@@ -867,8 +888,6 @@ void attachMeshToMeshByBorders(
     //TODO DELETE
     nvl::meshSaveToFile("results/newMeshCleaned.obj", mesh);
 
-    //Split vertices
-    std::unordered_set<VertexId> splitVertices;
     std::vector<std::vector<FaceId>> meshVFAdj = nvl::meshVertexFaceAdjacencies(mesh);
     for (Index k = 0; k < selectedMChains.size(); ++k) {
         Index mChainId = selectedMChains[k].first;
@@ -902,7 +921,7 @@ void attachMeshToMeshByBorders(
             }
 
             VertexId newNVertexId = nvl::meshSplitEdge(mesh, currentNVertexId, mChain[nextI], jPoint, meshVFAdj);
-            splitVertices.insert(newNVertexId);
+            snappedVertices.push_back(newNVertexId);
             currentNVertexId = newNVertexId;
         }
     }
@@ -910,8 +929,12 @@ void attachMeshToMeshByBorders(
     //TODO DELETE
     nvl::meshSaveToFile("results/newMeshSplitted.obj", mesh);
 
-    std::vector<VertexId> nonCollapsed = nvl::collapseBorders(mesh, splitVertices);
+    std::vector<VertexId> nonCollapsed = nvl::collapseBorders(mesh, snappedVertices);
     std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
+
+    if (!nonCollapsed.empty()) {
+        //TODO!!
+    }
 }
 
 }
@@ -1033,7 +1056,7 @@ void attachMeshToMeshByBorders(
 //    nvl::meshSaveToFile("results/newMeshCleaned.obj", newMesh);
 
 //    //Split vertices
-//    std::unordered_set<VertexId> splitVertices;
+//    std::unordered_set<VertexId> snappedVertices;
 //    std::vector<std::vector<FaceId>> newMeshVFAdj = nvl::meshVertexFaceAdjacencies(newMesh);
 //    for (Index pChainId = 0; pChainId < preChains.size(); ++pChainId) {
 //        const std::vector<VertexId>& pChain = preChains[pChainId];
@@ -1057,7 +1080,7 @@ void attachMeshToMeshByBorders(
 //            const VertexId& splitV2 = nChain[nChainNextVertexId];
 
 //            VertexId newNVertexId = nvl::meshSplitEdge(newMesh, splitV1, splitV2, splitPoint, newMeshVFAdj);
-//            splitVertices.insert(newNVertexId);
+//            snappedVertices.insert(newNVertexId);
 
 //            //Add vertex to the chain and update the edges of the chain to split
 //            nChain.insert(nChain.begin() + nChainNextVertexId, newNVertexId);
@@ -1075,7 +1098,7 @@ void attachMeshToMeshByBorders(
 //    //TODO DELETE
 //    nvl::meshSaveToFile("results/newMeshSplitted.obj", newMesh);
 
-//    std::vector<VertexId> nonCollapsed = internal::collapseBorders(newMesh, splitVertices);
+//    std::vector<VertexId> nonCollapsed = internal::collapseBorders(newMesh, snappedVertices);
 //    std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
 
 //    //TODO DELETE
@@ -1246,7 +1269,7 @@ void attachMeshToMeshByBorders(
 //    nvl::meshSaveToFile("results/newMeshCleaned.obj", newMesh);
 
 //    //Split vertices
-//    std::unordered_set<VertexId> splitVertices;
+//    std::unordered_set<VertexId> snappedVertices;
 //    std::vector<std::vector<FaceId>> newMeshVFAdj = nvl::meshVertexFaceAdjacencies(newMesh);
 //    for (Index k = 0; k < selectedNChainsOrdered.size(); ++k) {
 //        const std::vector<VertexId>& currentNChainOrdered = selectedNChainsOrdered[k];
@@ -1267,7 +1290,7 @@ void attachMeshToMeshByBorders(
 //            }
 
 //            VertexId newNVertexId = nvl::meshSplitEdge(newMesh, currentNVertexId, currentNChainOrdered[(i + 1) % currentNChainOrdered.size()], jPoint, newMeshVFAdj);
-//            splitVertices.insert(newNVertexId);
+//            snappedVertices.insert(newNVertexId);
 //            currentNVertexId = newNVertexId;
 //        }
 //    }
@@ -1275,7 +1298,7 @@ void attachMeshToMeshByBorders(
 //    //TODO DELETE
 //    nvl::meshSaveToFile("results/newMeshSplitted.obj", newMesh);
 
-//    std::vector<VertexId> nonCollapsed = internal::collapseBorders(newMesh, splitVertices);
+//    std::vector<VertexId> nonCollapsed = internal::collapseBorders(newMesh, snappedVertices);
 //    std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
 
 //    //TODO DELETE

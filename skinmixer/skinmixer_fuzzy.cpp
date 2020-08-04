@@ -1,6 +1,6 @@
 #include "skinmixer_fuzzy.h"
 
-#include <nvl/math/laplacian.h>
+#include <nvl/math/smoothing.h>
 
 #include <nvl/models/mesh_transfer.h>
 

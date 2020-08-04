@@ -3,7 +3,7 @@
 #include <nvl/models/skeleton_adjacencies.h>
 #include <nvl/models/mesh_adjacencies.h>
 
-#include <nvl/math/laplacian.h>
+#include <nvl/math/smoothing.h>
 #include <nvl/math/numeric_limits.h>
 
 namespace skinmixer {
