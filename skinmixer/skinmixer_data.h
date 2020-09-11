@@ -44,7 +44,7 @@ public:
     const std::vector<Entry>& entries() const;
     std::vector<Entry>& entries();
     const Entry& entry(Model* model) const;
-    Entry& entry(Model* model);    
+    Entry& entry(Model* model);
 
     const std::vector<Action>& actions() const;
     void addAction(const Action& action);

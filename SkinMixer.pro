@@ -2,19 +2,13 @@
 
 #Libraries paths
 NUVOLIB_PATH = $$PWD/libs/nuvolib
+VCGLIB_PATH = $$PWD/libs/vcglib
+LIBIGL_PATH = $$PWD/libs/libigl
+GUROBI_PATH = /usr/include/gurobi900/linux64
 #EIGEN_PATH = /usr/include/eigen3
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
-VCGLIB_PATH = /usr/include/vcglib
-LIBIGL_PATH = /usr/include/libigl
-GUROBI_PATH = /usr/include/gurobi900/linux64
 
-# TO DELETEEEE!
-#HEADERS += \
-#    $$VCGLIB_PATH/wrap/ply/plylib.h
-#SOURCES += \
-#    $$VCGLIB_PATH/wrap/ply/plylib.cpp
-
-#MLO_PATH = $$PWD/libs/MultiLabelOptimization
+DEFINES += SAVE_MESHES
 
 #Modules of nuvolib
 CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER NVL_VCGLIB NVL_LIBIGL
@@ -42,6 +36,12 @@ LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
 #gurobi
 INCLUDEPATH += $$GUROBI_PATH/include
 LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
+
+#vcg ply
+HEADERS += \
+    $$VCGLIB_PATH/wrap/ply/plylib.h
+SOURCES += \
+    $$VCGLIB_PATH/wrap/ply/plylib.cpp
 
 ######################### FLAGS AND OPTIMIZATION #######################
 
@@ -72,6 +72,10 @@ FINAL_RELEASE {
 
 #Include nuvolib
 include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
+#Include patterns
+include($$PWD/libs/patterns/patterns.pri)
+#Include patterns
+include($$PWD/libs/libiglfields/libiglfields.pri)
 
 #Project files
 SOURCES += \
@@ -81,6 +85,15 @@ SOURCES += \
     skinmixer/skinmixer_data.cpp \
     skinmixer/skinmixer_fuzzy.cpp \
     skinmixer/skinmixer_utilities.cpp \
+    skinmixer/includes/quad_feasibility.cpp \
+    skinmixer/includes/quad_charts.cpp \
+    skinmixer/includes/quad_convert.cpp \
+    skinmixer/includes/quad_ilp.cpp \
+    skinmixer/includes/quad_patch_tracer.cpp \
+    skinmixer/includes/quad_patterns.cpp \
+    skinmixer/includes/quad_mapping.cpp \
+    skinmixer/includes/quad_steps.cpp \
+    skinmixer/includes/quad_utils.cpp \
     widgets/skinmixer_manager.cpp
 
 HEADERS += \
@@ -90,6 +103,19 @@ HEADERS += \
     skinmixer/skinmixer_fuzzy.h \
     skinmixer/skinmixer_operation.h \
     skinmixer/skinmixer_utilities.h \
+    skinmixer/includes/quad_feasibility.h \
+    skinmixer/includes/quad_field_tracer.h \
+    skinmixer/includes/quad_field_smoother.h \
+    skinmixer/includes/quad_convert.h \
+    skinmixer/includes/quad_charts.h \
+    skinmixer/includes/quad_convert.h \
+    skinmixer/includes/quad_ilp.h \
+    skinmixer/includes/quad_patch_tracer.h \
+    skinmixer/includes/quad_patterns.h \
+    skinmixer/includes/quad_mapping.h \
+    skinmixer/includes/quad_patch_assembler.h \
+    skinmixer/includes/quad_steps.h \
+    skinmixer/includes/quad_utils.h \
     widgets/skinmixer_manager.h
 
 FORMS += \

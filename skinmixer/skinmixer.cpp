@@ -19,28 +19,24 @@ std::vector<Model*> mix(
 
     std::vector<Model*> newModels;
 
-    std::vector<Mesh*> meshes;
+    std::vector<Model*> models;
     std::vector<std::vector<float>> vertexFuzzyValue;
     std::vector<std::vector<float>> jointFuzzyValue;
 
     //TODO CLUSTERS
     for (Entry entry : data.entries()) {
-        meshes.push_back(&(entry.model->mesh));
+        models.push_back(entry.model);
         vertexFuzzyValue.push_back(entry.vertexFuzzyValue);
         jointFuzzyValue.push_back(entry.jointFuzzyValue);
     }
 
-    Model* preservedModel = new Model();
-    Model* newSurfaceModel = new Model();
+    Model* resultModel = new Model();
 
-    std::vector<typename Mesh::VertexId> preservedBirthVertices;
-    std::vector<typename Mesh::FaceId> preservedBirthFaces;
-    std::vector<nvl::Index> preservedVerticesBirthModel;
-    std::vector<nvl::Index> preservedFacesBirthModel;
-    blendMeshes(meshes, vertexFuzzyValue, preservedModel->mesh, newSurfaceModel->mesh, preservedBirthVertices, preservedBirthFaces, preservedVerticesBirthModel, preservedFacesBirthModel);
+    std::vector<std::pair<nvl::Index, typename Mesh::VertexId>> birthVertex;
+    std::vector<std::pair<nvl::Index, typename Mesh::FaceId>> birthFace;
+    blendModels(models, vertexFuzzyValue, resultModel, birthVertex, birthFace);
 
-    newModels.push_back(preservedModel);
-    newModels.push_back(newSurfaceModel);
+    newModels.push_back(resultModel);
 
     return newModels;
 }

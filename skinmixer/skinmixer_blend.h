@@ -7,16 +7,13 @@
 
 namespace skinmixer {
 
-template<class Mesh>
-void blendMeshes(
-        const std::vector<Mesh*>& meshes,
+template<class Model>
+void blendModels(
+        const std::vector<Model*>& models,
         const std::vector<std::vector<float>>& vertexSelectValue,
-        Mesh& preservedMesh,
-        Mesh& newSurfaceMesh,
-        std::vector<typename Mesh::VertexId>& preservedBirthVertices,
-        std::vector<typename Mesh::FaceId>& preservedBirthFaces,
-        std::vector<nvl::Index>& preservedVerticesBirthModel,
-        std::vector<nvl::Index>& preservedFacesBirthModel);
+        Model* resultModel,
+        std::vector<std::pair<nvl::Index, typename Model::Mesh::VertexId>>& birthVertex,
+        std::vector<std::pair<nvl::Index, typename Model::Mesh::FaceId>>& birthFace);
 
 }
 
