@@ -4,7 +4,7 @@
 NUVOLIB_PATH = $$PWD/libs/nuvolib
 VCGLIB_PATH = $$PWD/libs/vcglib
 LIBIGL_PATH = $$PWD/libs/libigl
-GUROBI_PATH = /usr/include/gurobi900/linux64
+GUROBI_PATH = /opt/gurobi903/linux64
 #EIGEN_PATH = /usr/include/eigen3
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
 

@@ -46,8 +46,8 @@ int main(int argc, char *argv[]) {
     viewer.addToLeftDock(&skinMixerManager);
 
     //Add a model
-    skinMixerManager.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/old/crypto.mdl");
-    skinMixerManager.loadModelFromFile("/mnt/OS/Workspace/Dataset/SkinMixer/old/zlorp.mdl");
+    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/old/crypto.mdl");
+    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/old/zlorp.mdl");
 
     canvas.fitScene();
 
