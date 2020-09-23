@@ -1,5 +1,5 @@
-#ifndef DETACHER_MANAGER_H
-#define DETACHER_MANAGER_H
+#ifndef SKINMIXER_MANAGER_H
+#define SKINMIXER_MANAGER_H
 
 #include <QFrame>
 #include <QWidget>
@@ -83,6 +83,12 @@ private slots:
 
     void on_mixButton_clicked();
 
+    void on_updateValuesResetButton_clicked();
+
+    void on_updateValuesWeightsButton_clicked();
+
+    void on_updateValuesBirthButton_clicked();
+
 private:
 
     ModelDrawer* getSelectedModelDrawer();
@@ -97,14 +103,16 @@ private:
     void prepareModelForAttach();
     void updateView();
 
-    void colorizeModelDrawerWithFuzzyValues(
+    void colorizeModelDrawerWithSelectValues(
             ModelDrawer* modelDrawer);
-    void colorizeModelDrawerWithFuzzyValues(
+    void colorizeModelDrawerWithSelectValues(
             ModelDrawer* modelDrawer,
-            const std::vector<float>& vertexFuzzyValue,
-            const std::vector<float>& jointFuzzyValue);
+            const std::vector<float>& vertexSelectValue,
+            const std::vector<bool>& jointSelectValue);
 
-    void updateSkinningWeightVertexValues();
+    void updateValuesReset();
+    void updateValuesSkinningWeights();
+    void updateValuesBirth();
 
     void initialize();
     void connectSignals();
@@ -135,4 +143,4 @@ private:
 
 };
 
-#endif // DETACHER_MANAGER_H
+#endif // SKINMIXER_MANAGER_H

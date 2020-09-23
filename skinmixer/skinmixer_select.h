@@ -1,5 +1,5 @@
-#ifndef SKINMIXER_FUZZY_H
-#define SKINMIXER_FUZZY_H
+#ifndef SKINMIXER_SELECT_H
+#define SKINMIXER_SELECT_H
 
 #include <vector>
 
@@ -8,28 +8,28 @@
 namespace skinmixer {
 
 template<class Model>
-void removeFuzzy(
+void computeRemoveSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        std::vector<float>& vertexFuzzyValue,
-        std::vector<float>& jointFuzzyValue,
         const unsigned int functionSmoothingIterations,
         const double offset,
-        const double rigidity);
+        const double rigidity,
+        std::vector<float>& vertexSelectValue,
+        std::vector<bool>& jointSelectValue);
 
 template<class Model>
-void detachFuzzy(
+void computeDetachSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        std::vector<float>& vertexFuzzyValue,
-        std::vector<float>& jointFuzzyValue,
         const unsigned int functionSmoothingIterations,
         const double offset,
-        const double rigidity);
+        const double rigidity,
+        std::vector<float>& vertexSelectValue,
+        std::vector<bool>& jointSelectValue);
 
 
 }
 
-#include "skinmixer_fuzzy.cpp"
+#include "skinmixer_select.cpp"
 
-#endif // SKINMIXER_FUZZY_H
+#endif // SKINMIXER_SELECT_H

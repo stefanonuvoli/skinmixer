@@ -2,8 +2,10 @@
 
 #include "skinmixer/skinmixer_operation.h"
 #include "skinmixer/skinmixer_utilities.h"
-#include "skinmixer/skinmixer_fuzzy.h"
-#include "skinmixer/skinmixer_blend.h"
+#include "skinmixer/skinmixer_select.h"
+#include "skinmixer/skinmixer_blend_skeletons.h"
+#include "skinmixer/skinmixer_blend_surfaces.h"
+#include "skinmixer/skinmixer_blend_skinningweights.h"
 
 #include <nvl/models/model_transformations.h>
 #include <nvl/models/mesh_normals.h>
@@ -11,34 +13,39 @@
 namespace skinmixer {
 
 template<class Model>
-std::vector<Model*> mix(
+std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data)
 {
+    typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename Model::Mesh Mesh;
+    typedef typename Model::Skeleton Skeleton;
 
-    std::vector<Model*> newModels;
+    std::vector<Index> newEntries;
 
-    std::vector<Model*> models;
-    std::vector<std::vector<float>> vertexFuzzyValue;
-    std::vector<std::vector<float>> jointFuzzyValue;
+    std::vector<std::vector<Index>> entryClusters;
 
-    //TODO CLUSTERS
+    //TODO: clusters by actions, for now we insert every model
+    std::vector<Index> cluster;
     for (Entry entry : data.entries()) {
-        models.push_back(entry.model);
-        vertexFuzzyValue.push_back(entry.vertexFuzzyValue);
-        jointFuzzyValue.push_back(entry.jointFuzzyValue);
+        cluster.push_back(entry.id);
+    }
+    entryClusters.push_back(cluster);
+
+    for (const std::vector<Index>& cluster : entryClusters) {
+        Model* resultModel = new Model();
+        Index newEntryId = data.addEntry(resultModel);
+
+        Entry& entry = data.entry(newEntryId);
+
+        blendSurfaces(data, cluster, entry);
+        blendSkeletons(data, cluster, entry);
+        blendSkinningWeights(data, cluster, entry);
+
+        newEntries.push_back(newEntryId);
     }
 
-    Model* resultModel = new Model();
-
-    std::vector<std::pair<nvl::Index, typename Mesh::VertexId>> birthVertex;
-    std::vector<std::pair<nvl::Index, typename Mesh::FaceId>> birthFace;
-    blendModels(models, vertexFuzzyValue, resultModel, birthVertex, birthFace);
-
-    newModels.push_back(resultModel);
-
-    return newModels;
+    return newEntries;
 }
 
 template<class Model>
@@ -51,7 +58,11 @@ void attach(
         const nvl::Affine3d& transformation1,
         const nvl::Affine3d& transformation2)
 {
+    typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
+
+    Entry& entry1 = data.entryFromModel(model1);
+    Entry& entry2 = data.entryFromModel(model2);
 
     nvl::modelApplyTransformation(*model1, transformation1);
     nvl::meshUpdateFaceNormals(model1->mesh);
@@ -63,11 +74,14 @@ void attach(
 
     Action action;
     action.operation = OperationType::ATTACH;
-    action.model1 = model1;
-    action.model2 = model2;
+    action.entry1 = entry1.id;
+    action.entry2 = entry2.id;
     action.joint1 = targetJoint1;
     action.joint2 = targetJoint2;
-    data.addAction(action);
+
+    nvl::Index actionId = data.addAction(action);
+    entry1.relatedActions.push_back(actionId);
+    entry2.relatedActions.push_back(actionId);
 }
 
 template<class Model>
@@ -82,17 +96,19 @@ void remove(
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
 
-    Entry& entry = data.entry(model);
+    Entry& entry = data.entryFromModel(model);
 
-    removeFuzzy(*model, targetJoint, entry.vertexFuzzyValue, entry.jointFuzzyValue, functionSmoothingIterations, offset, rigidity);
+    computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, offset, rigidity, entry.select.vertex, entry.select.joint);
 
     Action action;
     action.operation = OperationType::REMOVE;
-    action.model1 = model;
-    action.model2 = nullptr;
+    action.entry1 = entry.id;
+    action.entry2 = nvl::MAX_ID;
     action.joint1 = targetJoint;
     action.joint2 = nvl::MAX_ID;
-    data.addAction(action);
+
+    nvl::Index actionId = data.addAction(action);
+    entry.relatedActions.push_back(actionId);
 }
 
 template<class Model>
@@ -107,17 +123,19 @@ void detach(
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
 
-    Entry& entry = data.entry(model);
+    Entry& entry = data.entryFromModel(model);
 
-    detachFuzzy(*model, targetJoint, entry.vertexFuzzyValue, entry.jointFuzzyValue, functionSmoothingIterations, offset, rigidity);
+    computeDetachSelectValues(*model, targetJoint, functionSmoothingIterations, offset, rigidity, entry.select.vertex, entry.select.joint);
 
     Action action;
     action.operation = OperationType::DETACH;
-    action.model1 = model;
-    action.model2 = nullptr;
+    action.entry1 = entry.id;
+    action.entry2 = nvl::MAX_ID;
     action.joint1 = targetJoint;
     action.joint2 = nvl::MAX_ID;
-    data.addAction(action);
+
+    nvl::Index actionId = data.addAction(action);
+    entry.relatedActions.push_back(actionId);
 }
 
 }

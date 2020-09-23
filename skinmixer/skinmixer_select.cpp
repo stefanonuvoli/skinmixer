@@ -1,20 +1,21 @@
-#include "skinmixer_fuzzy.h"
+#include "skinmixer_select.h"
 
 #include <nvl/math/smoothing.h>
 
 #include <nvl/models/mesh_transfer.h>
+#include <nvl/models/mesh_adjacencies.h>
 
 namespace skinmixer {
 
 template<class Model>
-void removeFuzzy(
+void computeRemoveSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        std::vector<float>& vertexFuzzyValue,
-        std::vector<float>& jointFuzzyValue,
         const unsigned int functionSmoothingIterations,
         const double offset,
-        const double rigidity)
+        const double rigidity,
+        std::vector<float>& vertexSelectValue,
+        std::vector<bool>& jointSelectValue)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Model::Skeleton Skeleton;
@@ -26,6 +27,9 @@ void removeFuzzy(
 
     const Mesh& mesh = model.mesh;
     const Skeleton& skeleton = model.skeleton;
+
+    vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
+    jointSelectValue.resize(skeleton.jointNumber(), true);
 
     //Get connected components
     std::vector<FaceId> faceComponentMap;
@@ -72,29 +76,29 @@ void removeFuzzy(
                 continue;
 
             if (!isRigid) {
-                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], componentFunction[vId]);
+                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], componentFunction[vId]);
             }
             else {
-                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
+                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
             }
         }
     }
 
     std::vector<JointId> removedJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
     for (JointId jId : removedJoints) {
-        jointFuzzyValue[jId] = 0.0;
+        jointSelectValue[jId] = false;
     }
 }
 
 template<class Model>
-void detachFuzzy(
+void computeDetachSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        std::vector<float>& vertexFuzzyValue,
-        std::vector<float>& jointFuzzyValue,
         const unsigned int functionSmoothingIterations,
         const double offset,
-        const double rigidity)
+        const double rigidity,
+        std::vector<float>& vertexSelectValue,
+        std::vector<bool>& jointSelectValue)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Model::Skeleton Skeleton;
@@ -105,7 +109,10 @@ void detachFuzzy(
     typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
 
     const Mesh& mesh = model.mesh;
-    const Skeleton& skeleton = model.skeleton;
+    const Skeleton& skeleton = model.skeleton;    
+
+    vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
+    jointSelectValue.resize(skeleton.jointNumber(), true);
 
     //Get connected components
     std::vector<FaceId> faceComponentMap;
@@ -152,17 +159,17 @@ void detachFuzzy(
                 continue;
 
             if (!isRigid) {
-                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], componentFunction[vId]);
+                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], componentFunction[vId]);
             }
             else {
-                vertexFuzzyValue[componentBirthVertex[vId]] = std::min(vertexFuzzyValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
+                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
             }
         }
     }
 
     std::vector<JointId> removedJoints = nvl::skeletonJointNonDescendants(skeleton, targetJoint);
     for (JointId jId : removedJoints) {
-        jointFuzzyValue[jId] = 0.0;
+        jointSelectValue[jId] = false;
     }
 }
 

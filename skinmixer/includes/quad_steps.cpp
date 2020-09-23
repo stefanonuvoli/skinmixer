@@ -538,8 +538,8 @@ void getResult(
         const double resultSmoothingNRing,
         const int resultSmoothingLaplacianIterations,
         const double resultSmoothingLaplacianNRing,
-        const std::unordered_map<size_t, size_t>& preservedFacesMap,
-        const std::unordered_map<size_t, size_t>& preservedVerticesMap)
+        std::unordered_map<size_t, size_t>& preservedFacesMap,
+        std::unordered_map<size_t, size_t>& preservedVerticesMap)
 {
     vcg::tri::UpdateTopology<PolyMeshType>::FaceFace(quadrangulatedNewSurface);
     vcg::tri::UpdateFlags<PolyMeshType>::FaceBorderFromFF(quadrangulatedNewSurface);
@@ -596,6 +596,23 @@ void getResult(
     vcg::PolygonalAlgorithm<PolyMeshType>::UpdateFaceNormalByFitting(result);
     vcg::tri::UpdateNormal<PolyMeshType>::PerVertexNormalized(result);
 
+    //Fill maps
+    for (size_t i = 0; i < result.vert.size(); i++) {
+        if (result.vert[i].IsD())
+            continue;
+
+        if (result.vert[i].Q() > -1) {
+            preservedVerticesMap.insert(std::make_pair(i, static_cast<size_t>(result.vert[i].Q())));
+        }
+    }
+    for (size_t i = 0; i < result.face.size(); i++) {
+        if (result.face[i].IsD())
+            continue;
+
+        if (result.face[i].Q() > -1) {
+            preservedFacesMap.insert(std::make_pair(i, static_cast<size_t>(result.face[i].Q())));
+        }
+    }
 
     //Get smoothing vertices
     std::vector<size_t> smoothingVertices;
@@ -607,60 +624,6 @@ void getResult(
             smoothingVertices.push_back(i);
         }
     }
-
-//    //Old and new faces
-//    sourceInfo.oldFacesMap.clear();
-//    sourceInfo.newFaces.clear();
-//    for (size_t i = 0; i < result.face.size(); i++) {
-//        if (!result.face[i].IsD()) {
-//            if (result.face[i].Q() >= 0) {
-//                int currentFaceId = -1;
-//                std::unordered_map<size_t, size_t>::const_iterator it = preservedFacesMap.find(static_cast<size_t>(result.face[i].Q()));
-//                if (it != preservedFacesMap.end())
-//                    currentFaceId = static_cast<int>(it->second);
-
-//                if (currentFaceId < 0) {
-//                    sourceInfo.oldFacesMap.insert(std::make_pair(i, OriginEntity(0, 0)));
-//                }
-//                else if (currentFaceId < mesh1.face.size()) {
-//                    sourceInfo.oldFacesMap.insert(std::make_pair(i, OriginEntity(1, static_cast<size_t>(currentFaceId))));
-//                }
-//                else {
-//                    sourceInfo.oldFacesMap.insert(std::make_pair(i, OriginEntity(2, currentFaceId - mesh1.face.size())));
-//                }
-//            }
-//            else {
-//                sourceInfo.newFaces.push_back(i);
-//            }
-//        }
-//    }
-
-//    //Old and new vertices
-//    sourceInfo.oldVerticesMap.clear();
-//    sourceInfo.newVertices.clear();
-//    for (size_t i = 0; i < result.vert.size(); i++) {
-//        if (!result.vert[i].IsD()) {
-//            if (result.vert[i].Q() >= 0) {
-//                int currentVertId = -1;
-//                std::unordered_map<size_t, size_t>::const_iterator it = preservedVerticesMap.find(static_cast<size_t>(result.vert[i].Q()));
-//                if (it != preservedVerticesMap.end())
-//                    currentVertId = static_cast<int>(it->second);
-
-//                if (currentVertId < 0) { //It shouldn't happen
-//                    sourceInfo.oldVerticesMap.insert(std::make_pair(i, OriginEntity(0, 0)));
-//                }
-//                else if (currentVertId < mesh1.face.size()) {
-//                    sourceInfo.oldVerticesMap.insert(std::make_pair(i, OriginEntity(1, static_cast<size_t>(currentVertId))));
-//                }
-//                else {
-//                    sourceInfo.oldVerticesMap.insert(std::make_pair(i, OriginEntity(2, currentVertId - mesh1.vert.size())));
-//                }
-//            }
-//            else {
-//                sourceInfo.newVertices.push_back(i);
-//            }
-//        }
-//    }
 
 #ifdef SAVE_MESHES
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultbeforereprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);

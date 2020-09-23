@@ -8,7 +8,7 @@
 namespace skinmixer {
 
 template<class Model>
-std::vector<Model*> mix(
+std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data);
 
 template<class Model>

@@ -17,37 +17,82 @@ class SkinMixerData
 public:
 
     typedef typename Model::Skeleton::JointId JointId;
+    typedef typename Model::Mesh::VertexId VertexId;
+    typedef typename Model::Mesh::FaceId FaceId;
+    typedef typename nvl::Index Index;
+    typedef typename nvl::Scaling3d ScalingTransform;
+
+    struct SelectInfo {
+        std::vector<float> vertex;
+        std::vector<bool> joint;
+
+        void clear();
+    };
+
+    struct BirthInfo {        
+        struct VertexInfo {
+            Index eId;
+
+            VertexId vId;
+
+            FaceId closestFaceId;
+            double distance;
+
+            float selectValue;
+        };
+        struct JointInfo {
+            Index eId;
+
+            JointId jId;
+        };
+
+        std::vector<std::vector<VertexInfo>> vertex;
+        std::vector<std::vector<JointInfo>> joint;
+
+        void clear();
+    };
 
     struct Entry {
+        Index id;
+
         Model* model;
-        std::vector<float> vertexFuzzyValue;
-        std::vector<float> jointFuzzyValue;
+
+        SelectInfo select;
+        BirthInfo birth;
+
+        std::vector<Index> relatedActions;
+
+        void clear();
     };    
 
     struct Action {
         OperationType operation;
-        Model* model1;
-        Model* model2;
+        Index entry1;
+        Index entry2;
         JointId joint1;
         JointId joint2;
     };
-
-    typedef nvl::Index Index;
 
 
     SkinMixerData();
     ~SkinMixerData();
 
-    void addEntry(Model* model);
+    nvl::Index addEntry(Model* model);
     void deleteEntry(Model* model);    
 
+    nvl::Size entryNumber() const;
     const std::vector<Entry>& entries() const;
     std::vector<Entry>& entries();
-    const Entry& entry(Model* model) const;
-    Entry& entry(Model* model);
+    const Entry& entry(const Index& index) const;
+    Entry& entry(const Index& index);
+    const Entry& entryFromModel(const Model* model) const;
+    Entry& entryFromModel(const Model* model);
 
+    nvl::Index addAction(const Action& action);
+    nvl::Size actionNumber() const;
     const std::vector<Action>& actions() const;
-    void addAction(const Action& action);
+    const Action& action(const Index& index) const;
+    Action& action(const Index& index);
 
     void clear();
 

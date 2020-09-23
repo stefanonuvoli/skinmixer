@@ -17,7 +17,7 @@ CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER NVL
 TARGET = skinmixer
 CONFIG += qt
 
-#Parallel computation
+#Parallel computation (just in release)
 unix:!mac {
     QMAKE_CXXFLAGS += -fopenmp
     LIBS += -fopenmp
@@ -39,9 +39,13 @@ LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
 
 #vcg ply
 HEADERS += \
-    $$VCGLIB_PATH/wrap/ply/plylib.h
+    $$VCGLIB_PATH/wrap/ply/plylib.h \
+    skinmixer/skinmixer_blend_skeletons.h \
+    skinmixer/skinmixer_blend_skinningweights.h
 SOURCES += \
-    $$VCGLIB_PATH/wrap/ply/plylib.cpp
+    $$VCGLIB_PATH/wrap/ply/plylib.cpp \
+    skinmixer/skinmixer_blend_skeletons.cpp \
+    skinmixer/skinmixer_blend_skinningweights.cpp
 
 ######################### FLAGS AND OPTIMIZATION #######################
 
@@ -81,9 +85,9 @@ include($$PWD/libs/libiglfields/libiglfields.pri)
 SOURCES += \
     main.cpp \
     skinmixer/skinmixer.cpp \
-    skinmixer/skinmixer_blend.cpp \
+    skinmixer/skinmixer_blend_surfaces.cpp \
     skinmixer/skinmixer_data.cpp \
-    skinmixer/skinmixer_fuzzy.cpp \
+    skinmixer/skinmixer_select.cpp \
     skinmixer/skinmixer_utilities.cpp \
     skinmixer/includes/quad_feasibility.cpp \
     skinmixer/includes/quad_charts.cpp \
@@ -98,10 +102,10 @@ SOURCES += \
 
 HEADERS += \
     skinmixer/skinmixer.h \
-    skinmixer/skinmixer_blend.h \
+    skinmixer/skinmixer_blend_surfaces.h \
     skinmixer/skinmixer_data.h \
-    skinmixer/skinmixer_fuzzy.h \
     skinmixer/skinmixer_operation.h \
+    skinmixer/skinmixer_select.h \
     skinmixer/skinmixer_utilities.h \
     skinmixer/includes/quad_feasibility.h \
     skinmixer/includes/quad_field_tracer.h \

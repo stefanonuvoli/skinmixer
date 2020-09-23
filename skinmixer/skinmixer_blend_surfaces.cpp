@@ -1,4 +1,4 @@
-#include "skinmixer_blend.h"
+#include "skinmixer_blend_surfaces.h"
 
 #ifdef foreach
   #undef foreach
@@ -32,7 +32,7 @@
 #include <igl/winding_number.h>
 
 #ifdef SAVE_MESHES
-#include <nvl/io/mesh_io.h>
+#include <nvl/models/mesh_io.h>
 #endif
 
 #include "includes/quad_steps.h"
@@ -87,18 +87,18 @@ Mesh quadrangulateMesh(
         const Mesh& preMesh,
         const Mesh& blendedMesh,
         Mesh& quadrangulation,
+        const std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
+        const std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace,
         std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& birthVertex,
         std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace);
 
 }
 
 template<class Model>
-void blendModels(
-        const std::vector<Model*>& models,
-        const std::vector<std::vector<float>>& vertexSelectValue,
-        Model* resultModel,
-        std::vector<std::pair<nvl::Index, typename Model::Mesh::VertexId>>& birthVertex,
-        std::vector<std::pair<nvl::Index, typename Model::Mesh::FaceId>>& birthFace)
+void blendSurfaces(
+        const SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& cluster,
+        typename SkinMixerData<Model>::Entry& entry)
 {
     typedef typename openvdb::FloatGrid FloatGrid;
     typedef typename FloatGrid::Ptr FloatGridPtr;
@@ -110,9 +110,22 @@ void blendModels(
     typedef typename Mesh::Point Point;
     typedef typename Mesh::Scalar Scalar;
     typedef typename nvl::Index Index;
+    typedef typename SkinMixerData<Model>::BirthInfo::VertexInfo VertexInfo;
+
+    Model* model = entry.model;
+    Mesh& resultMesh = model->mesh;
 
     double maxDistance = 100.0;
     double voxelSize = nvl::maxLimitValue<Scalar>();
+
+    std::vector<Model*> models(cluster.size());
+    std::vector<std::vector<float>> vertexSelectValue(cluster.size());
+    for (Index i = 0; i < cluster.size(); ++i) {
+        Index eId = cluster[i];
+
+        models[i] = data.entry(eId).model;
+        vertexSelectValue[i] = data.entry(eId).select.vertex;
+    }
 
     //Calculate scale transform (minimum 1/4 of the average length)
     for (Model* modelPtr : models) {
@@ -139,7 +152,6 @@ void blendModels(
     nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
 #endif
 
-
     //Fill vertices to keep for the original meshes
     std::vector<std::unordered_set<FaceId>> meshFacesToKeep(models.size());
     for (Index mId = 0; mId < models.size(); ++mId) {
@@ -148,13 +160,13 @@ void blendModels(
             if (mesh.isFaceDeleted(fId))
                 continue;
 
-            float fuzzyValue = 0.0;
+            float selectValue = 0.0;
             for (VertexId j : mesh.face(fId).vertexIds()) {
-                fuzzyValue += vertexSelectValue[mId][j];
+                selectValue += vertexSelectValue[mId][j];
             }
-            fuzzyValue /= mesh.face(fId).vertexNumber();
+            selectValue /= mesh.face(fId).vertexNumber();
 
-            if (fuzzyValue >= KEEP_THRESHOLD) {
+            if (selectValue >= KEEP_THRESHOLD) {
                 meshFacesToKeep[mId].insert(fId);
             }
         }
@@ -164,9 +176,11 @@ void blendModels(
     Mesh preMesh;
 
     //Create preserved mesh
-    std::vector<typename Mesh::VertexId> preBirthVertices;
-    std::vector<typename Mesh::FaceId> preBirthFaces;
     std::unordered_set<VertexId> preNonSnappableVertices;
+
+    std::vector<std::pair<nvl::Index, VertexId>> preBirthVertex;
+    std::vector<std::pair<nvl::Index, FaceId>> preBirthFace;
+
     for (Index mId = 0; mId < models.size(); ++mId) {
         Mesh& mesh = models[mId]->mesh;
 
@@ -176,26 +190,27 @@ void blendModels(
         nvl::Size lastVertexId = preMesh.nextVertexId();
         nvl::Size lastFaceId = preMesh.nextFaceId();
 
-        assert(preBirthVertices.size() == lastVertexId);
-        assert(preBirthFaces.size() == lastFaceId);
-        nvl::meshTransferFaces(mesh, std::vector<VertexId>(meshFacesToKeep[mId].begin(), meshFacesToKeep[mId].end()), preMesh, preBirthVertices, preBirthFaces);
+        std::vector<VertexId> tmpBirthVertex;
+        std::vector<FaceId> tmpBirthFace;
 
-        birthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
-        birthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
+        nvl::meshTransferFaces(mesh, std::vector<VertexId>(meshFacesToKeep[mId].begin(), meshFacesToKeep[mId].end()), preMesh, tmpBirthVertex, tmpBirthFace);
+
+        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
+        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
         for (Index vId = lastVertexId; vId < preMesh.nextVertexId(); ++vId) {
-            assert(preBirthVertices[vId] != nvl::MAX_ID);
-            birthVertex[vId] = std::make_pair(mId, preBirthVertices[vId]);
+            assert(tmpBirthVertex[vId] != nvl::MAX_ID);
+            preBirthVertex[vId] = std::make_pair(mId, tmpBirthVertex[vId]);
         }
         for (Index fId = lastFaceId; fId < preMesh.nextFaceId(); ++fId) {
-            assert(preBirthFaces[fId] != nvl::MAX_ID);
-            birthFace[fId] = std::make_pair(mId, preBirthFaces[fId]);
+            assert(tmpBirthFace[fId] != nvl::MAX_ID);
+            preBirthFace[fId] = std::make_pair(mId, tmpBirthFace[fId]);
         }
 
         //Find vertices that were already in the border of the original mesh
         std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
         std::unordered_set<VertexId> borderVerticesSet(borderVertices.begin(), borderVertices.end());
         for (VertexId vId = lastVertexId; vId < preMesh.nextVertexId(); vId++) {
-            if (borderVerticesSet.find(preBirthVertices[vId]) != borderVerticesSet.end()) {
+            if (borderVerticesSet.find(tmpBirthVertex[vId]) != borderVerticesSet.end()) {
                 preNonSnappableVertices.insert(vId);
             }
         }
@@ -257,6 +272,10 @@ void blendModels(
     std::vector<VertexId> snappedVertices;
     internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preNonSnappableVertices, snappedVertices);
 
+#ifdef SAVE_MESHES
+    nvl::meshSaveToFile("results/newMesh.obj", newMesh);
+#endif
+
     //Select vertices to smooth
     std::vector<VertexId> verticesToSmooth;
     std::vector<double> verticesToSmoothWeights;
@@ -310,19 +329,110 @@ void blendModels(
     nvl::meshLaplacianSmoothing(newMesh, verticesToSmooth, verticesToSmoothWeights, 40);
 
 #ifdef SAVE_MESHES
-    nvl::meshSaveToFile("results/newMesh.obj", newMesh);
+    nvl::meshSaveToFile("results/newMeshSmoothed.obj", newMesh);
 #endif
 
     //Get final mesh
     Mesh quadrangulation;
-    Mesh resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, birthVertex, birthFace);
+    std::vector<std::pair<nvl::Index, VertexId>> resultPreBirthVertex;
+    std::vector<std::pair<nvl::Index, FaceId>> resultPreBirthFace;
+    resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
+
+    entry.birth.vertex.resize(resultMesh.nextVertexId());
+    for (VertexId vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
+        if (resultMesh.isVertexDeleted(vId))
+            continue;
+
+        std::vector<VertexInfo>& vertexInfo = entry.birth.vertex[vId];
+
+        if (resultPreBirthVertex[vId].first != nvl::MAX_ID) {
+            VertexInfo info;
+            info.eId = cluster[resultPreBirthVertex[vId].first];
+            info.vId = resultPreBirthVertex[vId].second;
+            info.selectValue = 1.0;
+            info.closestFaceId = nvl::MAX_ID;
+            info.distance = 0.0;
+            vertexInfo.push_back(info);
+        }
+        else {
+            const Point& point = resultMesh.vertex(vId).point();
+
+            Point scaledPoint = scaleTransform * point;
+            openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+            std::vector<std::tuple<nvl::Index, float, double, FaceId>> involvedEntries;
+            std::vector<Index> overThresholdValues;
+
+            float selectValueSum = 0.0;
+            for (Index mId = 0; mId < models.size(); ++mId) {
+                const Mesh& mesh = models[mId]->mesh;
+
+                FloatGridPtr& currentGrid = signedGrids[mId];
+                IntGridPtr& currentPolygonIndexGrid = polygonIndexGrid[mId];
+
+                FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
+                IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonIndexGrid->getConstAccessor();
+
+                FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
+                IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
+
+                if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
+                    FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
+
+                    float selectValue = 0.0;
+                    for (VertexId j : mesh.face(originFaceId).vertexIds()) {
+                        selectValue += vertexSelectValue[mId][j];
+                    }
+                    selectValue /= mesh.face(originFaceId).vertexNumber();
+
+                    selectValueSum += selectValue;
+
+                    involvedEntries.push_back(std::make_tuple(mId, selectValue, currentPolygonIndex, currentValue));
+                    if (selectValue >= KEEP_THRESHOLD) {
+                        overThresholdValues.push_back(involvedEntries.size() - 1);
+                    }
+                }
+            }
+
+            assert(involvedEntries.size() >= 0);
+
+            if (overThresholdValues.size() == 1) {
+                const std::tuple<nvl::Index, float, double, FaceId>& tuple = involvedEntries[overThresholdValues[0]];
+                VertexInfo info;
+                info.eId = cluster[std::get<0>(tuple)];
+                info.vId = nvl::MAX_ID;
+                info.selectValue = std::get<1>(tuple);
+                info.closestFaceId = std::get<2>(tuple);
+                info.distance = std::get<3>(tuple);
+
+                vertexInfo.push_back(info);
+            }
+            else {
+                for (Index invId = 0; invId < involvedEntries.size(); ++invId) {
+                    const std::tuple<nvl::Index, float, double, FaceId>& tuple = involvedEntries[invId];
+                    VertexInfo info;
+                    info.eId = cluster[std::get<0>(tuple)];
+                    info.vId = nvl::MAX_ID;
+                    if (selectValueSum >= DISCARD_THRESHOLD) {
+                        info.selectValue = std::get<1>(tuple) / selectValueSum;
+                    }
+                    else {
+                        info.selectValue = 1.0 / involvedEntries.size();
+                    }
+                    info.closestFaceId = std::get<2>(tuple);
+                    info.distance = std::get<3>(tuple);
+
+                    vertexInfo.push_back(info);
+                }
+
+            }
+        }
+    }
 
 #ifdef SAVE_MESHES
     nvl::meshSaveToFile("results/quadrangulation.obj", quadrangulation);
     nvl::meshSaveToFile("results/resultMesh.obj", resultMesh);
 #endif
-
-    resultModel->mesh = resultMesh;
 }
 
 namespace internal {
@@ -584,9 +694,10 @@ typename Model::Mesh getBlendedMesh(
                     resultValue = currentDistance;
                 }
                 else {
-                    if (selectValueSum >= DISCARD_THRESHOLD) {
-                        for (Index m = 0; m < involvedEntries.size(); ++m) {
-                            FloatGrid::ValueType currentDistance = involvedEntries[m].first;
+                    for (Index m = 0; m < involvedEntries.size(); ++m) {
+
+                        FloatGrid::ValueType currentDistance = involvedEntries[m].first;
+                        if (selectValueSum >= DISCARD_THRESHOLD) {
                             double selectValue = involvedEntries[m].second;
 
                             assert(currentDistance < maxDistance && currentDistance > -maxDistance);
@@ -595,10 +706,7 @@ typename Model::Mesh getBlendedMesh(
 
                             resultValue += currentDistance * selectValue;
                         }
-                    }
-                    else {
-                        for (Index m = 0; m < involvedEntries.size(); ++m) {
-                            FloatGrid::ValueType currentDistance = involvedEntries[m].first;
+                        else {
                             resultValue += (1.0 / involvedEntries.size()) * currentDistance;
                         }
                     }
@@ -1033,9 +1141,14 @@ Mesh quadrangulateMesh(
         const Mesh& preMesh,
         const Mesh& blendedMesh,
         Mesh& quadrangulation,
+        const std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
+        const std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace,
         std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& birthVertex,
         std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace)
 {
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::FaceId FaceId;
+
     Mesh result;
 
     nvl::VCGTriangleMesh vcgNewMesh;
@@ -1043,19 +1156,13 @@ Mesh quadrangulateMesh(
     nvl::VCGPolygonMesh vcgQuadrangulation;
     nvl::VCGPolygonMesh vcgResult;
     nvl::VCGPolygonMesh vcgBlendedMesh;
+
     nvl::convertMeshToVCGMesh(newMesh, vcgNewMesh);
-    nvl::convertMeshToVCGMesh(preMesh, vcgPreMesh);
     nvl::convertMeshToVCGMesh(blendedMesh, vcgBlendedMesh);
 
-    std::unordered_map<size_t, size_t> preservedFacesMap;
-    std::unordered_map<size_t, size_t> preservedVerticesMap;
-
-    std::vector<int> newSurfaceLabel;
-
-    QuadBoolean::internal::ChartData chartData;
-
-    std::vector<int> ilpResult;
-    std::vector<int> quadrangulationLabel;
+    std::vector<nvl::Index> vcgPreBirthVertex;
+    std::vector<nvl::Index> vcgPreBirthFace;
+    nvl::convertMeshToVCGMesh(preMesh, vcgPreMesh, vcgPreBirthVertex, vcgPreBirthFace);
 
 //    //Make ILP feasible
 //    QuadBoolean::internal::makeILPFeasible(vcgPreMesh, vcgNewMesh, true, true);
@@ -1063,19 +1170,20 @@ Mesh quadrangulateMesh(
     //Get patch decomposition of the new surface
     std::vector<std::vector<size_t>> newSurfacePartitions;
     std::vector<std::vector<size_t>> newSurfaceCorners;
-    newSurfaceLabel = QuadBoolean::internal::getPatchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 1.0, true, false, true);
+    std::vector<int> newSurfaceLabel = QuadBoolean::internal::getPatchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 1.0, true, false, true);
 
     //Get chart data
-    chartData = QuadBoolean::internal::getPatchDecompositionChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);
+    QuadBoolean::internal::ChartData chartData = QuadBoolean::internal::getPatchDecompositionChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);
 
     //Solve ILP to find best side size
-    ilpResult = QuadBoolean::internal::findSubdivisions(
+    std::vector<int> ilpResult = QuadBoolean::internal::findSubdivisions(
                 vcgNewMesh,
                 chartData,
                 0.5,
                 QuadBoolean::internal::LEASTSQUARES);
 
     //Quadrangulate
+    std::vector<int> quadrangulationLabel;
     QuadBoolean::internal::quadrangulate(
                 vcgNewMesh,
                 chartData,
@@ -1086,6 +1194,8 @@ Mesh quadrangulateMesh(
                 quadrangulationLabel);
 
     //Get the result
+    std::unordered_map<size_t, size_t> preservedFacesMap;
+    std::unordered_map<size_t, size_t> preservedVerticesMap;
     QuadBoolean::internal::getResult(
                 vcgPreMesh, vcgQuadrangulation,
                 vcgResult, vcgBlendedMesh,
@@ -1096,7 +1206,40 @@ Mesh quadrangulateMesh(
                 preservedFacesMap, preservedVerticesMap);
 
     nvl::convertVCGMeshToMesh(vcgQuadrangulation, quadrangulation);
-    nvl::convertVCGMeshToMesh(vcgResult, result);
+    std::vector<nvl::Index> vcgResultBirthVertex;
+    std::vector<nvl::Index> vcgResultBirthFace;
+    nvl::convertVCGMeshToMesh(vcgResult, result, vcgResultBirthVertex, vcgResultBirthFace);
+
+    birthVertex.resize(result.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
+    birthFace.resize(result.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
+    for (VertexId vId = 0; vId < result.nextVertexId(); vId++) {
+        if (result.isVertexDeleted(vId)) {
+            continue;
+        }
+
+        nvl::Index vcgResultVId = vcgResultBirthVertex[vId];
+
+        std::unordered_map<size_t, size_t>::iterator it = preservedVerticesMap.find(vcgResultVId);
+        if (it != preservedVerticesMap.end()) {
+            size_t vcgPreMeshVId = it->second;
+
+            birthVertex[vId] = preBirthVertex[vcgPreBirthVertex[vcgPreMeshVId]];
+        }
+    }
+    for (FaceId fId = 0; fId < result.nextFaceId(); fId++) {
+        if (result.isFaceDeleted(fId)) {
+            continue;
+        }
+
+        nvl::Index vcgResultFId = vcgResultBirthFace[fId];
+
+        std::unordered_map<size_t, size_t>::iterator it = preservedFacesMap.find(vcgResultFId);
+        if (it != preservedFacesMap.end()) {
+            size_t vcgPreMeshFId = it->second;
+
+            birthFace[fId] = preBirthFace[vcgPreBirthFace[vcgPreMeshFId]];
+        }
+    }
 
     return result;
 }
