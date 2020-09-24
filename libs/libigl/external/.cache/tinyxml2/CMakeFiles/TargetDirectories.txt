@@ -1,0 +1,3 @@
+/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/rebuild_cache.dir
+/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download.dir
+/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/edit_cache.dir

@@ -1,0 +1,14 @@
+# Target labels
+ tinyxml2-download
+# Source files and their labels
+/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download
+/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download.rule
+/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download-complete.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-install.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-mkdir.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-download.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-update.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-patch.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-configure.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-build.rule
+/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-test.rule

@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CMakeFiles/CoMISo-download"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CMakeFiles/CoMISo-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CMakeFiles/CoMISo-download-complete.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-install.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-mkdir.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-update.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-patch.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-configure.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-build.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/CoMISo/CoMISo-download-prefix/src/CoMISo-download-stamp/CoMISo-download-test.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"CoMISo-download"
+		],
+		"name" : "CoMISo-download"
+	}
+}

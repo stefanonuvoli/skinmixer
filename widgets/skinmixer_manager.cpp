@@ -512,19 +512,29 @@ void SkinMixerManager::updateCanvasView()
             }
 
             for (JointId jId = 0; jId < skeleton.jointNumber(); jId++) {
-                float jointAlphaValue = (jId >= originalJointSelectValue.size() || originalJointSelectValue[jId]) ? (previewJointSelectValue[jId] ?  1.0f : 0.1f) : 0.0;
 
-                nvl::Color jointC = vSelectedModelDrawer->skeletonDrawer().renderingJointColor(jId);
-                jointC.setAlphaF(jointAlphaValue);
-                vSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(jId, jointC);
+                if (jId >= originalJointSelectValue.size() || previewJointSelectValue[jId] != originalJointSelectValue[jId]) {
+                    float jointAlphaValue = (jId >= originalJointSelectValue.size() || originalJointSelectValue[jId]) ? (previewJointSelectValue[jId] ?  1.0f : 0.1f) : 0.0;
 
+                    nvl::Color jointC = vSelectedModelDrawer->skeletonDrawer().renderingJointColor(jId);
+                    jointC.setAlphaF(jointAlphaValue);
+                    vSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(jId, jointC);
+
+                }
                 if (!skeleton.isRoot(jId)) {
                     JointId parentJointId = skeleton.parent(jId);
-                    float boneAlphaValue = (parentJointId >= originalJointSelectValue.size() || originalJointSelectValue[parentJointId]) ? (previewJointSelectValue[parentJointId] ?  1.0f : 0.1f) : 0.0;
 
-                    nvl::Color boneC = vSelectedModelDrawer->skeletonDrawer().renderingBoneColor(jId);
-                    boneC.setAlphaF(boneAlphaValue);
-                    vSelectedModelDrawer->skeletonDrawer().setRenderingBoneColor(jId, boneC);
+                    if (parentJointId >= originalJointSelectValue.size() || previewJointSelectValue[jId] != originalJointSelectValue[jId] || previewJointSelectValue[parentJointId] != originalJointSelectValue[parentJointId]) {
+                        JointId parentJointId = skeleton.parent(jId);
+                        float boneAlphaValue =
+                             originalJointSelectValue[parentJointId] && originalJointSelectValue[jId] ?
+                                 (previewJointSelectValue[parentJointId] && previewJointSelectValue[jId] ?  1.0f : 0.1f) :
+                                 0.0f;
+
+                        nvl::Color boneC = vSelectedModelDrawer->skeletonDrawer().renderingBoneColor(jId);
+                        boneC.setAlphaF(boneAlphaValue);
+                        vSelectedModelDrawer->skeletonDrawer().setRenderingBoneColor(jId, boneC);
+                    }
                 }
             }
 
@@ -591,6 +601,8 @@ void SkinMixerManager::updateView()
     ui->operationAbortButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
     ui->operationApplyButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
     ui->mixButton->setEnabled(vCurrentOperation == OperationType::NONE && !vSkinMixerData.actions().empty());
+    ui->updateValuesWeightsButton->setEnabled(jointSelected);
+    ui->updateValuesBirthButton->setEnabled(modelDrawerSelected);
 }
 
 void SkinMixerManager::colorizeModelDrawerWithSelectValues(
@@ -668,7 +680,8 @@ void SkinMixerManager::colorizeModelDrawerWithSelectValues(
         modelDrawer->skeletonDrawer().setRenderingJointColor(jId, jointC);
 
         if (!skeleton.isRoot(jId)) {
-            float boneValue = jointSelectValue[skeleton.parent(jId)] ? 1.0 : 0.0;
+            JointId parentJointId = skeleton.parent(jId);
+            float boneValue = jointSelectValue[jId] && jointSelectValue[parentJointId] ? 1.0 : 0.0;
 
             nvl::Color boneC = modelDrawer->skeletonDrawer().renderingBoneColor(jId);
             boneC.setAlphaF(boneValue);
@@ -954,11 +967,16 @@ void SkinMixerManager::clear()
 
 void SkinMixerManager::initializeLoadedModel(Model* model)
 {
-    if (ui->scaleOn1CheckBox->isChecked()) {
+    if (ui->scaleOn1AndCenterCheckBox->isChecked()) {
         nvl::AlignedBox3d bbox = nvl::meshBoundingBox(model->mesh);
         double scaleFactor = 1.0 / bbox.diagonal().norm();
+        nvl::Point3d translateVector = -bbox.center();
 
-        nvl::modelApplyTransformation(*model, nvl::Scaling3d(scaleFactor, scaleFactor, scaleFactor));
+        nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
+        nvl::Translation3d translateTransform(translateVector);
+
+        nvl::Affine3d transformation(scaleTransform * translateTransform);
+        nvl::modelApplyTransformation(*model, transformation);
     }
     if (ui->updateFaceNormalsCheckBox->isChecked()) {
         nvl::meshUpdateFaceNormals(model->mesh);

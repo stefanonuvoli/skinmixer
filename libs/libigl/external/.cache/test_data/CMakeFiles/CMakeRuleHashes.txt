@@ -1,0 +1,11 @@
+# Hashes of file build rules.
+eb220fc2b6047091b385eb1cc2b7f451 CMakeFiles/test_data-download
+eeff8fa6f0d046faeb6001ebea138565 CMakeFiles/test_data-download-complete
+dcd241f00340ddf6ccb3994fe8d894ba test_data-download-prefix/src/test_data-download-stamp/test_data-download-build
+c3f6fcff3dab5c334032fa96417a3748 test_data-download-prefix/src/test_data-download-stamp/test_data-download-configure
+8d8a9096b8d6d73ab48c353b6ac934d7 test_data-download-prefix/src/test_data-download-stamp/test_data-download-download
+713b97126ff32aa6dfce85decc7f6565 test_data-download-prefix/src/test_data-download-stamp/test_data-download-install
+d56ea38d9f1009d81caed4b97c8a01e3 test_data-download-prefix/src/test_data-download-stamp/test_data-download-mkdir
+ab72d180c5a0da583fe0ebe481d8e09f test_data-download-prefix/src/test_data-download-stamp/test_data-download-patch
+9ff740459d5795b3a9420b892117c9af test_data-download-prefix/src/test_data-download-stamp/test_data-download-test
+ef1479c4862560c306b1698befb56071 test_data-download-prefix/src/test_data-download-stamp/test_data-download-update

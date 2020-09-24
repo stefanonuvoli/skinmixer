@@ -1,0 +1,2 @@
+/usr/bin/ar qc libigl_triangle.a  CMakeFiles/igl_triangle.dir/include/igl/triangle/cdt.cpp.o CMakeFiles/igl_triangle.dir/include/igl/triangle/triangulate.cpp.o
+/usr/bin/ranlib libigl_triangle.a

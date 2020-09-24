@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/CMakeFiles/libigl-imgui-download"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/CMakeFiles/libigl-imgui-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/CMakeFiles/libigl-imgui-download-complete.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-install.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-mkdir.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-update.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-patch.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-configure.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-build.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/libigl-imgui/libigl-imgui-download-prefix/src/libigl-imgui-download-stamp/libigl-imgui-download-test.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"libigl-imgui-download"
+		],
+		"name" : "libigl-imgui-download"
+	}
+}

@@ -1,0 +1,14 @@
+# Target labels
+ embree-download
+# Source files and their labels
+/usr/include/libigl/external/.cache/embree/CMakeFiles/embree-download
+/usr/include/libigl/external/.cache/embree/CMakeFiles/embree-download.rule
+/usr/include/libigl/external/.cache/embree/CMakeFiles/embree-download-complete.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-install.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-mkdir.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-download.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-update.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-patch.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-configure.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-build.rule
+/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-test.rule

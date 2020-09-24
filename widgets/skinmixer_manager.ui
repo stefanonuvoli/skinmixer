@@ -75,10 +75,10 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="scaleOn1CheckBox">
+      <item row="1" column="0" colspan="2">
+       <widget class="QCheckBox" name="scaleOn1AndCenterCheckBox">
         <property name="text">
-         <string>Scale on 1</string>
+         <string>Scale on 1 and center</string>
         </property>
         <property name="checked">
          <bool>true</bool>

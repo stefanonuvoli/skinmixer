@@ -1,0 +1,1 @@
+/usr/bin/c++   -fPIC -O3 -DNDEBUG  -rdynamic CMakeFiles/202_GaussianCurvature_bin.dir/main.cpp.o  -o ../202_GaussianCurvature_bin ../../libigl.a ../../libigl_opengl.a ../../libigl_opengl_glfw.a ../../libigl_opengl.a ../../libigl.a /usr/lib/x86_64-linux-gnu/libGLX.so /usr/lib/x86_64-linux-gnu/libOpenGL.so ../../libglad.a ../../libglfw3.a -lrt -lm -ldl -lX11 -lpthread 

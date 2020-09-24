@@ -1,0 +1,3 @@
+/usr/include/libigl/external/.cache/stb/CMakeFiles/rebuild_cache.dir
+/usr/include/libigl/external/.cache/stb/CMakeFiles/stb-download.dir
+/usr/include/libigl/external/.cache/stb/CMakeFiles/edit_cache.dir

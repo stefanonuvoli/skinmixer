@@ -1,0 +1,1 @@
+/usr/bin/c++   -fPIC -O3 -DNDEBUG  -rdynamic CMakeFiles/101_FileIO_bin.dir/main.cpp.o  -o ../101_FileIO_bin ../../libigl.a -lpthread 

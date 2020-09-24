@@ -1,0 +1,11 @@
+# Hashes of file build rules.
+9a524f49a9a1f12a93383f5d4b5f5581 CMakeFiles/catch2-download
+87f3114db976346cdf75a532b5503682 CMakeFiles/catch2-download-complete
+c304b1aef71e5dcfafc97272356c1012 catch2-download-prefix/src/catch2-download-stamp/catch2-download-build
+e9e8728bb225bdf7d40bb50215b2902f catch2-download-prefix/src/catch2-download-stamp/catch2-download-configure
+620d44f648717cb53da87e181d6aefe1 catch2-download-prefix/src/catch2-download-stamp/catch2-download-download
+9e755ce6385d26144936bb384f0cd21f catch2-download-prefix/src/catch2-download-stamp/catch2-download-install
+7bed4c38680b5531e913f3ba6eb5d2fa catch2-download-prefix/src/catch2-download-stamp/catch2-download-mkdir
+5700ad041fab087f627b777a19b8d4a3 catch2-download-prefix/src/catch2-download-stamp/catch2-download-patch
+c950398474eedfe7dd762559f7002d30 catch2-download-prefix/src/catch2-download-stamp/catch2-download-test
+97259cac4058790924015a91b300f985 catch2-download-prefix/src/catch2-download-stamp/catch2-download-update

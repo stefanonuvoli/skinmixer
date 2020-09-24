@@ -1,0 +1,14 @@
+# Target labels
+ glfw-download
+# Source files and their labels
+/usr/include/libigl/external/.cache/glfw/CMakeFiles/glfw-download
+/usr/include/libigl/external/.cache/glfw/CMakeFiles/glfw-download.rule
+/usr/include/libigl/external/.cache/glfw/CMakeFiles/glfw-download-complete.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-install.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-mkdir.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-download.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-update.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-patch.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-configure.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-build.rule
+/usr/include/libigl/external/.cache/glfw/glfw-download-prefix/src/glfw-download-stamp/glfw-download-test.rule

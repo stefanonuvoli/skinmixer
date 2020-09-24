@@ -17,35 +17,6 @@ CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER NVL
 TARGET = skinmixer
 CONFIG += qt
 
-#Parallel computation (just in release)
-unix:!mac {
-    QMAKE_CXXFLAGS += -fopenmp
-    LIBS += -fopenmp
-}
-macx{
-    QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
-    QMAKE_LFLAGS += -lomp
-    LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
-}
-
-#OpenVDB
-CONFIG += c++11
-LIBS += -L"usr/local/lib/" -lopenvdb
-LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
-
-#gurobi
-INCLUDEPATH += $$GUROBI_PATH/include
-LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
-
-#vcg ply
-HEADERS += \
-    $$VCGLIB_PATH/wrap/ply/plylib.h \
-    skinmixer/skinmixer_blend_skeletons.h \
-    skinmixer/skinmixer_blend_skinningweights.h
-SOURCES += \
-    $$VCGLIB_PATH/wrap/ply/plylib.cpp \
-    skinmixer/skinmixer_blend_skeletons.cpp \
-    skinmixer/skinmixer_blend_skinningweights.cpp
 
 ######################### FLAGS AND OPTIMIZATION #######################
 
@@ -98,7 +69,9 @@ SOURCES += \
     skinmixer/includes/quad_mapping.cpp \
     skinmixer/includes/quad_steps.cpp \
     skinmixer/includes/quad_utils.cpp \
-    widgets/skinmixer_manager.cpp
+    widgets/skinmixer_manager.cpp \
+    skinmixer/skinmixer_blend_skeletons.cpp \
+    skinmixer/skinmixer_blend_skinningweights.cpp
 
 HEADERS += \
     skinmixer/skinmixer.h \
@@ -120,8 +93,38 @@ HEADERS += \
     skinmixer/includes/quad_patch_assembler.h \
     skinmixer/includes/quad_steps.h \
     skinmixer/includes/quad_utils.h \
-    widgets/skinmixer_manager.h
+    widgets/skinmixer_manager.h \
+    skinmixer/skinmixer_blend_skeletons.h \
+    skinmixer/skinmixer_blend_skinningweights.h
 
 FORMS += \
     widgets/skinmixer_manager.ui
 
+
+############################ LIBRARIES ############################
+
+#Parallel computation (just in release)
+unix:!mac {
+    QMAKE_CXXFLAGS += -fopenmp
+    LIBS += -fopenmp
+}
+macx{
+    QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
+    QMAKE_LFLAGS += -lomp
+    LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
+}
+
+#OpenVDB
+CONFIG += c++11
+LIBS += -L"usr/local/lib/" -lopenvdb
+LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
+
+#gurobi
+INCLUDEPATH += $$GUROBI_PATH/include
+LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
+
+#vcg ply
+HEADERS += \
+    $$VCGLIB_PATH/wrap/ply/plylib.h
+SOURCES += \
+    $$VCGLIB_PATH/wrap/ply/plylib.cpp

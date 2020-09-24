@@ -1,0 +1,14 @@
+# Target labels
+ predicates-download
+# Source files and their labels
+/usr/include/libigl/external/.cache/predicates/CMakeFiles/predicates-download
+/usr/include/libigl/external/.cache/predicates/CMakeFiles/predicates-download.rule
+/usr/include/libigl/external/.cache/predicates/CMakeFiles/predicates-download-complete.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-install.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-mkdir.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-download.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-update.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-patch.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-configure.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-build.rule
+/usr/include/libigl/external/.cache/predicates/predicates-download-prefix/src/predicates-download-stamp/predicates-download-test.rule

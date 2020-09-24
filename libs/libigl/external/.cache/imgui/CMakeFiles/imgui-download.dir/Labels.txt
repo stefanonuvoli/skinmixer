@@ -1,0 +1,14 @@
+# Target labels
+ imgui-download
+# Source files and their labels
+/usr/include/libigl/external/.cache/imgui/CMakeFiles/imgui-download
+/usr/include/libigl/external/.cache/imgui/CMakeFiles/imgui-download.rule
+/usr/include/libigl/external/.cache/imgui/CMakeFiles/imgui-download-complete.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-install.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-mkdir.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-download.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-update.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-patch.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-configure.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-build.rule
+/usr/include/libigl/external/.cache/imgui/imgui-download-prefix/src/imgui-download-stamp/imgui-download-test.rule

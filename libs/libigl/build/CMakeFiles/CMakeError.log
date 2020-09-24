@@ -1,0 +1,70 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /usr/include/libigl/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_76cce/fast"
+/usr/bin/make -f CMakeFiles/cmTC_76cce.dir/build.make CMakeFiles/cmTC_76cce.dir/build
+make[1]: Entering directory '/usr/include/libigl/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_76cce.dir/CheckSymbolExists.c.o
+/usr/bin/cc   -fPIC    -o CMakeFiles/cmTC_76cce.dir/CheckSymbolExists.c.o   -c /usr/include/libigl/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_76cce
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_76cce.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC     -rdynamic CMakeFiles/cmTC_76cce.dir/CheckSymbolExists.c.o  -o cmTC_76cce 
+/usr/bin/ld: CMakeFiles/cmTC_76cce.dir/CheckSymbolExists.c.o: in function `main':
+CheckSymbolExists.c:(.text+0x1f): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_76cce.dir/build.make:87: cmTC_76cce] Error 1
+make[1]: Leaving directory '/usr/include/libigl/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_76cce/fast] Error 2
+
+File /usr/include/libigl/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /usr/include/libigl/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_fe38f/fast"
+/usr/bin/make -f CMakeFiles/cmTC_fe38f.dir/build.make CMakeFiles/cmTC_fe38f.dir/build
+make[1]: Entering directory '/usr/include/libigl/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_fe38f.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_fe38f.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.13/Modules/CheckFunctionExists.c
+Linking C executable cmTC_fe38f
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fe38f.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_fe38f.dir/CheckFunctionExists.c.o  -o cmTC_fe38f -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_fe38f.dir/build.make:87: cmTC_fe38f] Error 1
+make[1]: Leaving directory '/usr/include/libigl/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_fe38f/fast] Error 2
+
+
+Determining if the function sgemm_ exists failed with the following output:
+Change Dir: /usr/include/libigl/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_625d4/fast"
+/usr/bin/make -f CMakeFiles/cmTC_625d4.dir/build.make CMakeFiles/cmTC_625d4.dir/build
+make[1]: Entering directory '/usr/include/libigl/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_625d4.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -fPIC -DCHECK_FUNCTION_EXISTS=sgemm_   -o CMakeFiles/cmTC_625d4.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.13/Modules/CheckFunctionExists.c
+Linking C executable cmTC_625d4
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_625d4.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=sgemm_    -rdynamic CMakeFiles/cmTC_625d4.dir/CheckFunctionExists.c.o  -o cmTC_625d4 
+/usr/bin/ld: CMakeFiles/cmTC_625d4.dir/CheckFunctionExists.c.o: in function `main':
+CheckFunctionExists.c:(.text+0x14): undefined reference to `sgemm_'
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_625d4.dir/build.make:87: cmTC_625d4] Error 1
+make[1]: Leaving directory '/usr/include/libigl/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_625d4/fast] Error 2
+
+

@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/CMakeFiles/tinyxml2-download-complete.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-install.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-mkdir.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-update.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-patch.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-configure.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-build.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/tinyxml2/tinyxml2-download-prefix/src/tinyxml2-download-stamp/tinyxml2-download-test.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"tinyxml2-download"
+		],
+		"name" : "tinyxml2-download"
+	}
+}

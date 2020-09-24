@@ -1,0 +1,14 @@
+# Target labels
+ tutorial_data-download
+# Source files and their labels
+/usr/include/libigl/external/.cache/tutorial_data/CMakeFiles/tutorial_data-download
+/usr/include/libigl/external/.cache/tutorial_data/CMakeFiles/tutorial_data-download.rule
+/usr/include/libigl/external/.cache/tutorial_data/CMakeFiles/tutorial_data-download-complete.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-install.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-mkdir.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-download.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-update.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-patch.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-configure.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-build.rule
+/usr/include/libigl/external/.cache/tutorial_data/tutorial_data-download-prefix/src/tutorial_data-download-stamp/tutorial_data-download-test.rule

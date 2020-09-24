@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/usr/include/libigl/external/triangle/triangle.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+math.h
+-
+sys/time.h
+-
+float.h
+-
+fpu_control.h
+-
+triangle.h
+/usr/include/libigl/external/triangle/triangle.h
+
+/usr/include/libigl/external/triangle/triangle.h
+

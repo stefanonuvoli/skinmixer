@@ -71,8 +71,8 @@ void blendSkeletons(
 
         for (const nvl::Index& eId : cluster) {
             const Entry& currentEntry = data.entry(eId);
-            Model* currentModel = currentEntry.model;
-            Skeleton& currentSkeleton = currentModel->skeleton;
+            const Model* currentModel = currentEntry.model;
+            const Skeleton& currentSkeleton = currentModel->skeleton;
 
             for (JointId i = 0; i < joints[eId].size(); ++i) {
                 JointId jId = joints[eId][i];
@@ -104,6 +104,7 @@ void blendSkeletons(
                     JointInfo jInfo;
                     jInfo.eId = eId;
                     jInfo.jId = jId;
+                    jInfo.confidence = 1.0;
                     entry.birth.joint[newJId].push_back(jInfo);
 
                     std::vector<Transformation> tranformations;
@@ -127,6 +128,7 @@ void blendSkeletons(
                                 jointMap[action.entry1][action.joint1] = newJId;
                             }
                             if (actionJInfo.eId != nvl::MAX_ID) {
+                                actionJInfo.confidence = 1.0;
                                 entry.birth.joint[newJId].push_back(actionJInfo);
                                 tranformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restTransform());
                             }

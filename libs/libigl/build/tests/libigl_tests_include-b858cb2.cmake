@@ -1,0 +1,5 @@
+if(EXISTS "/usr/include/libigl/build/tests/libigl_tests_tests-b858cb2.cmake")
+  include("/usr/include/libigl/build/tests/libigl_tests_tests-b858cb2.cmake")
+else()
+  add_test(libigl_tests_NOT_BUILT-b858cb2 libigl_tests_NOT_BUILT-b858cb2)
+endif()

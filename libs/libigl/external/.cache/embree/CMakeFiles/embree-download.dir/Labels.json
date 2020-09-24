@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/CMakeFiles/embree-download"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/CMakeFiles/embree-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/CMakeFiles/embree-download-complete.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-install.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-mkdir.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-download.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-update.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-patch.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-configure.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-build.rule"
+		},
+		{
+			"file" : "/usr/include/libigl/external/.cache/embree/embree-download-prefix/src/embree-download-stamp/embree-download-test.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"embree-download"
+		],
+		"name" : "embree-download"
+	}
+}

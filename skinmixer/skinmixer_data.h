@@ -44,6 +44,8 @@ public:
             Index eId;
 
             JointId jId;
+
+            float confidence;
         };
 
         std::vector<std::vector<VertexInfo>> vertex;

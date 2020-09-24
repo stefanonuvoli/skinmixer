@@ -1,0 +1,2 @@
+/usr/bin/ar qc libigl_opengl_glfw_imgui.a  CMakeFiles/igl_opengl_glfw_imgui.dir/include/igl/opengl/glfw/imgui/ImGuiMenu.cpp.o
+/usr/bin/ranlib libigl_opengl_glfw_imgui.a
