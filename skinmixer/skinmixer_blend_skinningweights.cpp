@@ -16,6 +16,7 @@ void blendSkinningWeights(
     typedef typename Skeleton::JointId JointId;
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::Face Face;
 
     Model* targetModel = entry.model;
     SkinningWeights& targetSkinningWeights = targetModel->skinningWeights;
@@ -37,12 +38,8 @@ void blendSkinningWeights(
             float sumSelectValues = 0;
 
             for (VertexInfo vertexInfo : vertexInfos) {
-                if (vId == nvl::MAX_ID)
-                    continue;
-
                 for (JointInfo jointInfo : jointInfos) {
-                    if (jId == nvl::MAX_ID)
-                        continue;
+                    assert (jointInfo.jId != nvl::MAX_ID);
 
                     if (jointInfo.eId != vertexInfo.eId) {
                         continue;
@@ -50,15 +47,31 @@ void blendSkinningWeights(
 
                     const Entry& currentEntry = data.entry(vertexInfo.eId);
                     const Model* currentModel = currentEntry.model;
+                    const Mesh& currentMesh = currentModel->mesh;
                     const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
 
-                    weight += vertexInfo.selectValue * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
-                    sumSelectValues += vertexInfo.selectValue;
+                    if (vertexInfo.vId != nvl::MAX_ID) {
+                        weight += vertexInfo.selectValue * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
+                        sumSelectValues += vertexInfo.selectValue;
+                    }
+                    else {
+                        double interpolatedWeight = 0;
+                        const Face& face = currentMesh.face(vertexInfo.closestFaceId);
+                        for (VertexId j = 0; j < face.vertexNumber(); j++) {
+                            interpolatedWeight += currentSkinningWeights.weight(face.vertexId(j), jointInfo.jId);
+                        }
+                        interpolatedWeight /= face.vertexNumber();
+
+                        weight += vertexInfo.selectValue * interpolatedWeight;
+                        sumSelectValues += vertexInfo.selectValue;
+                    }
                 }
             }
 
             weight /= sumSelectValues;
-            targetSkinningWeights.setWeight(vId, jId, weight);
+            if (weight > nvl::EPSILON) {
+                targetSkinningWeights.setWeight(vId, jId, weight);
+            }
         }
     }
 

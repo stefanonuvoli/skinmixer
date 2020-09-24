@@ -524,12 +524,9 @@ void SkinMixerManager::updateCanvasView()
                 if (!skeleton.isRoot(jId)) {
                     JointId parentJointId = skeleton.parent(jId);
 
-                    if (parentJointId >= originalJointSelectValue.size() || previewJointSelectValue[jId] != originalJointSelectValue[jId] || previewJointSelectValue[parentJointId] != originalJointSelectValue[parentJointId]) {
+                    if (jId >= originalJointSelectValue.size() || parentJointId >= originalJointSelectValue.size() || previewJointSelectValue[jId] != originalJointSelectValue[jId] || previewJointSelectValue[parentJointId] != originalJointSelectValue[parentJointId]) {
                         JointId parentJointId = skeleton.parent(jId);
-                        float boneAlphaValue =
-                             originalJointSelectValue[parentJointId] && originalJointSelectValue[jId] ?
-                                 (previewJointSelectValue[parentJointId] && previewJointSelectValue[jId] ?  1.0f : 0.1f) :
-                                 0.0f;
+                        float boneAlphaValue = (jId >= originalJointSelectValue.size() || parentJointId >= originalJointSelectValue.size() || (previewJointSelectValue[parentJointId] && previewJointSelectValue[jId]) ?  1.0f : 0.1f);
 
                         nvl::Color boneC = vSelectedModelDrawer->skeletonDrawer().renderingBoneColor(jId);
                         boneC.setAlphaF(boneAlphaValue);

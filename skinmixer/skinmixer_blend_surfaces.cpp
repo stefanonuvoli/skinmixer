@@ -193,7 +193,7 @@ void blendSurfaces(
         std::vector<VertexId> tmpBirthVertex;
         std::vector<FaceId> tmpBirthFace;
 
-        nvl::meshTransferFaces(mesh, std::vector<VertexId>(meshFacesToKeep[mId].begin(), meshFacesToKeep[mId].end()), preMesh, tmpBirthVertex, tmpBirthFace);
+        nvl::meshTransferFaces(mesh, std::vector<FaceId>(meshFacesToKeep[mId].begin(), meshFacesToKeep[mId].end()), preMesh, tmpBirthVertex, tmpBirthFace);
 
         preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
         preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
@@ -1222,7 +1222,6 @@ Mesh quadrangulateMesh(
         std::unordered_map<size_t, size_t>::iterator it = preservedVerticesMap.find(vcgResultVId);
         if (it != preservedVerticesMap.end()) {
             size_t vcgPreMeshVId = it->second;
-
             birthVertex[vId] = preBirthVertex[vcgPreBirthVertex[vcgPreMeshVId]];
         }
     }
@@ -1236,7 +1235,6 @@ Mesh quadrangulateMesh(
         std::unordered_map<size_t, size_t>::iterator it = preservedFacesMap.find(vcgResultFId);
         if (it != preservedFacesMap.end()) {
             size_t vcgPreMeshFId = it->second;
-
             birthFace[fId] = preBirthFace[vcgPreBirthFace[vcgPreMeshFId]];
         }
     }
