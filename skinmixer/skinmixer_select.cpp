@@ -14,7 +14,7 @@ void computeRemoveSelectValues(
         const unsigned int functionSmoothingIterations,
         const double offset,
         const double rigidity,
-        std::vector<float>& vertexSelectValue,
+        std::vector<double>& vertexSelectValue,
         std::vector<bool>& jointSelectValue)
 {
     typedef typename Model::Mesh Mesh;
@@ -49,10 +49,10 @@ void computeRemoveSelectValues(
         std::vector<FaceId> componentBirthFace;
         nvl::meshTransferFaces(mesh, componentFaces, componentMesh, componentBirthVertex, componentBirthFace);
 
-        float minFunction = nvl::maxLimitValue<float>();
-        float maxFunction = nvl::minLimitValue<float>();
-        float avgFunction = 0.0;
-        std::vector<float> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<float>());
+        double minFunction = nvl::maxLimitValue<double>();
+        double maxFunction = nvl::minLimitValue<double>();
+        double avgFunction = 0.0;
+        std::vector<double> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<double>());
 
         for (VertexId vId = 0; vId < componentMesh.nextVertexId(); ++vId) {
             if (componentMesh.isVertexDeleted(vId))
@@ -79,7 +79,7 @@ void computeRemoveSelectValues(
                 vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], componentFunction[vId]);
             }
             else {
-                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
+                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5 ? 1.0 : -1.0));
             }
         }
     }
@@ -97,7 +97,7 @@ void computeDetachSelectValues(
         const unsigned int functionSmoothingIterations,
         const double offset,
         const double rigidity,
-        std::vector<float>& vertexSelectValue,
+        std::vector<double>& vertexSelectValue,
         std::vector<bool>& jointSelectValue)
 {
     typedef typename Model::Mesh Mesh;
@@ -132,10 +132,10 @@ void computeDetachSelectValues(
         std::vector<FaceId> componentBirthFace;
         nvl::meshTransferFaces(mesh, componentFaces, componentMesh, componentBirthVertex, componentBirthFace);
 
-        float minFunction = nvl::maxLimitValue<float>();
-        float maxFunction = nvl::minLimitValue<float>();
-        float avgFunction = 0.0;
-        std::vector<float> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<float>());
+        double minFunction = nvl::maxLimitValue<double>();
+        double maxFunction = nvl::minLimitValue<double>();
+        double avgFunction = 0.0;
+        std::vector<double> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<double>());
 
         for (VertexId vId = 0; vId < componentMesh.nextVertexId(); ++vId) {
             if (componentMesh.isVertexDeleted(vId))
@@ -162,7 +162,7 @@ void computeDetachSelectValues(
                 vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], componentFunction[vId]);
             }
             else {
-                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5f ? 1.0f : -1.0f));
+                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5 ? 1.0 : -1.0));
             }
         }
     }

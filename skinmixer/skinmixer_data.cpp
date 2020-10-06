@@ -123,7 +123,7 @@ void SkinMixerData<Model>::clear()
 template<class Model>
 void SkinMixerData<Model>::Entry::clear()
 {
-    id = nvl::MAX_ID;
+    id = nvl::MAX_INDEX;
 
     model = nullptr;
 

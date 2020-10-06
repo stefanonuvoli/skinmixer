@@ -1,11 +1,12 @@
 #include "skinmixer_blend_skinningweights.h"
 
+#include <nvl/models/model_normalization.h>
+
 namespace skinmixer {
 
 template<class Model>
 void blendSkinningWeights(
         const SkinMixerData<Model>& data,
-        const std::vector<nvl::Index>& cluster,
         typename SkinMixerData<Model>::Entry& entry)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
@@ -35,11 +36,11 @@ void blendSkinningWeights(
             const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
             double weight = 0.0;
-            float sumSelectValues = 0;
+            double sumSelectValues = 0;
 
             for (VertexInfo vertexInfo : vertexInfos) {
                 for (JointInfo jointInfo : jointInfos) {
-                    assert (jointInfo.jId != nvl::MAX_ID);
+                    assert (jointInfo.jId != nvl::MAX_INDEX);
 
                     if (jointInfo.eId != vertexInfo.eId) {
                         continue;
@@ -50,9 +51,9 @@ void blendSkinningWeights(
                     const Mesh& currentMesh = currentModel->mesh;
                     const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
 
-                    if (vertexInfo.vId != nvl::MAX_ID) {
-                        weight += vertexInfo.selectValue * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
-                        sumSelectValues += vertexInfo.selectValue;
+                    if (vertexInfo.vId != nvl::MAX_INDEX) {
+                        weight += vertexInfo.weight * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
+                        sumSelectValues += vertexInfo.weight;
                     }
                     else {
                         double interpolatedWeight = 0;
@@ -62,8 +63,8 @@ void blendSkinningWeights(
                         }
                         interpolatedWeight /= face.vertexNumber();
 
-                        weight += vertexInfo.selectValue * interpolatedWeight;
-                        sumSelectValues += vertexInfo.selectValue;
+                        weight += vertexInfo.weight * interpolatedWeight;
+                        sumSelectValues += vertexInfo.weight;
                     }
                 }
             }
@@ -76,6 +77,7 @@ void blendSkinningWeights(
     }
 
     targetSkinningWeights.updateNonZeros();
+    nvl::modelNormalizeSkinningWeights(*targetModel);
 }
 
 }

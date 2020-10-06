@@ -23,13 +23,13 @@ public:
     typedef typename nvl::Scaling3d ScalingTransform;
 
     struct SelectInfo {
-        std::vector<float> vertex;
+        std::vector<double> vertex;
         std::vector<bool> joint;
 
         void clear();
     };
 
-    struct BirthInfo {        
+    struct BirthInfo {
         struct VertexInfo {
             Index eId;
 
@@ -38,16 +38,17 @@ public:
             FaceId closestFaceId;
             double distance;
 
-            float selectValue;
+            double weight;
         };
         struct JointInfo {
             Index eId;
 
             JointId jId;
 
-            float confidence;
+            double confidence;
         };
 
+        std::vector<Index> entries;
         std::vector<std::vector<VertexInfo>> vertex;
         std::vector<std::vector<JointInfo>> joint;
 
@@ -61,6 +62,8 @@ public:
 
         SelectInfo select;
         BirthInfo birth;
+
+        std::vector<std::vector<double>> animationWeights;
 
         std::vector<Index> relatedActions;
 

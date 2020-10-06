@@ -19,17 +19,19 @@ SkinMixerManager::SkinMixerManager(
         nvl::Canvas* canvas,
         nvl::DrawableListWidget* drawableListWidget,
         nvl::SkeletonJointListWidget* skeletonJointListWidget,
+        nvl::ModelAnimationWidget* modelAnimationWidget,
         QWidget *parent) :
     QFrame(parent),
     ui(new Ui::SkinMixerManager),
     vCanvas(canvas),
     vDrawableListWidget(drawableListWidget),
     vSkeletonJointListWidget(skeletonJointListWidget),
+    vModelAnimationWidget(modelAnimationWidget),
     vCurrentOperation(OperationType::NONE),
     vSelectedModelDrawer(nullptr),
-    vSelectedJoint(nvl::MAX_ID),
+    vSelectedJoint(nvl::MAX_INDEX),
     vAttachModelDrawer(nullptr),
-    vAttachJoint(nvl::MAX_ID),
+    vAttachJoint(nvl::MAX_INDEX),
     vBackupFrame(nvl::Affine3d::Identity())
 {
     ui->setupUi(this);
@@ -50,6 +52,8 @@ SkinMixerManager::~SkinMixerManager()
     }
     vModels.clear();
 
+    vModelMap.clear();
+
     delete ui;
 }
 
@@ -68,7 +72,7 @@ nvl::Index SkinMixerManager::loadModelFromFile(const std::string& filename)
     }
     else {
         QMessageBox::warning(this, tr("Error"), tr("Error: impossible to load model!"));
-        return nvl::MAX_ID;
+        return nvl::MAX_INDEX;
     }
 }
 
@@ -98,14 +102,13 @@ bool SkinMixerManager::removeModelDrawer(ModelDrawer* modelDrawer)
     std::unordered_set<ModelDrawer*>::iterator modelDrawerIt = vModelDrawers.find(modelDrawer);
     if (modelDrawerIt != vModelDrawers.end()) {
         vModelDrawers.erase(modelDrawerIt);
-        bool success = vCanvas->removeDrawable(modelDrawer);
-        assert(success);
+        vCanvas->removeDrawable(modelDrawer);
         delete modelDrawer;
 
         std::unordered_map<ModelDrawer*, Model*>::iterator modelIt = vModelMap.find(modelDrawer);
         if (modelIt != vModelMap.end()) {
             vModelMap.erase(modelIt);
-            vModels.erase(modelIt->second);
+//            vModels.erase(modelIt->second);
             delete modelIt->second;
         }
 
@@ -298,11 +301,11 @@ void SkinMixerManager::slot_drawableAdded(const SkinMixerManager::Index& id, nvl
         ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(drawable);
         if (modelDrawer != nullptr) {
             modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_VERTEX);
-            modelDrawer->meshDrawer().setTrasparencyEnabled(true);
+            modelDrawer->meshDrawer().setSurfaceTransparency(true);
 
             modelDrawer->skeletonDrawer().setVisible(true);
             modelDrawer->skeletonDrawer().setJointSize(8);
-            modelDrawer->skeletonDrawer().setTrasparencyEnabled(true);
+            modelDrawer->skeletonDrawer().setTransparency(true);
         }
     }
 }
@@ -327,7 +330,7 @@ SkinMixerManager::ModelDrawer *SkinMixerManager::getSelectedModelDrawer()
 
 SkinMixerManager::JointId SkinMixerManager::getSelectedJointId()
 {
-    SkinMixerManager::JointId selectedJointId = nvl::MAX_ID;
+    SkinMixerManager::JointId selectedJointId = nvl::MAX_INDEX;
 
     const std::unordered_set<Index>& selectedJoints = vSkeletonJointListWidget->selectedJoints();
     if (selectedJoints.size() == 1) {
@@ -352,8 +355,6 @@ void SkinMixerManager::mix()
         ModelDrawer* modelDrawer = new ModelDrawer(newModel);
         modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_VERTEX);
         modelDrawer->meshDrawer().setWireframeVisible(true);
-        modelDrawer->meshDrawer().setTrasparencyEnabled(false);
-        modelDrawer->skeletonDrawer().setTrasparencyEnabled(false);
 
         vModelDrawers.insert(modelDrawer);
         vModelMap.insert(std::make_pair(modelDrawer, newModel));
@@ -362,10 +363,29 @@ void SkinMixerManager::mix()
     }
 }
 
+void SkinMixerManager::blendAnimations()
+{
+    std::vector<Index> animationIds;
+
+    Model* modelPtr = vSelectedModelDrawer->model();
+    SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
+    for (Index eId : entry.birth.entries) {
+        if (vSkinMixerData.entry(eId).model->animationNumber() > 0) {
+            animationIds.push_back(0);
+        }
+        else {
+            animationIds.push_back(nvl::MAX_INDEX);
+        }
+    }
+    nvl::Index aId = vModelAnimationWidget->selectedAnimation();
+    skinmixer::mixAnimations(vSkinMixerData, animationIds, entry, aId);
+    vModelAnimationWidget->selectAnimation(aId);
+}
+
 void SkinMixerManager::applyOperation()
 {
     if (vCurrentOperation == OperationType::REMOVE || vCurrentOperation == OperationType::DETACH) {
-        assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_ID);
+        assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
 
         const unsigned int functionSmoothingIterations = ui->functionSmoothingSlider->value();
         const double offset = ui->cutOffsetSlider->value() / 50.0;
@@ -383,8 +403,8 @@ void SkinMixerManager::applyOperation()
         }
     }
     else if (vCurrentOperation == OperationType::ATTACH) {
-        assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_ID);
-        assert(vAttachModelDrawer != nullptr && vAttachJoint != nvl::MAX_ID);
+        assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
+        assert(vAttachModelDrawer != nullptr && vAttachJoint != nvl::MAX_INDEX);
 
         nvl::Affine3d transformation1 = vAttachModelDrawer->frame();
         nvl::Affine3d transformation2 = vSelectedModelDrawer->frame();
@@ -401,7 +421,7 @@ void SkinMixerManager::applyOperation()
     vCurrentOperation = OperationType::NONE;
 
     vAttachModelDrawer = nullptr;
-    vAttachJoint = nvl::MAX_ID;
+    vAttachJoint = nvl::MAX_INDEX;
     vBackupFrame = nvl::Affine3d::Identity();
 }
 
@@ -421,7 +441,7 @@ void SkinMixerManager::abortOperation()
     }
 
     vAttachModelDrawer = nullptr;
-    vAttachJoint = nvl::MAX_ID;
+    vAttachJoint = nvl::MAX_INDEX;
     vBackupFrame = nvl::Affine3d::Identity();
 }
 
@@ -436,10 +456,10 @@ void SkinMixerManager::updateCanvasView()
 
 
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
-    bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_ID;
+    bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
 
     bool attachDrawableSelected = vAttachModelDrawer != nullptr;
-    bool attachJointSelected = attachDrawableSelected && vAttachJoint != nvl::MAX_ID;
+    bool attachJointSelected = attachDrawableSelected && vAttachJoint != nvl::MAX_INDEX;
 
     if (vCurrentOperation != OperationType::NONE && jointSelected) {
         Model* modelPtr = vSelectedModelDrawer->model();
@@ -455,10 +475,10 @@ void SkinMixerManager::updateCanvasView()
 
             const SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-            const std::vector<float>& originalVertexSelectValue = entry.select.vertex;
+            const std::vector<double>& originalVertexSelectValue = entry.select.vertex;
             const std::vector<bool>& originalJointSelectValue = entry.select.joint;
 
-            std::vector<float> previewVertexSelectValue = originalVertexSelectValue;
+            std::vector<double> previewVertexSelectValue = originalVertexSelectValue;
             std::vector<bool> previewJointSelectValue = originalJointSelectValue;
 
             if (vCurrentOperation == OperationType::REMOVE) {
@@ -474,7 +494,7 @@ void SkinMixerManager::updateCanvasView()
                 if (mesh.isFaceDeleted(fId))
                     continue;
 
-                float avgValue = 0.0;
+                double avgValue = 0.0;
 
                 const Face& face = mesh.face(fId);
 
@@ -486,7 +506,7 @@ void SkinMixerManager::updateCanvasView()
                         faceAffected = true;
                     }
 
-                    float alphaValue = std::max(std::min(previewVertexSelectValue[vId], 1.0f), 0.1f);
+                    double alphaValue = std::max(std::min(previewVertexSelectValue[vId], 1.0), 0.1);
                     avgValue += alphaValue;
                 }
                 avgValue /= face.vertexNumber();
@@ -503,7 +523,7 @@ void SkinMixerManager::updateCanvasView()
                     continue;
 
                 if (vId >= originalVertexSelectValue.size() || previewVertexSelectValue[vId] < originalVertexSelectValue[vId]) {
-                    float alphaValue = std::max(std::min(previewVertexSelectValue[vId], 1.0f), 0.1f);
+                    double alphaValue = std::max(std::min(previewVertexSelectValue[vId], 1.0), 0.1);
 
                     nvl::Color vertexC = vSelectedModelDrawer->meshDrawer().renderingVertexColor(vId);
                     vertexC.setAlphaF(alphaValue);
@@ -514,7 +534,7 @@ void SkinMixerManager::updateCanvasView()
             for (JointId jId = 0; jId < skeleton.jointNumber(); jId++) {
 
                 if (jId >= originalJointSelectValue.size() || previewJointSelectValue[jId] != originalJointSelectValue[jId]) {
-                    float jointAlphaValue = (jId >= originalJointSelectValue.size() || originalJointSelectValue[jId]) ? (previewJointSelectValue[jId] ?  1.0f : 0.1f) : 0.0;
+                    double jointAlphaValue = (jId >= originalJointSelectValue.size() || originalJointSelectValue[jId]) ? (previewJointSelectValue[jId] ?  1.0 : 0.1) : 0.0;
 
                     nvl::Color jointC = vSelectedModelDrawer->skeletonDrawer().renderingJointColor(jId);
                     jointC.setAlphaF(jointAlphaValue);
@@ -522,11 +542,11 @@ void SkinMixerManager::updateCanvasView()
 
                 }
                 if (!skeleton.isRoot(jId)) {
-                    JointId parentJointId = skeleton.parent(jId);
+                    JointId parentJointId = skeleton.parentId(jId);
 
                     if (jId >= originalJointSelectValue.size() || parentJointId >= originalJointSelectValue.size() || previewJointSelectValue[jId] != originalJointSelectValue[jId] || previewJointSelectValue[parentJointId] != originalJointSelectValue[parentJointId]) {
-                        JointId parentJointId = skeleton.parent(jId);
-                        float boneAlphaValue = (jId >= originalJointSelectValue.size() || parentJointId >= originalJointSelectValue.size() || (previewJointSelectValue[parentJointId] && previewJointSelectValue[jId]) ?  1.0f : 0.1f);
+                        JointId parentJointId = skeleton.parentId(jId);
+                        double boneAlphaValue = (jId >= originalJointSelectValue.size() || parentJointId >= originalJointSelectValue.size() || (previewJointSelectValue[parentJointId] && previewJointSelectValue[jId]) ?  1.0 : 0.1);
 
                         nvl::Color boneC = vSelectedModelDrawer->skeletonDrawer().renderingBoneColor(jId);
                         boneC.setAlphaF(boneAlphaValue);
@@ -549,7 +569,7 @@ void SkinMixerManager::updateCanvasView()
 void SkinMixerManager::prepareModelForAttach()
 {
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
-    bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_ID;
+    bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
 
     if (jointSelected) {
         if (vSelectedModelDrawer != vAttachModelDrawer) {
@@ -585,7 +605,8 @@ void SkinMixerManager::updateView()
 {
     bool atLeastOneDrawableSelected = vDrawableListWidget->selectedDrawables().size() > 0;
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
-    bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_ID;
+    bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
+    bool blendedModelSelected = modelDrawerSelected && !vSkinMixerData.entryFromModel(vSelectedModelDrawer->model()).birth.entries.empty();
 
     ui->modelLoadButton->setEnabled(true);
     ui->modelRemoveButton->setEnabled(atLeastOneDrawableSelected);
@@ -598,6 +619,7 @@ void SkinMixerManager::updateView()
     ui->operationAbortButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
     ui->operationApplyButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
     ui->mixButton->setEnabled(vCurrentOperation == OperationType::NONE && !vSkinMixerData.actions().empty());
+    ui->blendAnimationsButton->setEnabled(blendedModelSelected);
     ui->updateValuesWeightsButton->setEnabled(jointSelected);
     ui->updateValuesBirthButton->setEnabled(modelDrawerSelected);
 }
@@ -615,7 +637,7 @@ void SkinMixerManager::colorizeModelDrawerWithSelectValues(
 
 void SkinMixerManager::colorizeModelDrawerWithSelectValues(
         ModelDrawer* modelDrawer,
-        const std::vector<float>& vertexSelectValue,
+        const std::vector<double>& vertexSelectValue,
         const std::vector<bool>& jointSelectValue)
 {
     typedef Model::Mesh Mesh;
@@ -640,12 +662,12 @@ void SkinMixerManager::colorizeModelDrawerWithSelectValues(
         if (mesh.isFaceDeleted(fId))
             continue;
 
-        float avgValue = 0.0;
+        double avgValue = 0.0;
 
         const Face& face = mesh.face(fId);
         for (VertexId j = 0; j < face.vertexNumber(); j++) {
             VertexId vId = face.vertexId(j);
-            float value = std::max(std::min(vertexSelectValue[vId], 1.0f), 0.0f);
+            double value = std::max(std::min(vertexSelectValue[vId], 1.0), 0.0);
             avgValue += value;
         }
         avgValue /= face.vertexNumber();
@@ -660,7 +682,7 @@ void SkinMixerManager::colorizeModelDrawerWithSelectValues(
         if (mesh.isVertexDeleted(vId))
             continue;
 
-        float value = std::max(std::min(vertexSelectValue[vId], 1.0f), 0.0f);;
+        double value = std::max(std::min(vertexSelectValue[vId], 1.0), 0.0);;
 
         nvl::Color vertexC = modelDrawer->meshDrawer().renderingVertexColor(vId);
         vertexC.setAlphaF(value);
@@ -670,15 +692,15 @@ void SkinMixerManager::colorizeModelDrawerWithSelectValues(
 
 
     for (JointId jId = 0; jId < skeleton.jointNumber(); jId++) {
-        float jointValue = jointSelectValue[jId] ? 1.0 : 0.0;
+        double jointValue = jointSelectValue[jId] ? 1.0 : 0.0;
 
         nvl::Color jointC = modelDrawer->skeletonDrawer().renderingJointColor(jId);
         jointC.setAlphaF(jointValue);
         modelDrawer->skeletonDrawer().setRenderingJointColor(jId, jointC);
 
         if (!skeleton.isRoot(jId)) {
-            JointId parentJointId = skeleton.parent(jId);
-            float boneValue = jointSelectValue[jId] && jointSelectValue[parentJointId] ? 1.0 : 0.0;
+            JointId parentJointId = skeleton.parentId(jId);
+            double boneValue = jointSelectValue[jId] && jointSelectValue[parentJointId] ? 1.0 : 0.0;
 
             nvl::Color boneC = modelDrawer->skeletonDrawer().renderingBoneColor(jId);
             boneC.setAlphaF(boneValue);
@@ -707,7 +729,7 @@ void SkinMixerManager::updateValuesSkinningWeights()
     if (selectedModelDrawer != nullptr) {
         std::vector<double> vertexValues;
 
-        if (selectedJointId != nvl::MAX_ID) {
+        if (selectedJointId != nvl::MAX_INDEX) {
             vertexValues.resize(selectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
 
             for (auto vertex : selectedModelDrawer->model()->mesh.vertices()) {
@@ -750,12 +772,12 @@ void SkinMixerManager::updateValuesBirth()
                     nvl::Size n = 0;
 
                     for (auto info : entry.birth.vertex[vertex.id()]) {
-                        if (info.vId == nvl::MAX_ID) {
+                        if (info.vId == nvl::MAX_INDEX) {
                             if (info.eId == firstEntry) {
-                                currentValue += 1 - info.selectValue;
+                                currentValue += 1 - info.weight;
                             }
                             else {
-                                currentValue += info.selectValue;
+                                currentValue += info.weight;
                             }
                             n++;
                         }
@@ -923,7 +945,7 @@ void SkinMixerManager::on_operationAttachButton_clicked()
 {
     vCurrentOperation = OperationType::ATTACH;
 
-    assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_ID);
+    assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
     vAttachModelDrawer = vSelectedModelDrawer;
     vAttachJoint = vSelectedJoint;
     vBackupFrame = nvl::Affine3d::Identity();
@@ -986,6 +1008,16 @@ void SkinMixerManager::initializeLoadedModel(Model* model)
 void SkinMixerManager::on_mixButton_clicked()
 {
     mix();
+
+    updateCanvasView();
+    updateView();
+
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_blendAnimationsButton_clicked()
+{
+    blendAnimations();
 
     updateCanvasView();
     updateView();

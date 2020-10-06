@@ -12,7 +12,7 @@
 
 #include <vcg/complex/algorithms/polygonal_algorithms.h>
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
 #include <igl/writeOBJ.h>
 #endif
 
@@ -113,7 +113,7 @@ std::vector<int> findSubdivisions(
     if (chartData.charts.size() <= 0)
         return std::vector<int>();
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     const double timeLimit = 30.0;
 #else
     const double timeLimit = 5.0;
@@ -314,7 +314,7 @@ void quadrangulate(
         QuadBoolean::internal::computePattern(l, patchV, patchF, patchBorders, patchCorners);    
 
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         igl::writeOBJ(std::string("results/") + std::to_string(cId) + std::string("_patch.obj"), patchV, patchF);
 #endif
 
@@ -323,7 +323,7 @@ void quadrangulate(
         assert(chartSides.size() == patchCorners.size());
         assert(chartSides.size() == patchEigenSides.size());
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         igl::writeOBJ(std::string("results/") + std::to_string(cId) + std::string("_chart.obj"), chartV, chartF);
 #endif
 
@@ -334,7 +334,7 @@ void quadrangulate(
         Eigen::MatrixXi quadrangulationF;
         QuadBoolean::internal::computeQuadrangulation(chartV, chartF, patchV, patchF, chartSideVertices, chartSideLength, chartSideSubdivision, patchEigenSides, uvMapV, uvMapF, quadrangulationV, quadrangulationF);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         Eigen::MatrixXd uvMesh(uvMapV.rows(), 3);
         for (int i = 0; i < uvMapV.rows(); i++) {
             uvMesh(i, 0) = uvMapV(i, 0);
@@ -351,7 +351,7 @@ void quadrangulate(
         PolyMeshType quadrangulatedChartMesh;
         eigenToVCG(quadrangulationV, quadrangulationF, quadrangulatedChartMesh, 4);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         igl::writeOBJ(std::string("results/") + std::to_string(cId) + std::string("_quadrangulation.obj"), quadrangulationV, quadrangulationF);
 #endif
 
@@ -568,6 +568,11 @@ void getResult(
     vcg::tri::Append<PolyMeshType, PolyMeshType>::Mesh(tmpMesh, quadrangulatedNewSurface);
 
     vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.0000001);
+
+    vcg::tri::Clean<PolyMeshType>::RemoveDegenerateVertex(tmpMesh);
+    vcg::tri::Clean<PolyMeshType>::RemoveDegenerateEdge(tmpMesh);
+    vcg::tri::Clean<PolyMeshType>::RemoveDegenerateFace(tmpMesh);
+
     vcg::tri::Clean<PolyMeshType>::RemoveUnreferencedVertex(tmpMesh);
 
     vcg::tri::UpdateTopology<PolyMeshType>::FaceFace(tmpMesh);
@@ -625,7 +630,7 @@ void getResult(
         }
     }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultbeforereprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 
@@ -695,7 +700,7 @@ void getResult(
     vcg::tri::UpdateNormal<PolyMeshType>::PerVertexNormalized(result);
     vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultafterreprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 }

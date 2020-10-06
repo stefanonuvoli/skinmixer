@@ -11,6 +11,7 @@
 #include <nvl/viewer/widgets/canvas.h>
 #include <nvl/viewer/widgets/drawable_list_widget.h>
 #include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
+#include <nvl/viewer/widgets/model_animation_widget.h>
 #include <nvl/viewer/drawables/model_drawer.h>
 
 #include <nvl/models/model.h>
@@ -45,6 +46,7 @@ public:
             nvl::Canvas* canvas,
             nvl::DrawableListWidget* drawableListWidget,
             nvl::SkeletonJointListWidget* skeletonJointListWidget,
+            nvl::ModelAnimationWidget* modelAnimationWidget,
             QWidget *parent = nullptr);
     ~SkinMixerManager();
 
@@ -78,15 +80,13 @@ private slots:
     void on_operationRemoveButton_clicked();
     void on_operationAttachButton_clicked();
     void on_operationAbortButton_clicked();
-
     void on_operationApplyButton_clicked();
 
-    void on_mixButton_clicked();
+    void on_mixButton_clicked();    
+    void on_blendAnimationsButton_clicked();
 
     void on_updateValuesResetButton_clicked();
-
     void on_updateValuesWeightsButton_clicked();
-
     void on_updateValuesBirthButton_clicked();
 
 private:
@@ -95,6 +95,7 @@ private:
     JointId getSelectedJointId();
 
     void mix();
+    void blendAnimations();
 
     void applyOperation();
     void abortOperation();    
@@ -107,7 +108,7 @@ private:
             ModelDrawer* modelDrawer);
     void colorizeModelDrawerWithSelectValues(
             ModelDrawer* modelDrawer,
-            const std::vector<float>& vertexSelectValue,
+            const std::vector<double>& vertexSelectValue,
             const std::vector<bool>& jointSelectValue);
 
     void updateValuesReset();
@@ -131,6 +132,7 @@ private:
     nvl::Canvas* vCanvas;
     nvl::DrawableListWidget* vDrawableListWidget;
     nvl::SkeletonJointListWidget* vSkeletonJointListWidget;
+    nvl::ModelAnimationWidget* vModelAnimationWidget;
 
     OperationType vCurrentOperation;
     SkinMixerData vSkinMixerData;

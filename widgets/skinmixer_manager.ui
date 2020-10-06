@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>582</height>
+    <height>576</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -94,10 +94,10 @@
       <string>Operations</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
-      <item row="0" column="2">
-       <widget class="QPushButton" name="operationDetachButton">
+      <item row="5" column="1">
+       <widget class="QPushButton" name="operationApplyButton">
         <property name="text">
-         <string>Detach</string>
+         <string>Apply</string>
         </property>
        </widget>
       </item>
@@ -118,10 +118,10 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
-       <widget class="QPushButton" name="operationApplyButton">
+      <item row="0" column="2">
+       <widget class="QPushButton" name="operationDetachButton">
         <property name="text">
-         <string>Apply</string>
+         <string>Detach</string>
         </property>
        </widget>
       </item>
@@ -132,19 +132,26 @@
         </property>
        </widget>
       </item>
+      <item row="6" column="1" colspan="3">
+       <widget class="QPushButton" name="mixButton">
+        <property name="text">
+         <string>Mix</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="resultsGroupBox">
+    <widget class="QGroupBox" name="animationBlendingGroupBox">
      <property name="title">
-      <string>Results</string>
+      <string>Animation blending</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_4">
       <item row="0" column="0">
-       <widget class="QPushButton" name="mixButton">
+       <widget class="QPushButton" name="blendAnimationsButton">
         <property name="text">
-         <string>Mix</string>
+         <string>Blend</string>
         </property>
        </widget>
       </item>

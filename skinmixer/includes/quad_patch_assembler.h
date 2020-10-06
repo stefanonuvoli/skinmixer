@@ -225,7 +225,7 @@ class PatchSplitter
             std::cout<<"Tested "<<tested<<std::endl;
         }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         vcg::tri::io::ExporterPLY<MeshType>::Save(patchMesh,"results/test_mesh_trace.ply",vcg::tri::io::Mask::IOM_VERTFLAGS);
 #endif
     }

@@ -14,7 +14,7 @@ void computeRemoveSelectValues(
         const unsigned int functionSmoothingIterations,
         const double offset,
         const double rigidity,
-        std::vector<float>& vertexSelectValue,
+        std::vector<double>& vertexSelectValue,
         std::vector<bool>& jointSelectValue);
 
 template<class Model>
@@ -24,7 +24,7 @@ void computeDetachSelectValues(
         const unsigned int functionSmoothingIterations,
         const double offset,
         const double rigidity,
-        std::vector<float>& vertexSelectValue,
+        std::vector<double>& vertexSelectValue,
         std::vector<bool>& jointSelectValue);
 
 

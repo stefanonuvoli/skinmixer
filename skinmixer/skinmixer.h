@@ -12,6 +12,13 @@ std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data);
 
 template<class Model>
+void mixAnimations(
+        SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& animationIds,
+        typename SkinMixerData<Model>::Entry& entry,
+        nvl::Index& targetAnimationId);
+
+template<class Model>
 void attach(
         SkinMixerData<Model>& data,
         Model* model1,

@@ -6,6 +6,7 @@
 #include "skinmixer/skinmixer_blend_skeletons.h"
 #include "skinmixer/skinmixer_blend_surfaces.h"
 #include "skinmixer/skinmixer_blend_skinningweights.h"
+#include "skinmixer/skinmixer_blend_animations.h"
 
 #include <nvl/models/model_transformations.h>
 #include <nvl/models/mesh_normals.h>
@@ -16,10 +17,9 @@ template<class Model>
 std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data)
 {
-    typedef typename nvl::Index Index;
+    typedef nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename Model::Mesh Mesh;
-    typedef typename Model::Skeleton Skeleton;
 
     std::vector<Index> newEntries;
 
@@ -37,15 +37,29 @@ std::vector<nvl::Index> mix(
         Index newEntryId = data.addEntry(resultModel);
 
         Entry& entry = data.entry(newEntryId);
+        entry.birth.entries = cluster;
 
         blendSurfaces(data, cluster, entry);
         blendSkeletons(data, cluster, entry);
-        blendSkinningWeights(data, cluster, entry);
+
+        blendSkinningWeights(data, entry);
+
+        initializeAnimationWeights(data, entry);
 
         newEntries.push_back(newEntryId);
     }
 
     return newEntries;
+}
+
+template<class Model>
+void mixAnimations(
+        SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& animationIds,
+        typename SkinMixerData<Model>::Entry& entry,
+        nvl::Index& targetAnimationId)
+{
+    return blendAnimations(data, entry, animationIds, targetAnimationId);
 }
 
 template<class Model>
@@ -103,9 +117,9 @@ void remove(
     Action action;
     action.operation = OperationType::REMOVE;
     action.entry1 = entry.id;
-    action.entry2 = nvl::MAX_ID;
+    action.entry2 = nvl::MAX_INDEX;
     action.joint1 = targetJoint;
-    action.joint2 = nvl::MAX_ID;
+    action.joint2 = nvl::MAX_INDEX;
 
     nvl::Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);
@@ -130,9 +144,9 @@ void detach(
     Action action;
     action.operation = OperationType::DETACH;
     action.entry1 = entry.id;
-    action.entry2 = nvl::MAX_ID;
+    action.entry2 = nvl::MAX_INDEX;
     action.joint1 = targetJoint;
-    action.joint2 = nvl::MAX_ID;
+    action.joint2 = nvl::MAX_INDEX;
 
     nvl::Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);

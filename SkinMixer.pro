@@ -8,7 +8,8 @@ GUROBI_PATH = /opt/gurobi903/linux64
 #EIGEN_PATH = /usr/include/eigen3
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
 
-DEFINES += SAVE_MESHES
+#DEFINES += SAVE_MESHES_FOR_DEBUG
+DEFINES += NDEBUG
 
 #Modules of nuvolib
 CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER NVL_VCGLIB NVL_LIBIGL
@@ -56,6 +57,7 @@ include($$PWD/libs/libiglfields/libiglfields.pri)
 SOURCES += \
     main.cpp \
     skinmixer/skinmixer.cpp \
+    skinmixer/skinmixer_blend_animations.cpp \
     skinmixer/skinmixer_blend_surfaces.cpp \
     skinmixer/skinmixer_data.cpp \
     skinmixer/skinmixer_select.cpp \
@@ -75,6 +77,7 @@ SOURCES += \
 
 HEADERS += \
     skinmixer/skinmixer.h \
+    skinmixer/skinmixer_blend_animations.h \
     skinmixer/skinmixer_blend_surfaces.h \
     skinmixer/skinmixer_data.h \
     skinmixer/skinmixer_operation.h \

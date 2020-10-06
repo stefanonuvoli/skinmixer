@@ -31,7 +31,7 @@
 #include <igl/fast_winding_number.h>
 #include <igl/winding_number.h>
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
 #include <nvl/models/mesh_io.h>
 #endif
 
@@ -65,7 +65,7 @@ struct OpenVDBAdapter {
 template<class Model>
 typename Model::Mesh getBlendedMesh(
         const std::vector<Model*>& models,
-        const std::vector<std::vector<float>>& vertexSelectValue,
+        const std::vector<std::vector<double>>& vertexSelectValue,
         const nvl::Scaling3d& scaleTransform,
         const double maxDistance,
         std::vector<openvdb::FloatGrid::Ptr>& signedGrids,
@@ -119,7 +119,7 @@ void blendSurfaces(
     double voxelSize = nvl::maxLimitValue<Scalar>();
 
     std::vector<Model*> models(cluster.size());
-    std::vector<std::vector<float>> vertexSelectValue(cluster.size());
+    std::vector<std::vector<double>> vertexSelectValue(cluster.size());
     for (Index i = 0; i < cluster.size(); ++i) {
         Index eId = cluster[i];
 
@@ -131,7 +131,7 @@ void blendSurfaces(
     for (Model* modelPtr : models) {
         Mesh& mesh = modelPtr->mesh;
         Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
-        voxelSize = std::min(voxelSize, avgLength / 2.0);
+        voxelSize = std::min(voxelSize, avgLength);
     }
 
     double scaleFactor = 1.0 / voxelSize;
@@ -148,7 +148,7 @@ void blendSurfaces(
     //Rescale back
     nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
 #endif
 
@@ -160,7 +160,7 @@ void blendSurfaces(
             if (mesh.isFaceDeleted(fId))
                 continue;
 
-            float selectValue = 0.0;
+            double selectValue = 0.0;
             for (VertexId j : mesh.face(fId).vertexIds()) {
                 selectValue += vertexSelectValue[mId][j];
             }
@@ -195,14 +195,14 @@ void blendSurfaces(
 
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(meshFacesToKeep[mId].begin(), meshFacesToKeep[mId].end()), preMesh, tmpBirthVertex, tmpBirthFace);
 
-        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
-        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
+        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
         for (Index vId = lastVertexId; vId < preMesh.nextVertexId(); ++vId) {
-            assert(tmpBirthVertex[vId] != nvl::MAX_ID);
+            assert(tmpBirthVertex[vId] != nvl::MAX_INDEX);
             preBirthVertex[vId] = std::make_pair(mId, tmpBirthVertex[vId]);
         }
         for (Index fId = lastFaceId; fId < preMesh.nextFaceId(); ++fId) {
-            assert(tmpBirthFace[fId] != nvl::MAX_ID);
+            assert(tmpBirthFace[fId] != nvl::MAX_INDEX);
             preBirthFace[fId] = std::make_pair(mId, tmpBirthFace[fId]);
         }
 
@@ -216,7 +216,7 @@ void blendSurfaces(
         }
     }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/preMesh.obj", preMesh);
 #endif
 
@@ -265,14 +265,14 @@ void blendSurfaces(
     //Transfer in the new surface the faces to be kept
     nvl::meshTransferFaces(blendedMesh, std::vector<VertexId>(blendedMeshFacesToKeep.begin(), blendedMeshFacesToKeep.end()), newMesh);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/newMeshRegularized.obj", newMesh);
 #endif
 
     std::vector<VertexId> snappedVertices;
     internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preNonSnappableVertices, snappedVertices);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/newMesh.obj", newMesh);
 #endif
 
@@ -328,7 +328,7 @@ void blendSurfaces(
 
     nvl::meshLaplacianSmoothing(newMesh, verticesToSmooth, verticesToSmoothWeights, 40);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/newMeshSmoothed.obj", newMesh);
 #endif
 
@@ -345,12 +345,12 @@ void blendSurfaces(
 
         std::vector<VertexInfo>& vertexInfo = entry.birth.vertex[vId];
 
-        if (resultPreBirthVertex[vId].first != nvl::MAX_ID) {
+        if (resultPreBirthVertex[vId].first != nvl::MAX_INDEX) {
             VertexInfo info;
             info.eId = cluster[resultPreBirthVertex[vId].first];
             info.vId = resultPreBirthVertex[vId].second;
-            info.selectValue = 1.0;
-            info.closestFaceId = nvl::MAX_ID;
+            info.weight = 1.0;
+            info.closestFaceId = nvl::MAX_INDEX;
             info.distance = 0.0;
             vertexInfo.push_back(info);
         }
@@ -360,10 +360,10 @@ void blendSurfaces(
             Point scaledPoint = scaleTransform * point;
             openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-            std::vector<std::tuple<nvl::Index, float, double, FaceId>> involvedEntries;
+            std::vector<std::tuple<nvl::Index, double, double, FaceId>> involvedEntries;
             std::vector<Index> overThresholdValues;
 
-            float selectValueSum = 0.0;
+            double selectValueSum = 0.0;
             for (Index mId = 0; mId < models.size(); ++mId) {
                 const Mesh& mesh = models[mId]->mesh;
 
@@ -379,7 +379,7 @@ void blendSurfaces(
                 if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
                     FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
-                    float selectValue = 0.0;
+                    double selectValue = 0.0;
                     for (VertexId j : mesh.face(originFaceId).vertexIds()) {
                         selectValue += vertexSelectValue[mId][j];
                     }
@@ -397,11 +397,11 @@ void blendSurfaces(
             assert(involvedEntries.size() >= 0);
 
             if (overThresholdValues.size() == 1) {
-                const std::tuple<nvl::Index, float, double, FaceId>& tuple = involvedEntries[overThresholdValues[0]];
+                const std::tuple<nvl::Index, double, double, FaceId>& tuple = involvedEntries[overThresholdValues[0]];
                 VertexInfo info;
                 info.eId = cluster[std::get<0>(tuple)];
-                info.vId = nvl::MAX_ID;
-                info.selectValue = std::get<1>(tuple);
+                info.vId = nvl::MAX_INDEX;
+                info.weight = std::get<1>(tuple);
                 info.closestFaceId = std::get<2>(tuple);
                 info.distance = std::get<3>(tuple);
 
@@ -409,15 +409,15 @@ void blendSurfaces(
             }
             else {
                 for (Index invId = 0; invId < involvedEntries.size(); ++invId) {
-                    const std::tuple<nvl::Index, float, double, FaceId>& tuple = involvedEntries[invId];
+                    const std::tuple<nvl::Index, double, double, FaceId>& tuple = involvedEntries[invId];
                     VertexInfo info;
                     info.eId = cluster[std::get<0>(tuple)];
-                    info.vId = nvl::MAX_ID;
+                    info.vId = nvl::MAX_INDEX;
                     if (selectValueSum >= DISCARD_THRESHOLD) {
-                        info.selectValue = std::get<1>(tuple) / selectValueSum;
+                        info.weight = std::get<1>(tuple) / selectValueSum;
                     }
                     else {
-                        info.selectValue = 1.0 / involvedEntries.size();
+                        info.weight = 1.0 / involvedEntries.size();
                     }
                     info.closestFaceId = std::get<2>(tuple);
                     info.distance = std::get<3>(tuple);
@@ -429,7 +429,7 @@ void blendSurfaces(
         }
     }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/quadrangulation.obj", quadrangulation);
     nvl::meshSaveToFile("results/resultMesh.obj", resultMesh);
 #endif
@@ -440,7 +440,7 @@ namespace internal {
 template<class Model>
 typename Model::Mesh getBlendedMesh(
         const std::vector<Model*>& models,
-        const std::vector<std::vector<float>>& vertexSelectValue,
+        const std::vector<std::vector<double>>& vertexSelectValue,
         const nvl::Scaling3d& scaleTransform,
         const double maxDistance,
         std::vector<openvdb::FloatGrid::Ptr>& signedGrids,
@@ -508,7 +508,7 @@ typename Model::Mesh getBlendedMesh(
         //Scale mesh
         nvl::meshApplyTransformation(currentMesh, scaleTransform);
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         nvl::meshSaveToFile("results/input_ " + std::to_string(mId) + ".obj", currentMesh);
 #endif
 
@@ -633,7 +633,7 @@ typename Model::Mesh getBlendedMesh(
             closedMesh.addFace(q.x(), q.z(), q.w());
         }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
         nvl::meshSaveToFile("results/closed_ " + std::to_string(mId) + ".obj", closedMesh);
 #endif
 
@@ -653,7 +653,7 @@ typename Model::Mesh getBlendedMesh(
                 std::vector<std::pair<FloatGrid::ValueType, double>> involvedEntries;
                 std::vector<Index> overThresholdValues;
 
-                float selectValueSum = 0.0;
+                double selectValueSum = 0.0;
                 for (Index mId = 0; mId < models.size(); ++mId) {
                     const Mesh& mesh = models[mId]->mesh;
 
@@ -669,7 +669,7 @@ typename Model::Mesh getBlendedMesh(
                     if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
                         FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
-                        float selectValue = 0.0;
+                        double selectValue = 0.0;
                         for (VertexId j : mesh.face(originFaceId).vertexIds()) {
                             selectValue += vertexSelectValue[mId][j];
                         }
@@ -814,7 +814,7 @@ void attachMeshToMeshByBorders(
         const std::vector<VertexId>& dChain = dChains[dChainId];
 
         Scalar bestScore = nvl::maxLimitValue<Scalar>();
-        Index bestMChainId = nvl::MAX_ID;
+        Index bestMChainId = nvl::MAX_INDEX;
 
         std::pair<Index, Index> bestMChain;
         std::pair<Index, Index> bestDChain;
@@ -827,13 +827,13 @@ void attachMeshToMeshByBorders(
 
             const std::vector<VertexId>& mChain = mChains[mChainId];
 
-            VertexId startI = nvl::MAX_ID;
-            VertexId startJ = nvl::MAX_ID;
+            VertexId startI = nvl::MAX_INDEX;
+            VertexId startJ = nvl::MAX_INDEX;
             Scalar startDist = nvl::maxLimitValue<Scalar>();
             double startT = nvl::maxLimitValue<double>();
 
             //Compute the start vertices
-            std::vector<VertexId> closestIMap(dChain.size(), nvl::MAX_ID);
+            std::vector<VertexId> closestIMap(dChain.size(), nvl::MAX_INDEX);
             std::vector<double> closestTMap(dChain.size(), nvl::maxLimitValue<double>());
             for (Index j = 0; j < dChain.size(); ++j) {
                 const Point& pPoint = destMesh.vertex(dChain[j]).point();
@@ -1076,12 +1076,12 @@ void attachMeshToMeshByBorders(
         std::vector<VertexId>& mChain = mChains[mChainId];
 
         for (Index i = 0; i < mChain.size(); ++i) {
-            assert(mChain[i] != nvl::MAX_ID);
+            assert(mChain[i] != nvl::MAX_INDEX);
             mChain[i] = cleaningVertexMap[mChain[i]];
         }
     }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/newMeshCleaned.obj", mesh);
 #endif
 
@@ -1123,7 +1123,7 @@ void attachMeshToMeshByBorders(
         }
     }
 
-#ifdef SAVE_MESHES
+#ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/newMeshSplitted.obj", mesh);
 #endif
 
@@ -1210,8 +1210,8 @@ Mesh quadrangulateMesh(
     std::vector<nvl::Index> vcgResultBirthFace;
     nvl::convertVCGMeshToMesh(vcgResult, result, vcgResultBirthVertex, vcgResultBirthFace);
 
-    birthVertex.resize(result.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
-    birthFace.resize(result.nextVertexId(), std::make_pair(nvl::MAX_ID, nvl::MAX_ID));
+    birthVertex.resize(result.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+    birthFace.resize(result.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
     for (VertexId vId = 0; vId < result.nextVertexId(); vId++) {
         if (result.isVertexDeleted(vId)) {
             continue;
