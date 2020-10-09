@@ -36,6 +36,7 @@ class SkinMixerManager : public QFrame
     typedef skinmixer::OperationType OperationType;
     typedef skinmixer::SkinMixerData<Model> SkinMixerData;
     typedef typename SkinMixerData::Entry SkinMixerEntry;
+    typedef typename SkinMixerData::BirthInfo::JointInfo JointInfo;
 
     typedef nvl::Canvas::PickingData PickingData;
 
@@ -51,8 +52,8 @@ public:
     ~SkinMixerManager();
 
     Index loadModelFromFile(const std::string& filename);
-    Index loadModel(Model* model, const std::string& name);
-    Index loadModel(const Model& model, const std::string& name);
+    Index loadModel(Model* model);
+    Index loadModel(const Model& model);
     bool removeModelDrawer(ModelDrawer* modelDrawer);
 
 public Q_SLOTS:
@@ -82,8 +83,12 @@ private slots:
     void on_operationAbortButton_clicked();
     void on_operationApplyButton_clicked();
 
-    void on_mixButton_clicked();    
-    void on_blendAnimationsButton_clicked();
+    void on_mixButton_clicked();
+    void on_animationJointAllCheckBox_stateChanged(int arg1);
+    void on_animationJointMeshComboBox_currentIndexChanged(int index);
+    void on_animationBlendButton_clicked();
+    void on_animationConfirmButton_clicked();
+    void on_animationAbortButton_clicked();
 
     void on_updateValuesResetButton_clicked();
     void on_updateValuesWeightsButton_clicked();
@@ -100,16 +105,19 @@ private:
     void applyOperation();
     void abortOperation();    
 
-    void updateCanvasView();
+    void updateCanvasPreview();
     void prepareModelForAttach();
     void updateView();
 
-    void colorizeModelDrawerWithSelectValues(
+    void colorizeByData(
             ModelDrawer* modelDrawer);
-    void colorizeModelDrawerWithSelectValues(
+    void colorizeBySelectValues(
             ModelDrawer* modelDrawer,
             const std::vector<double>& vertexSelectValue,
             const std::vector<bool>& jointSelectValue);
+    void colorizeByAnimationWeights(
+            ModelDrawer* modelDrawer,
+            const std::vector<std::vector<double>>& blendingAnimationWeights);
 
     void updateValuesReset();
     void updateValuesSkinningWeights();
@@ -121,10 +129,12 @@ private:
     void clear();
     void initializeLoadedModel(Model* model);
 
+    void clearLayout(QLayout *layout);
+
     //Fields
     std::unordered_set<Model*> vModels;
-    std::unordered_set<ModelDrawer*> vModelDrawers;
-    std::unordered_map<ModelDrawer*, Model*> vModelMap;
+    std::unordered_map<ModelDrawer*, Model*> vDrawerToModelMap;
+    std::unordered_map<Model*, ModelDrawer*> vModelToDrawerMap;
 
     //Interface fields
     Ui::SkinMixerManager *ui;
@@ -142,6 +152,10 @@ private:
     ModelDrawer* vAttachModelDrawer;
     JointId vAttachJoint;
     nvl::Affine3d vBackupFrame;
+
+    Index vBlendingAnimation;
+    std::vector<QSlider*> animationWeightSliders;
+    std::vector<QLabel*> animationWeightLabels;
 
 };
 

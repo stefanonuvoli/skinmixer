@@ -15,10 +15,10 @@ void initializeAnimationWeights(
         typename SkinMixerData<Model>::Entry& entry);
 
 template<class Model>
-nvl::Index blendAnimations(
+void blendAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
-        const std::vector<nvl::Index>& animationIds);
+        nvl::Index& targetAnimationId);
 
 }
 

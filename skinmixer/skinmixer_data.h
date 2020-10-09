@@ -63,7 +63,8 @@ public:
         SelectInfo select;
         BirthInfo birth;
 
-        std::vector<std::vector<double>> animationWeights;
+        std::vector<Index> blendingAnimations;
+        std::vector<std::vector<double>> blendingAnimationWeights;
 
         std::vector<Index> relatedActions;
 

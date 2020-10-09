@@ -16,9 +16,10 @@ void blendSkeletons(
         const std::vector<nvl::Index>& cluster,
         typename SkinMixerData<Model>::Entry& entry)
 {
-    const double distanceWeight = 0.2;
-    const double directionWeight = 0.3;
-    const double topologyWeight = 1.0 - directionWeight - distanceWeight;
+    const double distanceWeight = 0.1;
+    const double directionWeight = 0.15;
+    const double topologyWeight = 0.25;
+    const double matchedWeight = 1.0 - directionWeight - distanceWeight - topologyWeight;
 
     typedef typename nvl::Index Index;
 
@@ -41,6 +42,8 @@ void blendSkeletons(
 
     std::vector<std::set<JointId>> keptJoints(data.entryNumber());
     std::vector<std::set<JointId>> nonKeptJoints(data.entryNumber());
+
+    std::vector<std::unordered_set<JointId>> matchedJoint(data.entryNumber());
 
     for (const nvl::Index& eId : cluster) {
         const Entry& currentEntry = data.entry(eId);
@@ -109,6 +112,7 @@ void blendSkeletons(
                 }
                 if (newJId != nvl::MAX_INDEX) {
                     jointMap[eId][jId] = newJId;
+                    matchedJoint[eId].insert(newJId);
 
                     assert(entry.birth.joint.size() == newJId);
                     entry.birth.joint.push_back(std::vector<JointInfo>());
@@ -289,11 +293,18 @@ void blendSkeletons(
 
 
 
+
+                    double matchedScore = (matchedJoint[eId].find(targetJId) == matchedJoint[eId].end() ? 1.0 : 0.0);
+
+
+
+
                     assert(distanceScore >= 0 && distanceScore <= 1);
                     assert(directionScore >= 0 && directionScore <= 1);
                     assert(topologyScore >= 0 && topologyScore <= 1);
+                    assert(matchedWeight >= 0 && matchedWeight <= 1);
 
-                    double score = distanceWeight * distanceScore + directionWeight * directionScore + topologyWeight * topologyScore;
+                    double score = distanceWeight * distanceScore + directionWeight * directionScore + topologyWeight * topologyScore + matchedScore * matchedWeight;
                     assert(score >= 0 && score <= 1);
                     if (score >= bestScore) {
                         bestCurrentJoint = currentJId;
@@ -305,6 +316,7 @@ void blendSkeletons(
 
             assert(bestScore > nvl::minLimitValue<double>());
             jointMap[eId][bestCurrentJoint] = bestTargetJoint;
+            matchedJoint[eId].insert(bestTargetJoint);
 
             assert(!entry.birth.joint[bestTargetJoint].empty());
             JointInfo jInfo;

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>336</width>
-    <height>576</height>
+    <width>298</width>
+    <height>770</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,35 +20,7 @@
       <string>Models</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="3" column="0">
-       <widget class="QPushButton" name="modelDuplicateButton">
-        <property name="text">
-         <string>Duplicate</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="normalsLabel">
-        <property name="text">
-         <string>Normals:</string>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="2">
-       <widget class="QPushButton" name="modelSaveButton">
-        <property name="text">
-         <string>Save</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QPushButton" name="modelLoadButton">
-        <property name="text">
-         <string>Load</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
        <widget class="QPushButton" name="modelRemoveButton">
         <property name="text">
          <string>Remove</string>
@@ -56,16 +28,20 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QCheckBox" name="updateVertexNormalsCheckBox">
+       <widget class="QLabel" name="normalsLabel">
         <property name="text">
-         <string>Vertices</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
+         <string>Normals:</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="2">
+      <item row="0" column="3">
+       <widget class="QPushButton" name="modelSaveButton">
+        <property name="text">
+         <string>Save</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
        <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
         <property name="text">
          <string>Faces</string>
@@ -75,7 +51,31 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0" colspan="2">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="modelLoadButton">
+        <property name="text">
+         <string>Load</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="updateVertexNormalsCheckBox">
+        <property name="text">
+         <string>Vertices</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3">
+       <widget class="QPushButton" name="modelDuplicateButton">
+        <property name="text">
+         <string>Duplicate</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1" colspan="2">
        <widget class="QCheckBox" name="scaleOn1AndCenterCheckBox">
         <property name="text">
          <string>Scale on 1 and center</string>
@@ -101,16 +101,6 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="operationRemoveButton">
-        <property name="text">
-         <string>Remove</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
       <item row="5" column="2">
        <widget class="QPushButton" name="operationAbortButton">
         <property name="text">
@@ -125,11 +115,125 @@
         </property>
        </widget>
       </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="operationRemoveButton">
+        <property name="text">
+         <string>Remove</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="3">
        <widget class="QPushButton" name="operationAttachButton">
         <property name="text">
          <string>Attach</string>
         </property>
+       </widget>
+      </item>
+      <item row="7" column="1" colspan="3">
+       <widget class="QTabWidget" name="parametersTabWidget">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
+        </property>
+        <property name="accessibleName">
+         <string/>
+        </property>
+        <property name="currentIndex">
+         <number>1</number>
+        </property>
+        <widget class="QWidget" name="generalParametersPage">
+         <attribute name="title">
+          <string>General</string>
+         </attribute>
+         <layout class="QGridLayout" name="gridLayout_5">
+          <item row="0" column="0">
+           <widget class="QLabel" name="functionSmoothingLabel">
+            <property name="text">
+             <string>Func smoothing</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QSlider" name="functionSmoothingSlider">
+            <property name="value">
+             <number>10</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="cutParametersPage">
+         <attribute name="title">
+          <string>Cut</string>
+         </attribute>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="1" column="2">
+           <widget class="QPushButton" name="cutOffsetRigidityButton">
+            <property name="text">
+             <string>Reset</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="cutOffsetLabel">
+            <property name="text">
+             <string>Offset</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSlider" name="cutRigiditySlider">
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="value">
+             <number>80</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QSlider" name="cutOffsetSlider">
+            <property name="minimum">
+             <number>-50</number>
+            </property>
+            <property name="maximum">
+             <number>50</number>
+            </property>
+            <property name="value">
+             <number>0</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="cutOffsetResetButton">
+            <property name="text">
+             <string>Reset</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="cutRigidityLabel">
+            <property name="text">
+             <string>Rigidity</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
        </widget>
       </item>
       <item row="6" column="1" colspan="3">
@@ -143,15 +247,59 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="animationBlendingGroupBox">
-     <property name="title">
-      <string>Animation blending</string>
+    <widget class="QGroupBox" name="animationSelectGroupBox">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>80</height>
+      </size>
      </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>80</height>
+      </size>
+     </property>
+     <property name="title">
+      <string>Animations</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <property name="leftMargin">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>2</number>
+      </property>
+      <property name="rightMargin">
+       <number>2</number>
+      </property>
+      <property name="bottomMargin">
+       <number>2</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="animationBlendingFrame">
      <layout class="QGridLayout" name="gridLayout_4">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="animationConfirmButton">
+        <property name="text">
+         <string>Confirm</string>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="0">
-       <widget class="QPushButton" name="blendAnimationsButton">
+       <widget class="QPushButton" name="animationBlendButton">
         <property name="text">
          <string>Blend</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="animationAbortButton">
+        <property name="text">
+         <string>Abort</string>
         </property>
        </widget>
       </item>
@@ -159,107 +307,71 @@
     </widget>
    </item>
    <item>
-    <widget class="QTabWidget" name="parametersTabWidget">
-     <property name="enabled">
-      <bool>true</bool>
+    <widget class="QGroupBox" name="animationJointGroupBox">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>100</height>
+      </size>
      </property>
-     <property name="toolTip">
-      <string/>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>100</height>
+      </size>
      </property>
-     <property name="accessibleName">
-      <string/>
+     <property name="title">
+      <string>Joint weights</string>
      </property>
-     <property name="currentIndex">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <property name="leftMargin">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>2</number>
+      </property>
+      <property name="rightMargin">
+       <number>2</number>
+      </property>
+      <property name="bottomMargin">
+       <number>2</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="animationJointFrame">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <property name="lineWidth">
       <number>1</number>
      </property>
-     <widget class="QWidget" name="generalParametersPage">
-      <attribute name="title">
-       <string>General</string>
-      </attribute>
-      <layout class="QGridLayout" name="gridLayout_5">
-       <item row="0" column="0">
-        <widget class="QLabel" name="functionSmoothingLabel">
-         <property name="text">
-          <string>Func smoothing</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QSlider" name="functionSmoothingSlider">
-         <property name="value">
-          <number>10</number>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="cutParametersPage">
-      <attribute name="title">
-       <string>Cut</string>
-      </attribute>
-      <layout class="QGridLayout" name="gridLayout">
-       <item row="1" column="1">
-        <widget class="QSlider" name="cutRigiditySlider">
-         <property name="maximum">
-          <number>100</number>
-         </property>
-         <property name="value">
-          <number>80</number>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="cutOffsetLabel">
-         <property name="text">
-          <string>Offset</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QSlider" name="cutOffsetSlider">
-         <property name="minimum">
-          <number>-50</number>
-         </property>
-         <property name="maximum">
-          <number>50</number>
-         </property>
-         <property name="value">
-          <number>0</number>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QPushButton" name="cutOffsetResetButton">
-         <property name="text">
-          <string>Reset</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="2">
-        <widget class="QPushButton" name="cutOffsetRigidityButton">
-         <property name="text">
-          <string>Reset</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="cutRigidityLabel">
-         <property name="text">
-          <string>Rigidity</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
+     <layout class="QGridLayout" name="gridLayout_7">
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="animationJointAllCheckBox">
+        <property name="text">
+         <string>To all</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="animationJointMeshLabel">
+        <property name="text">
+         <string>To Mesh:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="animationJointMeshComboBox"/>
+      </item>
+     </layout>
     </widget>
    </item>
    <item>

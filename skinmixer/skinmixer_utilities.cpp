@@ -87,7 +87,7 @@ nvl::Affine3d findAttachMoveTransformation(
     Point v2 = currentTransformation2 * (skeleton2.joint(targetJoint2).restTransform() * Point(0,0,0));
     Point t = v1 - v2;
 
-    return nvl::getTranslationAffine3(t);
+    return nvl::Affine3d(nvl::Translation3d(t));
 }
 
 }

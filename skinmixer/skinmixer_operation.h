@@ -3,8 +3,6 @@
 
 #include <nvl/nuvolib.h>
 
-#include <nvl/math/transformations.h>
-
 #include <vector>
 
 namespace skinmixer {

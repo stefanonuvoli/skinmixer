@@ -22,8 +22,10 @@ void initializeAnimationWeights(
     Model* targetModel = entry.model;
     Skeleton& targetSkeleton = targetModel->skeleton;
     std::vector<Index>& cluster = entry.birth.entries;
+    std::vector<Index>& animationsIds = entry.blendingAnimations;
+    std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
 
-    entry.animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(cluster.size(), 0.0));
+    animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(cluster.size(), 0.0));
 
     std::vector<Index> clusterMap = nvl::getInverseMap(cluster);
     for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
@@ -31,6 +33,7 @@ void initializeAnimationWeights(
 
         JointId parentId = targetSkeleton.parentId(jId);
 
+        int numConfidence = 0;
         for (JointInfo jointInfo : jointInfos) {
             assert(jointInfo.jId != nvl::MAX_INDEX);
             assert(jointInfo.eId != nvl::MAX_INDEX);
@@ -38,14 +41,44 @@ void initializeAnimationWeights(
 
             const Index& cId = clusterMap[jointInfo.eId];
 
-
-
             if (jointInfo.confidence == 1.0) {
-                entry.animationWeights[jId][cId] = 1.0;
+                animationWeights[jId][cId] = 1.0;
+                numConfidence++;
+            }
+        }
+        if (numConfidence > 1) {
+            for (JointInfo jointInfo : jointInfos) {
+                assert(jointInfo.jId != nvl::MAX_INDEX);
+                assert(jointInfo.eId != nvl::MAX_INDEX);
+                assert(entriesMap[jointInfo.eId] != nvl::MAX_INDEX);
+                assert(parentId != nvl::MAX_INDEX);
+
+                const Index& cId = clusterMap[jointInfo.eId];
+
+                const std::vector<JointInfo>& parentJointInfos = entry.birth.joint[parentId];
+
+                for (JointInfo parentJointInfo : parentJointInfos) {
+                    const Index& parentCId = clusterMap[parentJointInfo.eId];
+
+                    if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1 && parentCId == cId) {
+                        animationWeights[jId][cId] = 0.0;
+                    }
+                }
             }
         }
 
-        nvl::normalize(entry.animationWeights[jId]);
+        nvl::normalize(animationWeights[jId]);
+    }
+
+    animationsIds.resize(cluster.size());
+    for (Index cId = 0; cId < cluster.size(); cId++) {
+        Index eId = cluster[cId];
+        if (data.entry(eId).model->animationNumber() > 0) {
+            animationsIds[cId] = 0;
+        }
+        else {
+            animationsIds[cId] = nvl::MAX_INDEX;
+        }
     }
 }
 
@@ -53,7 +86,6 @@ template<class Model>
 void blendAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
-        const std::vector<nvl::Index>& animationIds,
         nvl::Index& targetAnimationId)
 {
     typedef typename nvl::Index Index;
@@ -71,6 +103,8 @@ void blendAnimations(
     Model* targetModel = entry.model;
     Skeleton& targetSkeleton = targetModel->skeleton;
     std::vector<Index>& cluster = entry.birth.entries;
+    const std::vector<nvl::Index>& animationIds = entry.blendingAnimations;
+    const std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
 
     std::vector<Index> clusterMap = nvl::getInverseMap(cluster);
 
@@ -93,6 +127,9 @@ void blendAnimations(
             times.push_back(frame.time());
         }
     }
+
+    if (times.empty())
+        times.push_back(0.0);
 
     std::sort(times.begin(), times.end());
     times.erase(std::unique(times.begin(), times.end()), times.end());
@@ -118,9 +155,9 @@ void blendAnimations(
                 const Index& cId = clusterMap[jointInfo.eId];
                 const Index& aId = animationIds[cId];
 
-                if (aId != nvl::MAX_INDEX && !nvl::epsEqual(entry.animationWeights[jId][cId], 0.0)) {
+                if (aId != nvl::MAX_INDEX && !nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
                     transformationComputed = true;
-                    weights[cId] = entry.animationWeights[jId][cId];
+                    weights[cId] = animationWeights[jId][cId];
 
                     const Animation& currentAnimation = data.entry(jointInfo.eId).model->animation(aId);
                     if (currentFrameId[cId] < currentAnimation.keyframeNumber() - 1 && currentAnimation.keyframe(currentFrameId[cId]).time() < currentTime) {
