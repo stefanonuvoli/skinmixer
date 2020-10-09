@@ -369,9 +369,7 @@ void SkinMixerManager::mix()
             Model* model = vSkinMixerData.entry(bId).model;
             typename std::unordered_map<Model*, ModelDrawer*>::iterator it = vModelToDrawerMap.find(model);
             if (it != vModelToDrawerMap.end()) {
-                //TODO
-//                removeModelDrawer(it->second);
-                it->second->setVisible(false);
+                removeModelDrawer(it->second);
             }
         }
 

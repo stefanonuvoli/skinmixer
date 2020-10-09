@@ -2,6 +2,8 @@
 
 #include <nvl/models/model_normalization.h>
 
+#include <nvl/math/constants.h>
+
 namespace skinmixer {
 
 template<class Model>

@@ -143,7 +143,7 @@ void blendAnimations(
             const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
             std::vector<Transformation> transformations(cluster.size());
-            std::vector<double> weights(cluster.size());
+            std::vector<double> weights(cluster.size(), 0.0);
 
             bool transformationComputed = false;
 
@@ -155,9 +155,13 @@ void blendAnimations(
                 const Index& cId = clusterMap[jointInfo.eId];
                 const Index& aId = animationIds[cId];
 
-                if (aId != nvl::MAX_INDEX && !nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
-                    transformationComputed = true;
+                //Avoid numerical errors
+                if (!nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
                     weights[cId] = animationWeights[jId][cId];
+                }
+
+                if (aId != nvl::MAX_INDEX) {
+                    transformationComputed = true;
 
                     const Animation& currentAnimation = data.entry(jointInfo.eId).model->animation(aId);
                     if (currentFrameId[cId] < currentAnimation.keyframeNumber() - 1 && currentAnimation.keyframe(currentFrameId[cId]).time() < currentTime) {
@@ -176,15 +180,14 @@ void blendAnimations(
 
                         double alpha = (currentTime - time1) / (time2 - time1);
 
-                        Transformation currentTransformation = nvl::interpolateAffine(transformation1, transformation2, alpha);
-                        transformations[cId] = currentTransformation;
+                        transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
                     }
                     else {
-                        transformations[cId] =  currentAnimation.keyframe(currentAnimation.keyframeNumber() - 1).transformation(jointInfo.jId);
+                        transformations[cId] = currentAnimation.keyframe(currentAnimation.keyframeNumber() - 1).transformation(jointInfo.jId);
                     }
                 }
                 else {
-                    weights[cId] = 0.0;
+                    transformations[cId] = Transformation::Identity();
                 }
             }
 
@@ -193,12 +196,7 @@ void blendAnimations(
                 blendedTransformations[jId] = nvl::interpolateAffine(transformations, weights);
             }
             else {
-                blendedTransformations[jId] = targetSkeleton.joint(jId).restTransform();
-
-                JointId parentId = targetSkeleton.parentId(jId);
-                if (parentId != nvl::MAX_INDEX) {
-                    blendedTransformations[jId] = blendedTransformations[jId] * targetSkeleton.joint(parentId).restTransform().inverse();
-                }
+                blendedTransformations[jId] = Transformation::Identity();
             }
         }
 

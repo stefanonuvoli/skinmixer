@@ -8,6 +8,8 @@
 
 #include "skinmixer/skinmixer_operation.h"
 
+#include <nvl/math/affine_transformations.h>
+
 namespace skinmixer {
 
 template<class Model>

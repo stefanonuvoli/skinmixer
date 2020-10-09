@@ -134,6 +134,7 @@ void blendSkeletons(
                         if (action.operation == OperationType::ATTACH) {
                             JointInfo actionJInfo;
                             actionJInfo.eId = nvl::MAX_INDEX;
+                            actionJInfo.jId = nvl::MAX_INDEX;
                             actionJInfo.confidence = 1.0;
 
                             if (action.entry1 == eId && action.joint1 == jId) {
@@ -146,7 +147,7 @@ void blendSkeletons(
                                 actionJInfo.jId = action.joint1;
                                 jointMap[action.entry1][action.joint1] = newJId;
                             }
-                            if (actionJInfo.eId != nvl::MAX_INDEX) {
+                            if (actionJInfo.jId != nvl::MAX_INDEX) {
                                 entry.birth.joint[newJId].push_back(actionJInfo);
 
                                 transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restTransform());
