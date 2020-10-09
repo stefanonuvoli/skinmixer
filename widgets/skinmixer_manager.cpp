@@ -1037,7 +1037,7 @@ void SkinMixerManager::on_modelLoadButton_clicked()
     dialog.setFileMode(QFileDialog::ExistingFiles);
     QStringList filters;
     filters
-            << "Model (*.mdl)"
+            << "Model (*.rig)"
             << "Any files (*)";
     dialog.setNameFilters(filters);
 

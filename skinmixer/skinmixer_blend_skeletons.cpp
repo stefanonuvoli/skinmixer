@@ -16,9 +16,9 @@ void blendSkeletons(
         const std::vector<nvl::Index>& cluster,
         typename SkinMixerData<Model>::Entry& entry)
 {
-    const double distanceWeight = 0.1;
-    const double directionWeight = 0.15;
-    const double topologyWeight = 0.25;
+    const double distanceWeight = 0.02;
+    const double directionWeight = 0.05;
+    const double topologyWeight = 0.43;
     const double matchedWeight = 1.0 - directionWeight - distanceWeight - topologyWeight;
 
     typedef typename nvl::Index Index;
@@ -140,20 +140,22 @@ void blendSkeletons(
                             if (action.entry1 == eId && action.joint1 == jId) {
                                 actionJInfo.eId = action.entry2;
                                 actionJInfo.jId = action.joint2;
-                                jointMap[action.entry2][action.joint2] = newJId;
                             }
                             else if (action.entry2 == eId && action.joint2 == jId) {
                                 actionJInfo.eId = action.entry1;
                                 actionJInfo.jId = action.joint1;
-                                jointMap[action.entry1][action.joint1] = newJId;
                             }
                             if (actionJInfo.jId != nvl::MAX_INDEX) {
+                                assert(actionJInfo.eId != nvl::MAX_INDEX);
+
+                                jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
                                 entry.birth.joint[newJId].push_back(actionJInfo);
 
                                 transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restTransform());
                                 transformationWeights.push_back(1.0);
 
                                 remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
+                                matchedJoint[actionJInfo.eId].insert(newJId);
                             }
                         }
                     }
@@ -216,29 +218,25 @@ void blendSkeletons(
                     if (currentParentId == nvl::MAX_INDEX && targetParentId == nvl::MAX_INDEX) {
                         parentDirectionScore = 1.0;
                     }
-                    else if (currentParentId != nvl::MAX_INDEX || targetParentId != nvl::MAX_INDEX) {
-                        parentDirectionScore = 0.0;
-                    }
-                    else {
+                    else if (currentParentId != nvl::MAX_INDEX && targetParentId != nvl::MAX_INDEX) {
                         nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentParentId).restTransform() * nvl::Point3d(0,0,0) - currentJoint.restTransform() * nvl::Point3d(0,0,0);
                         nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetParentId).restTransform() * nvl::Point3d(0,0,0) - targetJoint.restTransform() * nvl::Point3d(0,0,0);
                         parentDirectionScore = currentParentDirection.dot(targetParentDirection);
+                    }
+                    else {
+                        parentDirectionScore = 0.0;
                     }
 
                     double childrenDirectionScore;
                     if (currentSkeleton.children(currentJId).empty() && targetSkeleton.children(targetJId).empty()) {
                         childrenDirectionScore = 1.0;
                     }
-                    else if (!currentSkeleton.children(currentJId).empty() || !targetSkeleton.children(targetJId).empty()) {
-                        childrenDirectionScore = 0.0;
-                    }
-                    else {
+                    else if (!currentSkeleton.children(currentJId).empty() && !targetSkeleton.children(targetJId).empty()) {
                         nvl::Vector3d currentChildrenDirection(0.0, 0.0, 0.0);
                         for (JointId childId : currentSkeleton.children(currentJId)) {
                             currentChildrenDirection += (currentJoint.restTransform() * nvl::Point3d(0,0,0) - currentSkeleton.joint(childId).restTransform() * nvl::Point3d(0,0,0));
                         }
                         currentChildrenDirection /= currentSkeleton.children(currentJId).size();
-
 
                         nvl::Vector3d targetChildrenDirection(0.0, 0.0, 0.0);
                         for (JointId childId : targetSkeleton.children(targetJId)) {
@@ -247,6 +245,9 @@ void blendSkeletons(
                         targetChildrenDirection /= targetSkeleton.children(targetJId).size();
 
                         childrenDirectionScore = currentChildrenDirection.dot(targetChildrenDirection);
+                    }
+                    else {
+                        childrenDirectionScore = 0.0;
                     }
 
                     double directionScore = parentDirectionScore * 0.5 + childrenDirectionScore * 0.5;
@@ -257,10 +258,7 @@ void blendSkeletons(
                     if (currentParentId == nvl::MAX_INDEX && targetParentId == nvl::MAX_INDEX) {
                         parentTopologyScore = 1.0;
                     }
-                    else if (currentParentId != nvl::MAX_INDEX || targetParentId != nvl::MAX_INDEX) {
-                        parentTopologyScore = 0.0;
-                    }
-                    else if (jointMap[eId][currentParentId] == targetParentId) {
+                    else if (currentParentId != nvl::MAX_INDEX && targetParentId != nvl::MAX_INDEX && jointMap[eId][currentParentId] == targetParentId) {
                         parentTopologyScore = 1.0;
                     }
                     else {
@@ -271,10 +269,7 @@ void blendSkeletons(
                     if (currentSkeleton.children(currentJId).empty() && targetSkeleton.children(targetJId).empty()) {
                         childrenTopologyScore = 1.0;
                     }
-                    else if (!currentSkeleton.children(currentJId).empty() || !targetSkeleton.children(targetJId).empty()) {
-                        childrenTopologyScore = 0.0;
-                    }
-                    else {
+                    else if (!currentSkeleton.children(currentJId).empty() && !targetSkeleton.children(targetJId).empty()) {
                         childrenTopologyScore = 0.0;
 
                         for (JointId currentChildId : currentSkeleton.children(currentJId)) {
@@ -288,6 +283,9 @@ void blendSkeletons(
                         }
 
                         childrenTopologyScore /= currentSkeleton.children(currentJId).size();
+                    }
+                    else {
+                        childrenTopologyScore = 0.0;
                     }
 
                     double topologyScore = parentTopologyScore * 0.5 + childrenTopologyScore * 0.5;
