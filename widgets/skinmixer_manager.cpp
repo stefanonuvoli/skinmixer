@@ -595,8 +595,8 @@ void SkinMixerManager::prepareModelForAttach()
 
             vBackupFrame = vSelectedModelDrawer->frame();
 
-            Point v1 = vAttachModelDrawer->frame() * (skeleton1.joint(targetJoint1).restTransform() * Point(0,0,0));
-            Point v2 = vSelectedModelDrawer->frame() * (skeleton2.joint(targetJoint2).restTransform() * Point(0,0,0));
+            Point v1 = vAttachModelDrawer->frame() * (skeleton1.joint(targetJoint1).restPose() * Point(0,0,0));
+            Point v2 = vSelectedModelDrawer->frame() * (skeleton2.joint(targetJoint2).restPose() * Point(0,0,0));
             Point translateVector = v1 - v2;
 
             nvl::Translation3d translateTransform(translateVector);

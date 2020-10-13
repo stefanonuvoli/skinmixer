@@ -142,10 +142,8 @@ void blendAnimations(
         for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
             const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
-            std::vector<Transformation> transformations(cluster.size());
+            std::vector<Transformation> transformations(cluster.size(), Transformation::Identity());
             std::vector<double> weights(cluster.size(), 0.0);
-
-            bool transformationComputed = false;
 
             for (JointInfo jointInfo : jointInfos) {
                 assert(jointInfo.jId != nvl::MAX_INDEX);
@@ -159,10 +157,7 @@ void blendAnimations(
                 if (!nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
                     weights[cId] = animationWeights[jId][cId];
                 }
-
                 if (aId != nvl::MAX_INDEX) {
-                    transformationComputed = true;
-
                     const Animation& currentAnimation = data.entry(jointInfo.eId).model->animation(aId);
                     if (currentFrameId[cId] < currentAnimation.keyframeNumber() - 1 && currentAnimation.keyframe(currentFrameId[cId]).time() < currentTime) {
                         ++currentFrameId[cId];
@@ -186,18 +181,21 @@ void blendAnimations(
                         transformations[cId] = currentAnimation.keyframe(currentAnimation.keyframeNumber() - 1).transformation(jointInfo.jId);
                     }
                 }
-                else {
-                    transformations[cId] = Transformation::Identity();
-                }
             }
 
-            if (transformationComputed) {
-                nvl::normalize(weights);
-                blendedTransformations[jId] = nvl::interpolateAffine(transformations, weights);
+            nvl::normalize(weights);
+
+
+            double sum = 0.0;
+            for (const double& value : weights) {
+                sum += value;
             }
-            else {
-                blendedTransformations[jId] = Transformation::Identity();
+            if (nvl::epsEqual(sum, 0.0)) {
+                for (double& value : weights) {
+                    value = 1.0 / weights.size();
+                }
             }
+            blendedTransformations[jId] = nvl::interpolateAffine(transformations, weights);
         }
 
         targetAnimation.addKeyframe(currentTime, blendedTransformations);

@@ -125,7 +125,7 @@ void blendSkeletons(
 
                     std::vector<Transformation> transformations;
                     std::vector<double> transformationWeights;
-                    transformations.push_back(joint.restTransform());
+                    transformations.push_back(joint.restPose());
                     transformationWeights.push_back(1.0);
 
                     for (const Index& aId : currentEntry.relatedActions) {
@@ -151,7 +151,7 @@ void blendSkeletons(
                                 jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
                                 entry.birth.joint[newJId].push_back(actionJInfo);
 
-                                transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restTransform());
+                                transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restPose());
                                 transformationWeights.push_back(1.0);
 
                                 remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
@@ -162,7 +162,7 @@ void blendSkeletons(
 
                     if (transformations.size() > 1) {
                         nvl::normalize(transformationWeights);
-                        targetSkeleton.joint(newJId).setRestTransform(nvl::interpolateAffine(transformations, transformationWeights));
+                        targetSkeleton.joint(newJId).setRestPose(nvl::interpolateAffine(transformations, transformationWeights));
                     }
 
                     remainingAssignedJoints[eId].erase(it++);
@@ -188,7 +188,7 @@ void blendSkeletons(
 
             for (JointId targetJId = 0; targetJId < targetSkeleton.jointNumber(); ++targetJId) {
                 const Joint& targetJoint = targetSkeleton.joint(targetJId);
-                double distance = ((targetJoint.restTransform() * nvl::Point3d(0,0,0)) - (currentJoint.restTransform() * nvl::Point3d(0,0,0))).norm();
+                double distance = ((targetJoint.restPose() * nvl::Point3d(0,0,0)) - (currentJoint.restPose() * nvl::Point3d(0,0,0))).norm();
                 maxDistance = std::max(maxDistance, distance);
             }
         }
@@ -210,7 +210,7 @@ void blendSkeletons(
                     JointId currentParentId = currentSkeleton.parentId(currentJId);
                     JointId targetParentId = targetSkeleton.parentId(targetJId);
 
-                    double distanceScore = 1 - (targetJoint.restTransform() * nvl::Point3d(0,0,0) - currentJoint.restTransform() * nvl::Point3d(0,0,0)).norm() / maxDistance;
+                    double distanceScore = 1 - (targetJoint.restPose() * nvl::Point3d(0,0,0) - currentJoint.restPose() * nvl::Point3d(0,0,0)).norm() / maxDistance;
 
 
 
@@ -219,8 +219,8 @@ void blendSkeletons(
                         parentDirectionScore = 1.0;
                     }
                     else if (currentParentId != nvl::MAX_INDEX && targetParentId != nvl::MAX_INDEX) {
-                        nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentParentId).restTransform() * nvl::Point3d(0,0,0) - currentJoint.restTransform() * nvl::Point3d(0,0,0);
-                        nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetParentId).restTransform() * nvl::Point3d(0,0,0) - targetJoint.restTransform() * nvl::Point3d(0,0,0);
+                        nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentParentId).restPose() * nvl::Point3d(0,0,0) - currentJoint.restPose() * nvl::Point3d(0,0,0);
+                        nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetParentId).restPose() * nvl::Point3d(0,0,0) - targetJoint.restPose() * nvl::Point3d(0,0,0);
                         parentDirectionScore = currentParentDirection.dot(targetParentDirection);
                     }
                     else {
@@ -234,13 +234,13 @@ void blendSkeletons(
                     else if (!currentSkeleton.children(currentJId).empty() && !targetSkeleton.children(targetJId).empty()) {
                         nvl::Vector3d currentChildrenDirection(0.0, 0.0, 0.0);
                         for (JointId childId : currentSkeleton.children(currentJId)) {
-                            currentChildrenDirection += (currentJoint.restTransform() * nvl::Point3d(0,0,0) - currentSkeleton.joint(childId).restTransform() * nvl::Point3d(0,0,0));
+                            currentChildrenDirection += (currentJoint.restPose() * nvl::Point3d(0,0,0) - currentSkeleton.joint(childId).restPose() * nvl::Point3d(0,0,0));
                         }
                         currentChildrenDirection /= currentSkeleton.children(currentJId).size();
 
                         nvl::Vector3d targetChildrenDirection(0.0, 0.0, 0.0);
                         for (JointId childId : targetSkeleton.children(targetJId)) {
-                            targetChildrenDirection += (targetJoint.restTransform() * nvl::Point3d(0,0,0) - targetSkeleton.joint(childId).restTransform() * nvl::Point3d(0,0,0));
+                            targetChildrenDirection += (targetJoint.restPose() * nvl::Point3d(0,0,0) - targetSkeleton.joint(childId).restPose() * nvl::Point3d(0,0,0));
                         }
                         targetChildrenDirection /= targetSkeleton.children(targetJId).size();
 

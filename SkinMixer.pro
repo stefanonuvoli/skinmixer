@@ -8,7 +8,7 @@ GUROBI_PATH = /opt/gurobi903/linux64
 #EIGEN_PATH = /usr/include/eigen3
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
 
-DEFINES += SAVE_MESHES_FOR_DEBUG
+#DEFINES += SAVE_MESHES_FOR_DEBUG
 DEFINES += NDEBUG
 
 #Modules of nuvolib

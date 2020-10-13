@@ -41,7 +41,6 @@ std::vector<nvl::Index> mix(
 
         blendSurfaces(data, cluster, entry);
         blendSkeletons(data, cluster, entry);
-
         blendSkinningWeights(data, entry);
 
         initializeAnimationWeights(data, entry);
