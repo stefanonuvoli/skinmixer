@@ -14,13 +14,6 @@ namespace QuadBoolean {
 
 namespace internal {
 
-template<class PolyMeshType, class TriangleMeshType>
-bool makeILPFeasible(
-        PolyMeshType& preservedSurface,
-        TriangleMeshType& newSurface,
-        const bool polychordSolver,
-        const bool splitSolver);
-
 template<class TriangleMeshType, class PolyMeshType>
 std::vector<int> getPatchDecomposition(
         TriangleMeshType& newSurface,
@@ -33,9 +26,7 @@ std::vector<int> getPatchDecomposition(
         const bool splitConcaves,
         const bool finalSmoothing);
 
-template<class TriangleMeshType>
 std::vector<int> findSubdivisions(
-        TriangleMeshType& newSurface,
         ChartData& chartData,
         const double alpha,
         const ILPMethod& method);
@@ -43,7 +34,7 @@ std::vector<int> findSubdivisions(
 template<class TriangleMeshType, class PolyMeshType>
 void quadrangulate(
         TriangleMeshType& newSurface,
-        const ChartData& chartData,
+        ChartData& chartData,
         const std::vector<int>& ilpResult,
         const int chartSmoothingIterations,
         const int quadrangulationSmoothingIterations,

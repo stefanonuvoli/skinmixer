@@ -220,6 +220,7 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
     NVL_SUPPRESS_UNUSEDVARIABLE(selectedDrawables);
 
     if (vBlendingAnimation != nvl::MAX_INDEX) {
+        vCanvas->stopAnimations();
         vSelectedModelDrawer->unloadAnimation();
         vSelectedModelDrawer->model()->removeAnimation(vBlendingAnimation);
         vBlendingAnimation = nvl::MAX_INDEX;
@@ -386,8 +387,8 @@ void SkinMixerManager::blendAnimations()
 
     skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimation);
 
-    vModelAnimationWidget->selectAnimation(vBlendingAnimation);
     vCanvas->stopAnimations();
+    vModelAnimationWidget->selectAnimation(vBlendingAnimation);
     vCanvas->updateGL();
 }
 
@@ -410,28 +411,31 @@ void SkinMixerManager::applyOperation()
         if (vSelectedModelDrawer != nullptr) {
             colorizeByData(vSelectedModelDrawer);
         }
+
+        vCurrentOperation = OperationType::NONE;
     }
     else if (vCurrentOperation == OperationType::ATTACH) {
         assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
         assert(vAttachModelDrawer != nullptr && vAttachJoint != nvl::MAX_INDEX);
 
-        nvl::Affine3d transformation1 = vAttachModelDrawer->frame();
-        nvl::Affine3d transformation2 = vSelectedModelDrawer->frame();
+        if (vSelectedModelDrawer != vAttachModelDrawer) {
+            nvl::Affine3d transformation1 = vAttachModelDrawer->frame();
+            nvl::Affine3d transformation2 = vSelectedModelDrawer->frame();
 
-        skinmixer::attach(vSkinMixerData, vAttachModelDrawer->model(), vSelectedModelDrawer->model(), vAttachJoint, vSelectedJoint, transformation1, transformation2);
+            skinmixer::attach(vSkinMixerData, vAttachModelDrawer->model(), vSelectedModelDrawer->model(), vAttachJoint, vSelectedJoint, transformation1, transformation2);
 
-        vAttachModelDrawer->resetFrame();
-        vSelectedModelDrawer->resetFrame();
+            vAttachModelDrawer->resetFrame();
+            vSelectedModelDrawer->resetFrame();
 
-        colorizeByData(vAttachModelDrawer);
-        colorizeByData(vSelectedModelDrawer);
+            colorizeByData(vAttachModelDrawer);
+            colorizeByData(vSelectedModelDrawer);
+
+            vCurrentOperation = OperationType::NONE;
+            vAttachModelDrawer = nullptr;
+            vAttachJoint = nvl::MAX_INDEX;
+            vBackupFrame = nvl::Affine3d::Identity();
+        }
     }
-
-    vCurrentOperation = OperationType::NONE;
-
-    vAttachModelDrawer = nullptr;
-    vAttachJoint = nvl::MAX_INDEX;
-    vBackupFrame = nvl::Affine3d::Identity();
 }
 
 void SkinMixerManager::abortOperation()
@@ -676,7 +680,9 @@ void SkinMixerManager::updateView()
                     animationIds[cId] = index - 1;
                 }
 
-                blendAnimations();
+                if (vBlendingAnimation != nvl::MAX_INDEX) {
+                    blendAnimations();
+                }
             });
 
             ui->animationSelectGroupBox->layout()->addWidget(combo);
@@ -797,7 +803,9 @@ void SkinMixerManager::updateView()
                         }
                     }
 
-                    blendAnimations();
+                    if (vBlendingAnimation != nvl::MAX_INDEX) {
+                        blendAnimations();
+                    }
                 });
             }
 
@@ -1258,7 +1266,9 @@ void SkinMixerManager::on_animationJointAllCheckBox_stateChanged(int arg1)
             }
         }
 
-        blendAnimations();
+        if (vBlendingAnimation != nvl::MAX_INDEX) {
+            blendAnimations();
+        }
     }
 }
 
@@ -1296,7 +1306,9 @@ void SkinMixerManager::on_animationJointMeshComboBox_currentIndexChanged(int ind
             }
         }
 
-        blendAnimations();
+        if (vBlendingAnimation != nvl::MAX_INDEX) {
+            blendAnimations();
+        }
     }
 }
 
@@ -1312,21 +1324,21 @@ void SkinMixerManager::on_animationBlendButton_clicked()
 
 void SkinMixerManager::on_animationConfirmButton_clicked()
 {
+    vCanvas->stopAnimations();
     vBlendingAnimation = nvl::MAX_INDEX;
 
     updateView();
-    vCanvas->stopAnimations();
     vCanvas->updateGL();
 }
 
 void SkinMixerManager::on_animationAbortButton_clicked()
 {
+    vCanvas->stopAnimations();
     vSelectedModelDrawer->model()->removeAnimation(vBlendingAnimation);
     vModelAnimationWidget->unselectAnimation();
     vBlendingAnimation = nvl::MAX_INDEX;
 
     updateView();
-    vCanvas->stopAnimations();
     vCanvas->updateGL();
 }
 

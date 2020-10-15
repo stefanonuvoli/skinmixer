@@ -10,9 +10,7 @@ enum ILPStatus { SOLUTIONFOUND, SOLUTIONWRONG, INFEASIBLE };
 
 enum ILPMethod { LEASTSQUARES, ABS };
 
-template<class TriangleMeshType>
 std::vector<int> solveILP(
-        TriangleMeshType& mesh,
         ChartData& chartData,
         const double alpha,
         const double beta,

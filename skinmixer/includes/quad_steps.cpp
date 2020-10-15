@@ -5,7 +5,6 @@
 #include "quad_utils.h"
 #include "quad_patterns.h"
 #include "quad_mapping.h"
-#include "quad_feasibility.h"
 #include "quad_patch_assembler.h"
 
 #include <map>
@@ -18,53 +17,6 @@
 
 namespace QuadBoolean {
 namespace internal {
-
-template<class PolyMeshType, class TriangleMeshType>
-bool makeILPFeasible(
-        PolyMeshType& preservedSurface,
-        TriangleMeshType& newSurface,
-        const bool polychordSolver,
-        const bool splitSolver)
-{
-    FeasibilityResult result = QuadBoolean::internal::solveFeasibility(
-                preservedSurface,
-                newSurface,
-                polychordSolver,
-                splitSolver);
-
-    if (result == AlreadyOk) {
-        std::cout << "Feasibility was already okay!" << std::endl;
-        return true;
-    }
-    else if (result == SolvedQuadOnly) {
-        std::cout << "Feasibility solved with only quads!" << std::endl;
-        return true;
-    }
-    else if (result == SolvedQuadDominant) {
-        std::cout << "Feasibility solved with quad dominant!" << std::endl;
-        if (polychordSolver) {
-            std::cout << "Warning: it has been impossible to solve with polychord splits!" << std::endl;
-        }
-        return true;
-    }
-    else if (result == NonSolved) {
-        if (polychordSolver || splitSolver) {
-            std::cout << "Error: feasibility not solved!" << std::endl;
-        }
-        else {
-            std::cout << "Feasibility non solved" << std::endl;
-        }
-        return false;
-    }
-    else if (result == NonConsistant) {
-        std::cout << "Error: the model was not consistant. The border vertices were different!" << std::endl;
-        return false;
-    }
-    else {
-        std::cout << "Error: undefined return value by feasibility solver!" << std::endl;
-        return false;
-    }
-}
 
 template<class TriangleMeshType, class PolyMeshType>
 std::vector<int> getPatchDecomposition(
@@ -102,10 +54,7 @@ std::vector<int> getPatchDecomposition(
     return newSurfaceLabel;
 }
 
-
-template<class TriangleMeshType>
-std::vector<int> findSubdivisions(
-        TriangleMeshType& newSurface,
+inline std::vector<int> findSubdivisions(
         ChartData& chartData,
         const double alpha,
         const ILPMethod& method)
@@ -129,9 +78,9 @@ std::vector<int> findSubdivisions(
     ILPStatus status;
 
     //Solve ILP to find the best patches
-    std::vector<int> ilpResult = solveILP(newSurface, chartData, alpha, method, true, timeLimit, gap, status);
+    std::vector<int> ilpResult = solveILP(chartData, alpha, method, true, timeLimit, gap, status);
 
-    if (status == ILPStatus::SOLUTIONFOUND && gap < gapLimit) {
+    if (status == ILPStatus::SOLUTIONFOUND && gap <= gapLimit) {
         std::cout << "Solution found! Gap: " << gap << std::endl;
     }
     else {
@@ -139,13 +88,14 @@ std::vector<int> findSubdivisions(
             std::cout << "Error! Model was infeasible or time limit exceeded!" << std::endl;
         }
         else {
-            ilpResult = solveILP(newSurface, chartData, alpha, ILPMethod::ABS, true, timeLimit*2, gap, status);
+            assert(gap > gapLimit);
+            ilpResult = solveILP(chartData, alpha, ILPMethod::ABS, true, timeLimit*2, gap, status);
 
             if (status == ILPStatus::SOLUTIONFOUND) {
                 std::cout << "Solution found (ABS)! Gap: " << gap << std::endl;
             }
             else {
-                ilpResult = solveILP(newSurface, chartData, alpha, ILPMethod::ABS, false, timeLimit*4, gap, status);
+                ilpResult = solveILP(chartData, alpha, ILPMethod::ABS, false, timeLimit*4, gap, status);
                 std::cout << "Solution found? (ABS without regularity)! Gap: " << gap << std::endl;
             }
         }
@@ -158,7 +108,7 @@ std::vector<int> findSubdivisions(
 template<class TriangleMeshType, class PolyMeshType>
 void quadrangulate(
         TriangleMeshType& newSurface,
-        const ChartData& chartData,
+        ChartData& chartData,
         const std::vector<int>& ilpResult,
         const int chartSmoothingIterations,
         const int quadrangulationSmoothingIterations,
@@ -170,7 +120,7 @@ void quadrangulate(
     if (ilpResult.size() == 0)
         return;
 
-    std::vector<std::vector<size_t>> vertexSubsideMap(chartData.subSides.size());
+    std::vector<std::vector<size_t>> subsideVertexMap(chartData.subSides.size());
     std::vector<int> cornerVertices(newSurface.vert.size(), -1);
 
     //Fill fixed vertices (subsides corners)
@@ -182,24 +132,24 @@ void quadrangulate(
             cornerVertices[vStart] = quadrangulation.vert.size();
             vcg::tri::Allocator<PolyMeshType>::AddVertex(
                         quadrangulation,
-                        newSurface.vert.at(vStart).P());
+                        newSurface.vert[vStart].P());
         }
 
         if (cornerVertices[vEnd] == -1) {
             cornerVertices[vEnd] = quadrangulation.vert.size();
             vcg::tri::Allocator<PolyMeshType>::AddVertex(
                         quadrangulation,
-                        newSurface.vert.at(vEnd).P());
+                        newSurface.vert[vEnd].P());
         }
     }
 
     //Fill subside map for fixed borders
     std::set<size_t> finalMeshBorders;
-    for (size_t i = 0; i < chartData.subSides.size(); i++) {
-        const ChartSubSide& subside = chartData.subSides[i];
+    for (size_t subsideId = 0; subsideId < chartData.subSides.size(); subsideId++) {
+        ChartSubSide& subside = chartData.subSides[subsideId];
         if (subside.isFixed) {
             for (size_t k = 0; k < subside.vertices.size(); k++) {
-                const size_t& vId = subside.vertices.at(k);
+                const size_t& vId = subside.vertices[k];
 
                 size_t newVertexId;
 
@@ -209,7 +159,7 @@ void quadrangulate(
                     newVertexId = quadrangulation.vert.size();
                     vcg::tri::Allocator<PolyMeshType>::AddVertex(
                                 quadrangulation,
-                                newSurface.vert.at(vId).P());
+                                newSurface.vert[vId].P());
                 }
                 else {
                     newVertexId = cornerVertices[vId];
@@ -217,8 +167,68 @@ void quadrangulate(
                 }
 
                 finalMeshBorders.insert(newVertexId);
+                subsideVertexMap[subsideId].push_back(newVertexId);
+            }
 
-                vertexSubsideMap[i].push_back(newVertexId);
+            if (ilpResult[subsideId] > subside.size) {
+                int vToSplit = -1;
+                double maxLength = 0.0;
+                for (size_t k = 0; k < subside.vertices.size() - 1; k++) {
+                    const size_t& vId1 = subside.vertices[k];
+                    const size_t& vId2 = subside.vertices[k + 1];
+                    double length = (newSurface.vert[vId2].P() - newSurface.vert[vId1].P()).Norm();
+                    if (length >= maxLength) {
+                        vToSplit = k;
+                    }
+                }
+
+                if (vToSplit >= 0) {
+                    const size_t& vId1 = subside.vertices[vToSplit];
+                    const size_t& vId2 = subside.vertices[vToSplit + 1];
+                    size_t splitVertexId = quadrangulation.vert.size();
+                    vcg::tri::Allocator<PolyMeshType>::AddVertex(
+                                quadrangulation,
+                                (newSurface.vert[vId1].P() + newSurface.vert[vId2].P()) / 2.0);
+                    vcg::tri::Allocator<PolyMeshType>::AddFace(
+                                quadrangulation, subsideVertexMap[subsideId][vToSplit], subsideVertexMap[subsideId][vToSplit + 1], splitVertexId);
+
+                    subsideVertexMap[subsideId].insert(subsideVertexMap[subsideId].begin() + vToSplit + 1, splitVertexId);
+
+                    std::cout << "Triangle added in subside " << subsideId << ": +1!" << std::endl;
+                }
+                else {
+                    std::cout << "ERROR: impossible to augment the subside " << subsideId << ": +1! Target vertex not found." << std::endl;
+                }
+            }
+            else if (ilpResult[subsideId] < subside.size) {
+                if (subside.size >= 2) {
+                    int vToSkip = -1;
+                    double minLength = std::numeric_limits<double>::max();
+                    for (size_t k = 0; k < subside.vertices.size() - 2; k++) {
+                        const size_t& vId1 = subside.vertices[k];
+                        const size_t& vId2 = subside.vertices[k + 1];
+                        const size_t& vId3 = subside.vertices[k + 2];
+                        double length = (newSurface.vert[vId2].P() - newSurface.vert[vId1].P()).Norm() + (newSurface.vert[vId3].P() - newSurface.vert[vId2].P()).Norm();
+                        if (length <= minLength) {
+                            vToSkip = k;
+                        }
+                    }
+
+                    if (vToSkip >= 0) {
+                        vcg::tri::Allocator<PolyMeshType>::AddFace(
+                                    quadrangulation, subsideVertexMap[subsideId][vToSkip], subsideVertexMap[subsideId][vToSkip + 1], subsideVertexMap[subsideId][vToSkip + 2]);
+
+                        subsideVertexMap[subsideId].erase(subsideVertexMap[subsideId].begin() + vToSkip + 1);
+
+                        std::cout << "Triangle added in subside " << subsideId << ": -1!" << std::endl;
+                    }
+                    else {
+                        std::cout << "ERROR: impossible to reduce the subside " << subsideId << ": -1! Target vertex not found." << std::endl;
+                    }
+                }
+                else {
+                    std::cout << "ERROR: impossible to reduce the subside " << subsideId << ": -1! Subside is less than 2." << std::endl;
+                }
             }
         }
     }
@@ -298,7 +308,7 @@ void quadrangulate(
                 }
 
                 if (ilpResult[subSideId] < 0) {
-                    std::cout << "Warning: ILP not valid" << std::endl;
+                    std::cout << "Error: ILP not valid" << std::endl;
                     return;
                 }
             }
@@ -311,7 +321,7 @@ void quadrangulate(
         Eigen::MatrixXi patchF;
         std::vector<size_t> patchBorders;
         std::vector<size_t> patchCorners;
-        QuadBoolean::internal::computePattern(l, patchV, patchF, patchBorders, patchCorners);    
+        QuadBoolean::internal::computePattern(l, patchV, patchF, patchBorders, patchCorners);
 
 
 #ifdef SAVE_MESHES_FOR_DEBUG
@@ -379,7 +389,7 @@ void quadrangulate(
                 const ChartSubSide& subside = chartData.subSides[subSideId];
 
                 //Create new vertices of the subsides
-                if (vertexSubsideMap[subSideId].empty()) {
+                if (subsideVertexMap[subSideId].empty()) {
                     assert(!subside.isFixed);
 
                     //Get fixed corners of the subside
@@ -404,32 +414,32 @@ void quadrangulate(
 
                             currentVertexMap[patchSideVId] = newVertexId;
 
-                            vertexSubsideMap[subSideId].push_back(newVertexId);
+                            subsideVertexMap[subSideId].push_back(newVertexId);
                         }
                         else {
                             //Use the existing vertex
                             int existingVertexId = currentVertexMap[patchSideVId];
                             assert(existingVertexId >= 0);
-                            vertexSubsideMap[subSideId].push_back(existingVertexId);
+                            subsideVertexMap[subSideId].push_back(existingVertexId);
                         }
 
                         currentPatchSideVertex++;
                     }
 
                     if (reversed) {
-                        std::reverse(vertexSubsideMap[subSideId].begin(), vertexSubsideMap[subSideId].end());
+                        std::reverse(subsideVertexMap[subSideId].begin(), subsideVertexMap[subSideId].end());
                     }
                 }
                 //Set the existing vertices
                 else {
-                    assert(vertexSubsideMap[subSideId].size() == ilpResult[subSideId] + 1);
+                    assert(subsideVertexMap[subSideId].size() == ilpResult[subSideId] + 1);
 
                     for (int k = 0; k <= ilpResult[subSideId]; k++) {
                         int patchSideVId = patchSide[currentPatchSideVertex];
 
                         size_t subSideVertexIndex = reversed ? ilpResult[subSideId] - k : k;
 
-                        currentVertexMap[patchSideVId] = vertexSubsideMap[subSideId][subSideVertexIndex];
+                        currentVertexMap[patchSideVId] = subsideVertexMap[subSideId][subSideVertexIndex];
 
                         size_t existingVertexId = currentVertexMap[patchSideVId];
 
@@ -437,8 +447,8 @@ void quadrangulate(
                         if (!subside.isFixed && k > 0 && k < ilpResult[subSideId]) {
                             //Average
                             const typename PolyMeshType::CoordType& coord = quadrangulatedChartMesh.vert[patchSideVId].P();
-                            quadrangulation.vert.at(existingVertexId).P() =
-                                    (coord + quadrangulation.vert.at(existingVertexId).P())/2;
+                            quadrangulation.vert[existingVertexId].P() =
+                                    (coord + quadrangulation.vert[existingVertexId].P())/2;
                         }
 
                         currentPatchSideVertex++;
@@ -567,13 +577,20 @@ void getResult(
     vcg::tri::Append<PolyMeshType, PolyMeshType>::Mesh(tmpMesh, preservedSurface);
     vcg::tri::Append<PolyMeshType, PolyMeshType>::Mesh(tmpMesh, quadrangulatedNewSurface);
 
-    vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.0000001);
+#ifdef SAVE_MESHES_FOR_DEBUG
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/tmpResult.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+#endif
 
-    vcg::tri::Clean<PolyMeshType>::RemoveDegenerateVertex(tmpMesh);
-    vcg::tri::Clean<PolyMeshType>::RemoveDegenerateEdge(tmpMesh);
-    vcg::tri::Clean<PolyMeshType>::RemoveDegenerateFace(tmpMesh);
+//    vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.0000001);
 
-    vcg::tri::Clean<PolyMeshType>::RemoveUnreferencedVertex(tmpMesh);
+    int numDuplicateVertices = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateVertex(tmpMesh);
+    if (numDuplicateVertices > 0) {
+        std::cout << "Removed " << numDuplicateVertices << " duplicate vertices." << std::endl;
+    }
+    int numUnreferencedVertices = vcg::tri::Clean<PolyMeshType>::RemoveUnreferencedVertex(tmpMesh);
+    if (numUnreferencedVertices > 0) {
+        std::cout << "Removed " << numUnreferencedVertices << " unreferenced vertices." << std::endl;
+    }
 
     vcg::tri::UpdateTopology<PolyMeshType>::FaceFace(tmpMesh);
 
@@ -587,10 +604,14 @@ void getResult(
 //        std::cout << "Removed " << numHoles << " holes." << std::endl;
 //    }
 
-    int numDuplicates = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateFace(tmpMesh);
-    if (numDuplicates > 0) {
-        std::cout << "Removed " << numDuplicates << " duplicates." << std::endl;
+    int numDuplicateFaces = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateFace(tmpMesh);
+    if (numDuplicateFaces > 0) {
+        std::cout << "Removed " << numDuplicateFaces << " duplicate faces." << std::endl;
     }
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/tmpResultAfterMerge.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+#endif
 
     result.Clear();
     vcg::tri::Append<PolyMeshType, PolyMeshType>::Mesh(result, tmpMesh);
@@ -631,7 +652,7 @@ void getResult(
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultbeforereprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultBeforeReprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 
     vcg::tri::UpdateNormal<TriangleMeshType>::PerFaceNormalized(targetBoolean);
@@ -701,7 +722,7 @@ void getResult(
     vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultafterreprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultAfterReprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 }
 

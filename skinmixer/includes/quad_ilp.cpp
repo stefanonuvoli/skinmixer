@@ -15,9 +15,7 @@ namespace internal {
 std::vector<double> getSmoothedChartAverageEdgeLength(
         const ChartData& chartData);
 
-template<class TriangleMeshType>
-std::vector<int> solveILP(
-        TriangleMeshType& mesh,
+inline std::vector<int> solveILP(
         ChartData& chartData,
         const double alpha,
         const ILPMethod& method,
@@ -50,14 +48,26 @@ std::vector<int> solveILP(
 
         std::vector<double> avgLength = getSmoothedChartAverageEdgeLength(chartData);
 
-        for (size_t i = 0; i < chartData.subSides.size(); i++) {
-            const ChartSubSide& subside = chartData.subSides[i];
+        for (size_t subsideId = 0; subsideId < chartData.subSides.size(); subsideId++) {
+            const ChartSubSide& subside = chartData.subSides[subsideId];
 
             //If it is not a border (free)
             if (!subside.isFixed) {
                 assert(subside.incidentCharts[0] >= 0 && subside.incidentCharts[1] >= 0);
 
-                vars[i] = model.addVar(MINSIDEVALUE, GRB_INFINITY, 0.0, GRB_INTEGER, "s" + to_string(i));
+                vars[subsideId] = model.addVar(MINSIDEVALUE, GRB_INFINITY, 0.0, GRB_INTEGER, "s" + to_string(subsideId));
+            }
+            else {
+                vars[subsideId] = model.addVar(std::max(subside.size - 1, MINSIDEVALUE), subside.size + 1, 0.0, GRB_INTEGER, "s" + to_string(subsideId));
+
+                size_t dId = diff.size();
+                size_t aId = abs.size();
+                diff.push_back(model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_INTEGER, "do" + to_string(dId)));
+                abs.push_back(model.addVar(0, GRB_INFINITY, 0.0, GRB_INTEGER, "ao" + to_string(aId)));
+                model.addConstr(diff[dId] == vars[subsideId] - subside.size, "doc" + to_string(dId));
+                model.addGenConstrAbs(abs[aId], diff[dId], "aoc" + to_string(aId));
+
+                obj += abs[aId] * MAXCOST;
             }
         }
 
@@ -67,8 +77,8 @@ std::vector<int> solveILP(
             GRBQuadExpr isoExpr = 0;
             const double isoCost = alpha;
             //Regularity
-            for (size_t i = 0; i < chartData.subSides.size(); i++) {
-                const ChartSubSide& subside = chartData.subSides[i];
+            for (size_t subsideId = 0; subsideId < chartData.subSides.size(); subsideId++) {
+                const ChartSubSide& subside = chartData.subSides[subsideId];
 
                 //If it is not a border (free)
                 if (!subside.isFixed) {
@@ -78,18 +88,16 @@ std::vector<int> solveILP(
                     double incidentChartAverageLength = (avgLength[subside.incidentCharts[0]] + avgLength[subside.incidentCharts[1]])/2;
                     double sideSubdivision = subside.length / incidentChartAverageLength;
 
-                    size_t dId = diff.size();
-                    size_t aId = abs.size();
-
-                    GRBLinExpr value = vars[i] - sideSubdivision;
+                    GRBLinExpr value = vars[subsideId] - sideSubdivision;
 
                     if (method == LEASTSQUARES) {
                         isoExpr += value * value;
                     }
                     else {
+                        size_t dId = diff.size();
+                        size_t aId = abs.size();
                         diff.push_back(model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "d" + to_string(dId)));
                         abs.push_back(model.addVar(0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "a" + to_string(aId)));
-
                         model.addConstr(diff[dId] == value, "dc" + to_string(dId));
                         model.addGenConstrAbs(abs[aId], diff[dId], "ac" + to_string(aId));
 
@@ -115,23 +123,11 @@ std::vector<int> solveILP(
 
                         GRBLinExpr subSide1Sum = 0;
                         for (const size_t& subSideId : side1.subsides) {
-                            const ChartSubSide& subSide = chartData.subSides[subSideId];
-                            if (subSide.isFixed) {
-                                subSide1Sum += subSide.size;
-                            }
-                            else {
-                                subSide1Sum += vars[subSideId];
-                            }
+                            subSide1Sum += vars[subSideId];
                         }
                         GRBLinExpr subSide2Sum = 0;
                         for (const size_t& subSideId : side2.subsides) {
-                            const ChartSubSide& subSide = chartData.subSides[subSideId];
-                            if (subSide.isFixed) {
-                                subSide2Sum += subSide.size;
-                            }
-                            else {
-                                subSide2Sum += vars[subSideId];
-                            }
+                            subSide2Sum += vars[subSideId];
                         }
 
                         GRBLinExpr value = subSide1Sum - subSide2Sum;
@@ -142,10 +138,8 @@ std::vector<int> solveILP(
                         else {
                             size_t dId = diff.size();
                             size_t aId = abs.size();
-
                             diff.push_back(model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_INTEGER, "d" + to_string(dId)));
                             abs.push_back(model.addVar(0, GRB_INFINITY, 0.0, GRB_INTEGER, "a" + to_string(aId)));
-
                             model.addConstr(diff[dId] == value, "dc" + to_string(dId));
                             model.addGenConstrAbs(abs[aId], diff[dId], "ac" + to_string(aId));
 
@@ -166,14 +160,9 @@ std::vector<int> solveILP(
 
                     GRBLinExpr sumExp = 0;
                     for (const size_t& subSideId : chart.chartSubSides) {
-                        const ChartSubSide& subSide = chartData.subSides[subSideId];
-                        if (subSide.isFixed) {
-                            sumExp += subSide.size;
-                        }
-                        else {
-                            sumExp += vars[subSideId];
-                        }
+                        sumExp += vars[subSideId];
                     }
+
                     free[i] = model.addVar(2, GRB_INFINITY, 0.0, GRB_INTEGER, "f" + to_string(i));
                     model.addConstr(free[i] * 2 == sumExp);
                 }
@@ -195,13 +184,7 @@ std::vector<int> solveILP(
         model.optimize();
 
         for (size_t i = 0; i < chartData.subSides.size(); i++) {
-            const ChartSubSide& subSide = chartData.subSides[i];
-            if (subSide.isFixed) {
-                result[i] = subSide.size;
-            }
-            else {
-                result[i] = static_cast<int>(std::round(vars[i].get(GRB_DoubleAttr_X)));
-            }
+            result[i] = static_cast<int>(std::round(vars[i].get(GRB_DoubleAttr_X)));
         }
 
         cout << "Obj: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
@@ -209,7 +192,6 @@ std::vector<int> solveILP(
         gap = model.get(GRB_DoubleAttr_MIPGap);
 
         status = ILPStatus::SOLUTIONFOUND;
-
 
         for (size_t i = 0; i < chartData.charts.size(); i++) {
             Chart& chart = chartData.charts[i];

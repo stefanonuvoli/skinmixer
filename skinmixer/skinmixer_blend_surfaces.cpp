@@ -177,7 +177,7 @@ void blendSurfaces(
     Mesh preMesh;
 
     //Create preserved mesh
-    std::unordered_set<VertexId> preNonSnappableVertices;
+    std::unordered_set<VertexId> preAlreadyBorderVertices;
 
     std::vector<std::pair<nvl::Index, VertexId>> preBirthVertex;
     std::vector<std::pair<nvl::Index, FaceId>> preBirthFace;
@@ -185,15 +185,15 @@ void blendSurfaces(
     for (Index mId = 0; mId < models.size(); ++mId) {
         Mesh& mesh = models[mId]->mesh;
 
-        nvl::meshOpenFaceSelection(mesh, meshFacesToKeep[mId]);
-        nvl::meshCloseFaceSelection(mesh, meshFacesToKeep[mId]);
+        //Find vertices that were already in the border of the original mesh
+        std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
+        std::unordered_set<VertexId> borderVerticesSet(borderVertices.begin(), borderVertices.end());
 
         nvl::Size lastVertexId = preMesh.nextVertexId();
         nvl::Size lastFaceId = preMesh.nextFaceId();
 
         std::vector<VertexId> tmpBirthVertex;
         std::vector<FaceId> tmpBirthFace;
-
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(meshFacesToKeep[mId].begin(), meshFacesToKeep[mId].end()), preMesh, tmpBirthVertex, tmpBirthFace);
 
         preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
@@ -207,12 +207,9 @@ void blendSurfaces(
             preBirthFace[fId] = std::make_pair(mId, tmpBirthFace[fId]);
         }
 
-        //Find vertices that were already in the border of the original mesh
-        std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
-        std::unordered_set<VertexId> borderVerticesSet(borderVertices.begin(), borderVertices.end());
         for (VertexId vId = lastVertexId; vId < preMesh.nextVertexId(); vId++) {
             if (borderVerticesSet.find(tmpBirthVertex[vId]) != borderVerticesSet.end()) {
-                preNonSnappableVertices.insert(vId);
+                preAlreadyBorderVertices.insert(vId);
             }
         }
     }
@@ -261,7 +258,7 @@ void blendSurfaces(
     }
 
     //Erode-dilate
-    nvl::meshOpenFaceSelection(blendedMesh, blendedMeshFacesToKeep); 
+    nvl::meshOpenFaceSelection(blendedMesh, blendedMeshFacesToKeep);
 
     //Transfer in the new surface the faces to be kept
     nvl::meshTransferFaces(blendedMesh, std::vector<VertexId>(blendedMeshFacesToKeep.begin(), blendedMeshFacesToKeep.end()), newMesh);
@@ -271,7 +268,7 @@ void blendSurfaces(
 #endif
 
     std::vector<VertexId> snappedVertices;
-    internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preNonSnappableVertices, snappedVertices);
+    internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preAlreadyBorderVertices, snappedVertices);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/newMesh.obj", newMesh);
@@ -950,7 +947,7 @@ void attachMeshToMeshByBorders(
                 const double offsetT = (
                             startT * (
                                 tmpMesh.vertex(mChain[(startI + 1) % mChain.size()]).point() -
-                            tmpMesh.vertex(mChain[startI]).point()
+                                tmpMesh.vertex(mChain[startI]).point()
                             ).norm()
                         ) / mChainTotalDist;
 
@@ -978,7 +975,7 @@ void attachMeshToMeshByBorders(
 
                     GRBModel model = GRBModel(env);
 
-                    //model.set(GRB_IntParam_OutputFlag, 0);
+//                    model.set(GRB_IntParam_OutputFlag, 0);
 
                     //Variables
                     std::vector<GRBVar> vars(mChain.size());
@@ -1165,9 +1162,6 @@ Mesh quadrangulateMesh(
     std::vector<nvl::Index> vcgPreBirthFace;
     nvl::convertMeshToVCGMesh(preMesh, vcgPreMesh, vcgPreBirthVertex, vcgPreBirthFace);
 
-//    //Make ILP feasible
-//    QuadBoolean::internal::makeILPFeasible(vcgPreMesh, vcgNewMesh, true, true);
-
     //Get patch decomposition of the new surface
     std::vector<std::vector<size_t>> newSurfacePartitions;
     std::vector<std::vector<size_t>> newSurfaceCorners;
@@ -1178,7 +1172,6 @@ Mesh quadrangulateMesh(
 
     //Solve ILP to find best side size
     std::vector<int> ilpResult = QuadBoolean::internal::findSubdivisions(
-                vcgNewMesh,
                 chartData,
                 0.5,
                 QuadBoolean::internal::LEASTSQUARES);

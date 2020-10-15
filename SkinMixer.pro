@@ -8,7 +8,7 @@ GUROBI_PATH = /opt/gurobi903/linux64
 #EIGEN_PATH = /usr/include/eigen3
 #LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
 
-#DEFINES += SAVE_MESHES_FOR_DEBUG
+DEFINES += SAVE_MESHES_FOR_DEBUG
 DEFINES += NDEBUG
 
 #Modules of nuvolib
@@ -62,7 +62,6 @@ SOURCES += \
     skinmixer/skinmixer_data.cpp \
     skinmixer/skinmixer_select.cpp \
     skinmixer/skinmixer_utilities.cpp \
-    skinmixer/includes/quad_feasibility.cpp \
     skinmixer/includes/quad_charts.cpp \
     skinmixer/includes/quad_convert.cpp \
     skinmixer/includes/quad_ilp.cpp \
@@ -83,7 +82,6 @@ HEADERS += \
     skinmixer/skinmixer_operation.h \
     skinmixer/skinmixer_select.h \
     skinmixer/skinmixer_utilities.h \
-    skinmixer/includes/quad_feasibility.h \
     skinmixer/includes/quad_field_tracer.h \
     skinmixer/includes/quad_field_smoother.h \
     skinmixer/includes/quad_convert.h \
