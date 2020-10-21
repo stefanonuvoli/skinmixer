@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     //Add a model
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Crypto/crypto.rig");
-//    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Timmy/timmy.rig");
+    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Timmy/timmy.rig");
 
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Zlorp/zlorp.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Warrok/warrok.rig");
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/MkHuman1/mkHuman1.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/MkHuman2/mkHuman2.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/PeasantGirl/peasantGirl.rig");
-    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Shark/shark.rig");
+//    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Shark/shark.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/SnakeHi/snakeHi.rig");
 
     canvas.fitScene();
