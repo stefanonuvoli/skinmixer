@@ -8,7 +8,7 @@
 
 #include "skinmixer/skinmixer_operation.h"
 
-#include <nvl/math/affine_transformations.h>
+#include <nvl/math/scaling.h>
 
 namespace skinmixer {
 

@@ -12,7 +12,7 @@
 
 #include <nvl/math/closest_point.h>
 #include <nvl/math/numeric_limits.h>
-#include <nvl/math/affine_transformations.h>
+#include <nvl/math/transformations.h>
 
 #include <nvl/models/mesh_geometric_information.h>
 #include <nvl/models/mesh_morphological_operations.h>

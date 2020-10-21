@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include <nvl/math/affine_transformations.h>
+#include <nvl/math/affine.h>
 
 namespace skinmixer {
 

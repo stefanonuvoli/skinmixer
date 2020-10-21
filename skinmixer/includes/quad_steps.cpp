@@ -581,7 +581,6 @@ void getResult(
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/tmpResult.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 
-//    vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.0000001);
 
     int numDuplicateVertices = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateVertex(tmpMesh);
     if (numDuplicateVertices > 0) {
@@ -608,6 +607,8 @@ void getResult(
     if (numDuplicateFaces > 0) {
         std::cout << "Removed " << numDuplicateFaces << " duplicate faces." << std::endl;
     }
+
+    vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.0000001);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/tmpResultAfterMerge.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
