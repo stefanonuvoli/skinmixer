@@ -492,6 +492,23 @@ void quadrangulate(
         }
     }
 
+#ifdef SAVE_MESHES_FOR_DEBUG
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(quadrangulation, "results/quadrangulation_original.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+#endif
+
+    int numDuplicateVertices = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateVertex(quadrangulation);
+    if (numDuplicateVertices > 0) {
+        std::cout << "Removed " << numDuplicateVertices << " duplicate vertices." << std::endl;
+    }
+    int numUnreferencedVertices = vcg::tri::Clean<PolyMeshType>::RemoveUnreferencedVertex(quadrangulation);
+    if (numUnreferencedVertices > 0) {
+        std::cout << "Removed " << numUnreferencedVertices << " unreferenced vertices." << std::endl;
+    }
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(quadrangulation, "results/quadrangulation_cleaned.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+#endif
+
     vcg::tri::UpdateTopology<PolyMeshType>::FaceFace(quadrangulation);
     vcg::PolygonalAlgorithm<PolyMeshType>::UpdateFaceNormalByFitting(quadrangulation);
     OrientFaces<PolyMeshType>::AutoOrientFaces(quadrangulation);
@@ -524,6 +541,10 @@ void quadrangulate(
         quadrangulation.vert[i].P()=closestPT;
     }
 
+#ifdef SAVE_MESHES_FOR_DEBUG
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(quadrangulation, "results/quadrangulation_reprojected.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+#endif
+
     if (quadrangulationSmoothingIterations > 0) {
         vcg::tri::UpdateSelection<PolyMeshType>::VertexAll(quadrangulation);
         for (const size_t& borderVertexId : finalMeshBorders) {
@@ -532,9 +553,15 @@ void quadrangulate(
         vcg::PolygonalAlgorithm<PolyMeshType>::template LaplacianReproject<TriangleMeshType>(quadrangulation, newSurface, quadrangulationSmoothingIterations, 0.7, 0.7, true);
     }
 
+
     vcg::PolygonalAlgorithm<PolyMeshType>::UpdateFaceNormalByFitting(quadrangulation);
     vcg::tri::UpdateNormal<PolyMeshType>::PerVertexNormalized(quadrangulation);
     vcg::tri::UpdateBounding<PolyMeshType>::Box(quadrangulation);
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(quadrangulation, "results/quadrangulation_smoothed.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+#endif
+
 }
 
 
@@ -578,40 +605,26 @@ void getResult(
     vcg::tri::Append<PolyMeshType, PolyMeshType>::Mesh(tmpMesh, quadrangulatedNewSurface);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/tmpResult.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/result_nomerged.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
-
 
     int numDuplicateVertices = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateVertex(tmpMesh);
     if (numDuplicateVertices > 0) {
-        std::cout << "Removed " << numDuplicateVertices << " duplicate vertices." << std::endl;
+        std::cout << "Merged " << numDuplicateVertices << " duplicate vertices." << std::endl;
     }
+
+    int numMergedVertices = vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.000001);
+    if (numMergedVertices > 0) {
+        std::cout << "Merged " << numMergedVertices << " close vertices." << std::endl;
+    }
+
     int numUnreferencedVertices = vcg::tri::Clean<PolyMeshType>::RemoveUnreferencedVertex(tmpMesh);
     if (numUnreferencedVertices > 0) {
         std::cout << "Removed " << numUnreferencedVertices << " unreferenced vertices." << std::endl;
     }
 
-    vcg::tri::UpdateTopology<PolyMeshType>::FaceFace(tmpMesh);
-
-    int numNonManifoldFaces = vcg::tri::Clean<PolyMeshType>::RemoveNonManifoldFace(tmpMesh);
-    if (numNonManifoldFaces > 0) {
-        std::cout << "Removed " << numNonManifoldFaces << " non-manifold faces." << std::endl;
-    }
-
-//    int numHoles = vcg::tri::Hole<PolyMeshType>::template EarCuttingFill<vcg::tri::TrivialEar<PolyMeshType>>(result, result.face.size(), false);
-//    if (numHoles > 0) {
-//        std::cout << "Removed " << numHoles << " holes." << std::endl;
-//    }
-
-    int numDuplicateFaces = vcg::tri::Clean<PolyMeshType>::RemoveDuplicateFace(tmpMesh);
-    if (numDuplicateFaces > 0) {
-        std::cout << "Removed " << numDuplicateFaces << " duplicate faces." << std::endl;
-    }
-
-    vcg::tri::Clean<PolyMeshType>::MergeCloseVertex(tmpMesh, 0.0000001);
-
 #ifdef SAVE_MESHES_FOR_DEBUG
-    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/tmpResultAfterMerge.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(tmpMesh, "results/result_noduplicates.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 
     result.Clear();
@@ -653,7 +666,7 @@ void getResult(
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultBeforeReprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/result_before_reprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 
     vcg::tri::UpdateNormal<TriangleMeshType>::PerFaceNormalized(targetBoolean);
@@ -723,11 +736,10 @@ void getResult(
     vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/resultAfterReprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
+    vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/result_after_reprojection.obj", vcg::tri::io::Mask::IOM_FACECOLOR);
 #endif
 }
 
-
-
 }
+
 }

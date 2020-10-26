@@ -1090,7 +1090,20 @@ void SkinMixerManager::on_modelRemoveButton_clicked()
 
 void SkinMixerManager::on_modelSaveButton_clicked()
 {
-    //TODO
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    QString filename = QFileDialog::getSaveFileName(this,
+            tr("Save model"), QDir::homePath(),
+            tr("Model (*.rig);;All Files (*)"));
+
+    const Model& model = *vSelectedModelDrawer->model();
+
+    if (!filename.isEmpty()) {
+//        bool success = nvl::modelSaveToFile(filename, model);
+    }
+
+    vCanvas->fitScene();
 }
 
 void SkinMixerManager::on_modelDuplicateButton_clicked()
