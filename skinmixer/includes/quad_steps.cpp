@@ -291,6 +291,11 @@ void quadrangulate(
                 const size_t& subSideId = chartSides[i].subsides[j];
                 const ChartSubSide& subSide = chartData.subSides[subSideId];
 
+                if (ilpResult[subSideId] < 0) {
+                    std::cout << "Error: ILP not valid" << std::endl;
+                    return;
+                }
+
                 targetSideSubdivision += ilpResult[subSideId];
 
                 chartSideLength[i][j] = subSide.length;
@@ -307,10 +312,6 @@ void quadrangulate(
                     chartSideVertices[i][j][k] = vMap[vId];
                 }
 
-                if (ilpResult[subSideId] < 0) {
-                    std::cout << "Error: ILP not valid" << std::endl;
-                    return;
-                }
             }
 
             l(static_cast<int>(i)) = targetSideSubdivision;
@@ -323,12 +324,15 @@ void quadrangulate(
         std::vector<size_t> patchCorners;
         QuadBoolean::internal::computePattern(l, patchV, patchF, patchBorders, patchCorners);
 
+#ifdef SAVE_MESHES_FOR_DEBUG
+        igl::writeOBJ(std::string("results/") + std::to_string(cId) + std::string("_patch_original.obj"), patchV, patchF);
+#endif
+
+        std::vector<std::vector<size_t>> patchEigenSides = getPatchSides(patchV, patchF, patchBorders, patchCorners, l);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
         igl::writeOBJ(std::string("results/") + std::to_string(cId) + std::string("_patch.obj"), patchV, patchF);
 #endif
-
-        std::vector<std::vector<size_t>> patchEigenSides = getPatchSides(patchV, patchF, patchBorders, patchCorners, l);
 
         assert(chartSides.size() == patchCorners.size());
         assert(chartSides.size() == patchEigenSides.size());

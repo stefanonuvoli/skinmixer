@@ -108,7 +108,7 @@ public:
 private:
 
     std::vector<Entry> vEntries;
-    std::unordered_map<Model*, Index> vModelMap;
+    std::unordered_map<const Model*, Index> vModelMap;
 
     std::vector<Action> vActions;
 

@@ -1,5 +1,5 @@
 #include "quad_convert.h"
-#include <vcg/complex/algorithms/inertia.h>
+
 #include <vcg/complex/complex.h>
 
 namespace QuadBoolean {
