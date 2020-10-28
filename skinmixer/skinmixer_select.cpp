@@ -58,7 +58,7 @@ void computeRemoveSelectValues(
             if (componentMesh.isVertexDeleted(vId))
                 continue;
 
-            assert(componentBirthVertex[vId] != nvl::MAX_ID);
+            assert(componentBirthVertex[vId] != nvl::MAX_INDEX);
             componentFunction[vId] = std::max(std::min(1.0f - jointFunction[componentBirthVertex[vId]], 1.0), 0.0);
             minFunction = nvl::min(minFunction, componentFunction[vId]);
             maxFunction = nvl::max(maxFunction, componentFunction[vId]);
@@ -141,7 +141,7 @@ void computeDetachSelectValues(
             if (componentMesh.isVertexDeleted(vId))
                 continue;
 
-            assert(componentBirthVertex[vId] != nvl::MAX_ID);
+            assert(componentBirthVertex[vId] != nvl::MAX_INDEX);
             componentFunction[vId] = std::max(std::min(jointFunction[componentBirthVertex[vId]], 1.0), 0.0);
             minFunction = nvl::min(minFunction, componentFunction[vId]);
             maxFunction = nvl::max(maxFunction, componentFunction[vId]);

@@ -95,7 +95,7 @@ void blendSkeletons(
                 JointId jId = *it;
 
                 assert(jointMap[eId][jId] == nvl::MAX_INDEX);
-                assert(keptJoints[eId].find(jId) != keptJoints[eId].end() && remainingJoints[eId].find(jId) != remainingJoints[eId].end());
+                assert(keptJoints[eId].find(jId) != keptJoints[eId].end() && remainingAssignedJoints[eId].find(jId) != remainingAssignedJoints[eId].end());
 
                 keptDone = false;
 
@@ -200,7 +200,7 @@ void blendSkeletons(
 
             for (const JointId& currentJId : remainingJoints) {
                 assert(jointMap[eId][currentJId] == nvl::MAX_INDEX);
-                assert(nonKeptJoints[eId].find(currentJId) != nonKeptJoints[eId].end() && remainingJoints[eId].find(currentJId) != remainingJoints[eId].end());
+                assert(nonKeptJoints[eId].find(currentJId) != nonKeptJoints[eId].end() && remainingJoints.find(currentJId) != remainingJoints.end());
 
                 const Joint& currentJoint = currentSkeleton.joint(currentJId);
 

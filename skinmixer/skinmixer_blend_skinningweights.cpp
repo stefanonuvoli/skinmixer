@@ -26,7 +26,7 @@ void blendSkinningWeights(
     Mesh& targetMesh = targetModel->mesh;
     Skeleton& targetSkeleton = targetModel->skeleton;
 
-    targetSkinningWeights.initialize(targetMesh.nextVertexId(), targetSkeleton.jointNumber());
+    targetModel->initializeSkinningWeights();
 
     for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
         if (targetMesh.isVertexDeleted(vId))

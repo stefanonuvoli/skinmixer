@@ -939,8 +939,7 @@ void attachMeshToMeshByBorders(
                     nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[currentJ];
                     dChainCurrentDist += vec.norm();
 
-                    dParametrization[nextJ] = dChainCurrentDist / dChainTotalDist;
-                    assert(dParametrization[nextJ] >= 0.0 && dParametrization[nextJ] <= 1.0);
+                    dParametrization[nextJ] = std::max(std::min(dChainCurrentDist / dChainTotalDist, 1.0), 0.0);
                 }
 
                 //Compute offset of the parametrization
@@ -960,8 +959,7 @@ void attachMeshToMeshByBorders(
                     nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[currentI];
                     mChainCurrentDist += vec.norm();
 
-                    mParametrization[nextI] = (mChainCurrentDist / mChainTotalDist) - offsetT;
-                    assert(mParametrization[nextI] >= 0.0 && mParametrization[nextI] <= 1.0);
+                    mParametrization[nextI] = std::max(std::min((mChainCurrentDist / mChainTotalDist) - offsetT, 1.0), 0.0);
                 }
 
                 //Optimization parameters

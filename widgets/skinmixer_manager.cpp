@@ -787,7 +787,7 @@ void SkinMixerManager::updateView()
                                 for (JointInfo jointInfo : jointInfos) {
                                     assert(jointInfo.jId != nvl::MAX_INDEX);
                                     assert(jointInfo.eId != nvl::MAX_INDEX);
-                                    assert(entriesMap[jointInfo.eId] != nvl::MAX_INDEX);
+                                    assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
 
                                     const Index& cId = clusterMap[jointInfo.eId];
 
@@ -1100,10 +1100,11 @@ void SkinMixerManager::on_modelSaveButton_clicked()
     const Model& model = *vSelectedModelDrawer->model();
 
     if (!filename.isEmpty()) {
-//        bool success = nvl::modelSaveToFile(filename, model);
+        bool success = nvl::modelSaveToFile(filename.toStdString(), model);
+        if (!success) {
+            QMessageBox::warning(this, tr("Error"), tr("Error: impossible to save model!"));
+        }
     }
-
-    vCanvas->fitScene();
 }
 
 void SkinMixerManager::on_modelDuplicateButton_clicked()
@@ -1304,7 +1305,7 @@ void SkinMixerManager::on_animationJointMeshComboBox_currentIndexChanged(int ind
                 for (JointInfo jointInfo : jointInfos) {
                     assert(jointInfo.jId != nvl::MAX_INDEX);
                     assert(jointInfo.eId != nvl::MAX_INDEX);
-                    assert(entriesMap[jointInfo.eId] != nvl::MAX_INDEX);
+                    assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
 
                     const Index& cId = clusterMap[jointInfo.eId];
 

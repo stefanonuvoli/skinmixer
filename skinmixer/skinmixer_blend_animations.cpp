@@ -37,7 +37,7 @@ void initializeAnimationWeights(
         for (JointInfo jointInfo : jointInfos) {
             assert(jointInfo.jId != nvl::MAX_INDEX);
             assert(jointInfo.eId != nvl::MAX_INDEX);
-            assert(entriesMap[jointInfo.eId] != nvl::MAX_INDEX);
+            assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
 
             const Index& cId = clusterMap[jointInfo.eId];
 
@@ -50,7 +50,7 @@ void initializeAnimationWeights(
             for (JointInfo jointInfo : jointInfos) {
                 assert(jointInfo.jId != nvl::MAX_INDEX);
                 assert(jointInfo.eId != nvl::MAX_INDEX);
-                assert(entriesMap[jointInfo.eId] != nvl::MAX_INDEX);
+                assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
                 assert(parentId != nvl::MAX_INDEX);
 
                 const Index& cId = clusterMap[jointInfo.eId];
@@ -148,7 +148,7 @@ void blendAnimations(
             for (JointInfo jointInfo : jointInfos) {
                 assert(jointInfo.jId != nvl::MAX_INDEX);
                 assert(jointInfo.eId != nvl::MAX_INDEX);
-                assert(entriesMap[jointInfo.eId] != nvl::MAX_INDEX);
+                assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
 
                 const Index& cId = clusterMap[jointInfo.eId];
                 const Index& aId = animationIds[cId];
