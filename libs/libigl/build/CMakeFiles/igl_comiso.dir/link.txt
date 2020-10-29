@@ -1,2 +1,0 @@
-/usr/bin/ar qc libigl_comiso.a  CMakeFiles/igl_comiso.dir/include/igl/copyleft/comiso/frame_field.cpp.o CMakeFiles/igl_comiso.dir/include/igl/copyleft/comiso/miq.cpp.o CMakeFiles/igl_comiso.dir/include/igl/copyleft/comiso/nrosy.cpp.o
-/usr/bin/ranlib libigl_comiso.a

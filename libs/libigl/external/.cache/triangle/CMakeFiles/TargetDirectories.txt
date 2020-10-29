@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/triangle/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/triangle/CMakeFiles/triangle-download.dir
-/usr/include/libigl/external/.cache/triangle/CMakeFiles/edit_cache.dir

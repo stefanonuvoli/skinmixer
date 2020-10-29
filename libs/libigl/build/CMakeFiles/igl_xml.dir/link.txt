@@ -1,2 +1,0 @@
-/usr/bin/ar qc libigl_xml.a  CMakeFiles/igl_xml.dir/include/igl/xml/serialize_xml.cpp.o CMakeFiles/igl_xml.dir/include/igl/xml/writeDAE.cpp.o CMakeFiles/igl_xml.dir/include/igl/xml/write_triangle_mesh.cpp.o
-/usr/bin/ranlib libigl_xml.a

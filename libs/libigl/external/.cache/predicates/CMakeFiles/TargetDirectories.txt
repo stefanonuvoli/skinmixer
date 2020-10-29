@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/predicates/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/predicates/CMakeFiles/predicates-download.dir
-/usr/include/libigl/external/.cache/predicates/CMakeFiles/edit_cache.dir

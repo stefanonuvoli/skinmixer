@@ -1,2 +1,0 @@
-/usr/bin/ar qc libigl_predicates.a  CMakeFiles/igl_predicates.dir/include/igl/predicates/ear_clipping.cpp.o CMakeFiles/igl_predicates.dir/include/igl/predicates/point_inside_convex_polygon.cpp.o CMakeFiles/igl_predicates.dir/include/igl/predicates/predicates.cpp.o CMakeFiles/igl_predicates.dir/include/igl/predicates/segment_segment_intersect.cpp.o
-/usr/bin/ranlib libigl_predicates.a

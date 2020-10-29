@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/test_data/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/test_data/CMakeFiles/test_data-download.dir
-/usr/include/libigl/external/.cache/test_data/CMakeFiles/edit_cache.dir

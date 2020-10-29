@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/glad/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/glad/CMakeFiles/glad-download.dir
-/usr/include/libigl/external/.cache/glad/CMakeFiles/edit_cache.dir

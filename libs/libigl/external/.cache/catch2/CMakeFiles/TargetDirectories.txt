@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/catch2/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/catch2/CMakeFiles/catch2-download.dir
-/usr/include/libigl/external/.cache/catch2/CMakeFiles/edit_cache.dir

@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/tutorial_data/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/tutorial_data/CMakeFiles/tutorial_data-download.dir
-/usr/include/libigl/external/.cache/tutorial_data/CMakeFiles/edit_cache.dir

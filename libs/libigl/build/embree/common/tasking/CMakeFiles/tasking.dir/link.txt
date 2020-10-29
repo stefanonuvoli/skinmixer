@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../libtasking.a  CMakeFiles/tasking.dir/taskschedulerinternal.cpp.o
-/usr/bin/ranlib ../../libtasking.a

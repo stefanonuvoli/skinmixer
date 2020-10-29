@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/tetgen/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/tetgen/CMakeFiles/tetgen-download.dir
-/usr/include/libigl/external/.cache/tetgen/CMakeFiles/edit_cache.dir

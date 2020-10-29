@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/glfw/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/glfw/CMakeFiles/glfw-download.dir
-/usr/include/libigl/external/.cache/glfw/CMakeFiles/edit_cache.dir

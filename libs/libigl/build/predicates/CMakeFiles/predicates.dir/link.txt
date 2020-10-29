@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../libpredicates.a  CMakeFiles/predicates.dir/predicates.c.o
-/usr/bin/ranlib ../libpredicates.a

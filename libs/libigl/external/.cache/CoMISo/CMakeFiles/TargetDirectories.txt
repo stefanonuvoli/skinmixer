@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/CoMISo/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/CoMISo/CMakeFiles/CoMISo-download.dir
-/usr/include/libigl/external/.cache/CoMISo/CMakeFiles/edit_cache.dir

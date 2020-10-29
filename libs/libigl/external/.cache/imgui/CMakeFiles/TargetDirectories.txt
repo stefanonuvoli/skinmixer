@@ -1,3 +1,0 @@
-/usr/include/libigl/external/.cache/imgui/CMakeFiles/rebuild_cache.dir
-/usr/include/libigl/external/.cache/imgui/CMakeFiles/imgui-download.dir
-/usr/include/libigl/external/.cache/imgui/CMakeFiles/edit_cache.dir

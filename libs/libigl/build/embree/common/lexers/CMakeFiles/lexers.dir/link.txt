@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../liblexers.a  CMakeFiles/lexers.dir/stringstream.cpp.o CMakeFiles/lexers.dir/tokenstream.cpp.o
-/usr/bin/ranlib ../../liblexers.a

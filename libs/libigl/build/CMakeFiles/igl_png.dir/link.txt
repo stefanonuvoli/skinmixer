@@ -1,2 +1,0 @@
-/usr/bin/ar qc libigl_png.a  CMakeFiles/igl_png.dir/include/igl/png/readPNG.cpp.o CMakeFiles/igl_png.dir/include/igl/png/render_to_png.cpp.o CMakeFiles/igl_png.dir/include/igl/png/render_to_png_async.cpp.o CMakeFiles/igl_png.dir/include/igl/png/texture_from_file.cpp.o CMakeFiles/igl_png.dir/include/igl/png/texture_from_png.cpp.o CMakeFiles/igl_png.dir/include/igl/png/writePNG.cpp.o
-/usr/bin/ranlib libigl_png.a
