@@ -43,6 +43,9 @@ include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
 #Quad retopology
 include($$QUADRETOPOLOGY_PATH/quadretopology.pri)
 
+#Boost
+INCLUDEPATH += $$BOOST_PATH
+
 #OpenVDB
 CONFIG += c++11
 LIBS += -L$$OPENVDB_PATH -lopenvdb
