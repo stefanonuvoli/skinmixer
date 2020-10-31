@@ -215,7 +215,7 @@ void blendSurfaces(
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/preMesh.obj", preMesh);
+    nvl::meshSaveToFile("results/premesh.obj", preMesh);
 #endif
 
     //Fill vertices to keep in the blended mesh
@@ -264,14 +264,14 @@ void blendSurfaces(
     nvl::meshTransferFaces(blendedMesh, std::vector<VertexId>(blendedMeshFacesToKeep.begin(), blendedMeshFacesToKeep.end()), newMesh);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newMeshRegularized.obj", newMesh);
+    nvl::meshSaveToFile("results/newmesh_1_regularized.obj", newMesh);
 #endif
 
     std::vector<VertexId> snappedVertices;
     internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preAlreadyBorderVertices, snappedVertices);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newMesh.obj", newMesh);
+    nvl::meshSaveToFile("results/newmesh_5_final.obj", newMesh);
 #endif
 
     //Select vertices to smooth
@@ -327,7 +327,7 @@ void blendSurfaces(
     nvl::meshLaplacianSmoothing(newMesh, verticesToSmooth, verticesToSmoothWeights, 40);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newMeshSmoothed.obj", newMesh);
+    nvl::meshSaveToFile("results/newmesh_2_smoothed.obj", newMesh);
 #endif
 
     //Get final mesh
@@ -428,8 +428,8 @@ void blendSurfaces(
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/quadrangulation.obj", quadrangulation);
-    nvl::meshSaveToFile("results/resultMesh.obj", resultMesh);
+    nvl::meshSaveToFile("results/quadrangulationmesh.obj", quadrangulation);
+    nvl::meshSaveToFile("results/resultmesh.obj", resultMesh);
 #endif
 }
 
@@ -1079,7 +1079,7 @@ void attachMeshToMeshByBorders(
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newMeshCleaned.obj", mesh);
+    nvl::meshSaveToFile("results/newmesh_3_cleaned.obj", mesh);
 #endif
 
     std::vector<std::vector<FaceId>> meshVFAdj = nvl::meshVertexFaceAdjacencies(mesh);
@@ -1121,7 +1121,7 @@ void attachMeshToMeshByBorders(
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newMeshSplitted.obj", mesh);
+    nvl::meshSaveToFile("results/newmesh_4_splitted.obj", mesh);
 #endif
 
     std::vector<VertexId> nonCollapsed = nvl::collapseBorders(mesh, snappedVertices);
