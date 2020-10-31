@@ -36,7 +36,7 @@
 #include <nvl/models/mesh_io.h>
 #endif
 
-#include "includes/quad_steps.h"
+#include <quadretopology/quad_retopology.h>
 
 #define KEEP_THRESHOLD 0.99
 #define DISCARD_THRESHOLD 0.01
@@ -973,8 +973,9 @@ void attachMeshToMeshByBorders(
 
                     GRBModel model = GRBModel(env);
 
-//                    model.set(GRB_IntParam_OutputFlag, 0);
-
+#ifdef GUROBI_NON_VERBOSE
+                    model.set(GRB_IntParam_OutputFlag, 0);
+#endif
                     //Variables
                     std::vector<GRBVar> vars(mChain.size());
                     for (size_t i = 0; i < mChain.size(); i++) {
@@ -1160,42 +1161,79 @@ Mesh quadrangulateMesh(
     std::vector<nvl::Index> vcgPreBirthFace;
     nvl::convertMeshToVCGMesh(preMesh, vcgPreMesh, vcgPreBirthVertex, vcgPreBirthFace);
 
+    QuadRetopology::Parameters par;
+    par.ilpMethod = QuadRetopology::LEASTSQUARES;
+    par.alpha = 0.5;
+    par.isometry = true;
+    par.regularityForQuadrilaterals = true;
+    par.regularityForNonQuadrilaterals = false;
+    par.regularityNonQuadrilateralWeight = 0.0;
+    par.feasibilityFix = true;
+    par.hardParityConstraint = true;
+    par.timeLimit = 60;
+    par.gapLimit = 0.0;
+    par.minimumGap = 0.2;
+    par.chartSmoothingIterations = 5;
+    par.quadrangulationFixedSmoothingIterations = 5;
+    par.quadrangulationNonFixedSmoothingIterations = 5;
+    par.doubletRemoval = true;
+    par.resultSmoothingIterations = 5;
+    par.resultSmoothingNRing = 3;
+    par.resultSmoothingLaplacianIterations = 5;
+    par.resultSmoothingLaplacianNRing = 3;
+
     //Get patch decomposition of the new surface
     std::vector<std::vector<size_t>> newSurfacePartitions;
     std::vector<std::vector<size_t>> newSurfaceCorners;
-    std::vector<int> newSurfaceLabel = QuadBoolean::internal::getPatchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 1.0, true, false, true);
+    std::vector<int> newSurfaceLabel = QuadRetopology::patchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 1.0, true, false, true);
 
     //Get chart data
-    QuadBoolean::internal::ChartData chartData = QuadBoolean::internal::getPatchDecompositionChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);
+    QuadRetopology::ChartData chartData = QuadRetopology::computeChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);
+
+    //Select the subsides to fix
+    std::vector<size_t> fixedSubsides;
+    for (size_t subsideId = 0; subsideId < chartData.subsides.size(); ++subsideId) {
+        QuadRetopology::ChartSubside& subside = chartData.subsides[subsideId];
+        if (subside.isOnBorder) {
+            fixedSubsides.push_back(subsideId);
+        }
+    }
+
+    //Get chart length
+    std::vector<double> chartEdgeLength = QuadRetopology::computeChartEdgeLength(chartData, fixedSubsides, 5, 0.7);
 
     //Solve ILP to find best side size
-    std::vector<int> ilpResult = QuadBoolean::internal::findSubdivisions(
-                chartData,
-                0.5,
-                QuadBoolean::internal::LEASTSQUARES);
+    double gap;
+    std::vector<int> ilpResult = QuadRetopology::findSubdivisions(
+            chartData,
+            fixedSubsides,
+            chartEdgeLength,
+            par,
+            gap);
 
-    //Quadrangulate
+    //Quadrangulate,
     std::vector<int> quadrangulationLabel;
-    QuadBoolean::internal::quadrangulate(
+    std::vector<std::vector<size_t>> quadrangulationPartitions;
+    std::vector<std::vector<size_t>> quadrangulationCorners;
+    QuadRetopology::quadrangulate(
                 vcgNewMesh,
                 chartData,
+                fixedSubsides,
                 ilpResult,
-                5,
-                5,
+                par,
                 vcgQuadrangulation,
-                quadrangulationLabel);
+                quadrangulationLabel,
+                quadrangulationPartitions,
+                quadrangulationCorners);
 
     //Get the result
-    std::unordered_map<size_t, size_t> preservedFacesMap;
-    std::unordered_map<size_t, size_t> preservedVerticesMap;
-    QuadBoolean::internal::getResult(
+    std::vector<int> resultPreservedVertexMap;
+    std::vector<int> resultPreservedFaceMap;
+    QuadRetopology::computeResult(
                 vcgPreMesh, vcgQuadrangulation,
                 vcgResult, vcgBlendedMesh,
-                5,
-                3,
-                5,
-                3,
-                preservedFacesMap, preservedVerticesMap);
+                par,
+                resultPreservedVertexMap, resultPreservedFaceMap);
 
     nvl::convertVCGMeshToMesh(vcgQuadrangulation, quadrangulation);
     std::vector<nvl::Index> vcgResultBirthVertex;
@@ -1210,10 +1248,8 @@ Mesh quadrangulateMesh(
         }
 
         nvl::Index vcgResultVId = vcgResultBirthVertex[vId];
-
-        std::unordered_map<size_t, size_t>::iterator it = preservedVerticesMap.find(vcgResultVId);
-        if (it != preservedVerticesMap.end()) {
-            size_t vcgPreMeshVId = it->second;
+        int vcgPreMeshVId = resultPreservedVertexMap[vcgResultVId];
+        if (vcgPreMeshVId >= 0) {
             birthVertex[vId] = preBirthVertex[vcgPreBirthVertex[vcgPreMeshVId]];
         }
     }
@@ -1223,10 +1259,8 @@ Mesh quadrangulateMesh(
         }
 
         nvl::Index vcgResultFId = vcgResultBirthFace[fId];
-
-        std::unordered_map<size_t, size_t>::iterator it = preservedFacesMap.find(vcgResultFId);
-        if (it != preservedFacesMap.end()) {
-            size_t vcgPreMeshFId = it->second;
+        int vcgPreMeshFId = resultPreservedFaceMap[vcgResultFId];
+        if (vcgPreMeshFId >= 0) {
             birthFace[fId] = preBirthFace[vcgPreBirthFace[vcgPreMeshFId]];
         }
     }

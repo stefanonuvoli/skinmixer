@@ -1,28 +1,12 @@
-############################ CONFIGURATION ############################
-
-#Libraries paths
-NUVOLIB_PATH = $$PWD/libs/nuvolib
-VCGLIB_PATH = $$PWD/libs/vcglib
-LIBIGL_PATH = $$PWD/libs/libigl
-GUROBI_PATH = /opt/gurobi903/linux64
-#EIGEN_PATH = /usr/include/eigen3
-#LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
-
-DEFINES += SAVE_MESHES_FOR_DEBUG
-DEFINES += NDEBUG
-
-#Modules of nuvolib
-CONFIG += NVL_MATH NVL_UTILITIES NVL_STRUCTURES NVL_MODELS NVL_IO NVL_VIEWER NVL_VCGLIB NVL_LIBIGL
+############################ TARGET AND FLAGS ############################
 
 #App config
 TARGET = skinmixer
-CONFIG += qt
-
-
-######################### FLAGS AND OPTIMIZATION #######################
-
 TEMPLATE = app
 CONFIG += c++11
+CONFIG += qt
+CONFIG -= app_bundle
+QT += core gui opengl widgets
 
 #Debug/release optimization flags
 CONFIG(debug, debug|release){
@@ -38,20 +22,56 @@ CONFIG(release, debug|release){
 FINAL_RELEASE {
     unix:!macx{
         QMAKE_CXXFLAGS_RELEASE -= -g -O2
-        QMAKE_CXXFLAGS_RELEASE += -O3 -DNDEBUG
         QMAKE_CXXFLAGS += -O3 -DNDEBUG
+    }
+}
+
+macx {
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.13
+    QMAKE_MAC_SDK = macosx10.13
+}
+
+
+############################ LIBRARIES ############################
+
+#Setting library paths and configuration
+include(configuration.pri)
+
+#nuvolib (it includes vcglib, libigl, eigen, boost, libqglviewer ...)
+include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
+
+#Quad retopology
+include($$QUADRETOPOLOGY_PATH/quadretopology.pri)
+
+#OpenVDB
+CONFIG += c++11
+LIBS += -L$$OPENVDB_PATH -lopenvdb
+
+#gurobi
+INCLUDEPATH += $$GUROBI_PATH/include
+LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
+DEFINES += GUROBI_DEFINED
+
+#Define for vcglib smoother
+DEFINES += NOCOMISO
+
+LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
+
+#Parallel computation (just in release)
+CONFIG(release, debug|release){
+    unix:!mac {
+        QMAKE_CXXFLAGS += -fopenmp
+        LIBS += -fopenmp
+    }
+    macx{
+        QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
+        QMAKE_LFLAGS += -lomp
+        LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
     }
 }
 
 
 ############################ PROJECT FILES ############################
-
-#Include nuvolib
-include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
-#Include patterns
-include($$PWD/libs/patterns/patterns.pri)
-#Include patterns
-include($$PWD/libs/libiglfields/libiglfields.pri)
 
 #Project files
 SOURCES += \
@@ -62,14 +82,6 @@ SOURCES += \
     skinmixer/skinmixer_data.cpp \
     skinmixer/skinmixer_select.cpp \
     skinmixer/skinmixer_utilities.cpp \
-    skinmixer/includes/quad_charts.cpp \
-    skinmixer/includes/quad_convert.cpp \
-    skinmixer/includes/quad_ilp.cpp \
-    skinmixer/includes/quad_patch_tracer.cpp \
-    skinmixer/includes/quad_patterns.cpp \
-    skinmixer/includes/quad_mapping.cpp \
-    skinmixer/includes/quad_steps.cpp \
-    skinmixer/includes/quad_utils.cpp \
     widgets/skinmixer_manager.cpp \
     skinmixer/skinmixer_blend_skeletons.cpp \
     skinmixer/skinmixer_blend_skinningweights.cpp
@@ -82,18 +94,6 @@ HEADERS += \
     skinmixer/skinmixer_operation.h \
     skinmixer/skinmixer_select.h \
     skinmixer/skinmixer_utilities.h \
-    skinmixer/includes/quad_field_tracer.h \
-    skinmixer/includes/quad_field_smoother.h \
-    skinmixer/includes/quad_convert.h \
-    skinmixer/includes/quad_charts.h \
-    skinmixer/includes/quad_convert.h \
-    skinmixer/includes/quad_ilp.h \
-    skinmixer/includes/quad_patch_tracer.h \
-    skinmixer/includes/quad_patterns.h \
-    skinmixer/includes/quad_mapping.h \
-    skinmixer/includes/quad_patch_assembler.h \
-    skinmixer/includes/quad_steps.h \
-    skinmixer/includes/quad_utils.h \
     widgets/skinmixer_manager.h \
     skinmixer/skinmixer_blend_skeletons.h \
     skinmixer/skinmixer_blend_skinningweights.h
@@ -101,31 +101,3 @@ HEADERS += \
 FORMS += \
     widgets/skinmixer_manager.ui
 
-
-############################ LIBRARIES ############################
-
-#Parallel computation (just in release)
-unix:!mac {
-    QMAKE_CXXFLAGS += -fopenmp
-    LIBS += -fopenmp
-}
-macx{
-    QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
-    QMAKE_LFLAGS += -lomp
-    LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
-}
-
-#OpenVDB
-CONFIG += c++11
-LIBS += -L"usr/local/lib/" -lopenvdb
-LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
-
-#gurobi
-INCLUDEPATH += $$GUROBI_PATH/include
-LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
-
-#vcg ply
-HEADERS += \
-    $$VCGLIB_PATH/wrap/ply/plylib.h
-SOURCES += \
-    $$VCGLIB_PATH/wrap/ply/plylib.cpp

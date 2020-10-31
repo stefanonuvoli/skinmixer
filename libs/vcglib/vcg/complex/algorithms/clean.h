@@ -218,7 +218,7 @@ public:
 
 		RemoveDuplicateVert_Compare c_obj;
 
-		std::sort(perm.begin(),perm.end(),c_obj);
+                std::sort(perm.begin(),perm.end(),c_obj);
 
 		j = 0;
 		i = j;
