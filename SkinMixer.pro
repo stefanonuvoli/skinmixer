@@ -37,7 +37,7 @@ macx {
 #Setting library paths and configuration
 include(configuration.pri)
 
-#nuvolib (it includes vcglib, libigl, eigen, boost, libqglviewer ...)
+#nuvolib (it includes vcglib, libigl, eigen, libqglviewer ...)
 include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
 
 #Quad retopology
