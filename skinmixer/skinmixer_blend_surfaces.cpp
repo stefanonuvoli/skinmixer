@@ -36,7 +36,7 @@
 #include <nvl/models/mesh_io.h>
 #endif
 
-#include <quadretopology/quad_retopology.h>
+#include <quadretopology/quadretopology.h>
 
 #define KEEP_THRESHOLD 0.99
 #define DISCARD_THRESHOLD 0.01

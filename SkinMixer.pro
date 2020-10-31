@@ -57,17 +57,15 @@ DEFINES += NOCOMISO
 
 LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
 
-#Parallel computation (just in release)
-CONFIG(release, debug|release){
-    unix:!mac {
-        QMAKE_CXXFLAGS += -fopenmp
-        LIBS += -fopenmp
-    }
-    macx{
-        QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
-        QMAKE_LFLAGS += -lomp
-        LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
-    }
+#Parallel computation
+unix:!mac {
+    QMAKE_CXXFLAGS += -fopenmp
+    LIBS += -fopenmp
+}
+macx{
+    QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
+    QMAKE_LFLAGS += -lomp
+    LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
 }
 
 
