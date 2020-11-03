@@ -1227,6 +1227,8 @@ void SkinMixerManager::initializeLoadedModel(Model* model)
         nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
         nvl::Translation3d translateTransform(translateVector);
 
+        std::cout << model->name() << " -> Scale: " << scaleFactor << ", Translation: " << translateTransform.translation().transpose() << std::endl;
+
         nvl::Affine3d transformation(scaleTransform * translateTransform);
         nvl::modelApplyTransformation(*model, transformation);
     }
