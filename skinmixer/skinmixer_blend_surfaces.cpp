@@ -11,13 +11,14 @@
 #include <gurobi_c++.h>
 
 #include <nvl/math/closest_point.h>
+#include <nvl/math/barycentric_interpolation.h>
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/transformations.h>
 
 #include <nvl/models/mesh_geometric_information.h>
 #include <nvl/models/mesh_morphological_operations.h>
 #include <nvl/models/mesh_transformations.h>
-#include <nvl/models/mesh_triangulate.h>
+#include <nvl/models/mesh_triangulation.h>
 #include <nvl/models/mesh_borders.h>
 #include <nvl/models/mesh_transfer.h>
 #include <nvl/models/mesh_split.h>
@@ -98,7 +99,14 @@ Mesh quadrangulateMesh(
         std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace);
 
 template<class Mesh>
-double getInterpolatedVertexSelectValue(
+double interpolateVertexSelectValue(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const typename Mesh::Point& point,
+        const std::vector<double>& vertexSelectValue);
+
+template<class Mesh>
+double averageVertexSelectValue(
         const Mesh& mesh,
         const typename Mesh::FaceId& faceId,
         const std::vector<double>& vertexSelectValue);
@@ -157,9 +165,6 @@ void blendSurfaces(
 
     Mesh blendedMesh = internal::getBlendedMesh(models, vertexSelectValue, scaleTransform, maxDistance, unsignedGrids, signedGrids, polygonGrids, gridBirthVertex, gridBirthFace);
 
-    //Rescale back
-    nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
-
 #ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
 #endif
@@ -172,7 +177,7 @@ void blendSurfaces(
             if (mesh.isFaceDeleted(fId))
                 continue;
 
-            double selectValue = internal::getInterpolatedVertexSelectValue(mesh, fId, vertexSelectValue[mId]);
+            double selectValue = internal::averageVertexSelectValue(mesh, fId, vertexSelectValue[mId]);
 
             if (selectValue >= KEEP_THRESHOLD) {
                 meshFacesToKeep[mId].insert(fId);
@@ -249,7 +254,7 @@ void blendSurfaces(
                 FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
                 IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
 
-                if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue <= 2.0) {
+                if (currentPolygonIndex >= 0 && currentValue <= 2.0) {
                     FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
                     if (meshFacesToKeep[mId].find(originFaceId) != meshFacesToKeep[mId].end()) {
@@ -310,10 +315,11 @@ void blendSurfaces(
             FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
             IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
 
-            if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue <= 2.0) {
+            if (currentPolygonIndex >= 0 && currentValue <= 2.0) {
                 FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
-                double selectValue = internal::getInterpolatedVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
+                double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
+//                double selectValue = internal::averageVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
 
                 if (selectValue >= SMOOTHING_THRESHOLD) {
                     verticesToSmooth.push_back(vId);
@@ -361,7 +367,7 @@ void blendSurfaces(
             Point scaledPoint = scaleTransform * point;
             openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-            std::vector<std::tuple<nvl::Index, double, double, FaceId>> involvedEntries;
+            std::vector<std::tuple<nvl::Index, double, FaceId, double>> involvedEntries;
             std::vector<Index> overThresholdValues;
 
             double selectValueSum = 0.0;
@@ -377,10 +383,11 @@ void blendSurfaces(
                 FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
                 IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
 
-                if (currentPolygonIndex >= 0 && currentPolygonIndex < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
+                if (currentPolygonIndex >= 0 && currentValue < maxDistance && currentValue > -maxDistance) {
                     FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
-                    double selectValue = internal::getInterpolatedVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
+                    double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
+//                    double selectValue = internal::averageVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
 
                     selectValueSum += selectValue;
 
@@ -394,7 +401,7 @@ void blendSurfaces(
             assert(involvedEntries.size() >= 0);
 
             if (overThresholdValues.size() == 1) {
-                const std::tuple<nvl::Index, double, double, FaceId>& tuple = involvedEntries[overThresholdValues[0]];
+                const std::tuple<nvl::Index, double, FaceId, double>& tuple = involvedEntries[overThresholdValues[0]];
                 VertexInfo info;
                 info.eId = cluster[std::get<0>(tuple)];
                 info.vId = nvl::MAX_INDEX;
@@ -406,7 +413,7 @@ void blendSurfaces(
             }
             else {
                 for (Index invId = 0; invId < involvedEntries.size(); ++invId) {
-                    const std::tuple<nvl::Index, double, double, FaceId>& tuple = involvedEntries[invId];
+                    const std::tuple<nvl::Index, double, FaceId, double>& tuple = involvedEntries[invId];
                     VertexInfo info;
                     info.eId = cluster[std::get<0>(tuple)];
                     info.vId = nvl::MAX_INDEX;
@@ -522,7 +529,7 @@ typename Model::Mesh getBlendedMesh(
 
         //Eigen mesh conversion
         Mesh triangulatedMesh = currentMesh;
-        nvl::meshTriangulate(triangulatedMesh);
+        nvl::meshTriangulateConvexFace(triangulatedMesh);
         Eigen::MatrixXd V;
         Eigen::MatrixXi F;
         nvl::convertMeshToEigenMesh(triangulatedMesh, V, F);
@@ -635,6 +642,8 @@ typename Model::Mesh getBlendedMesh(
             for (int k = min.z(); k < max.z(); k++) {
                 openvdb::math::Coord coord(i,j,k);
 
+                Point point(i, j, k);
+
                 std::vector<std::pair<FloatGrid::ValueType, double>> involvedEntries;
                 std::vector<Index> overThresholdValues;
 
@@ -654,7 +663,8 @@ typename Model::Mesh getBlendedMesh(
                     if (currentPolygon >= 0 && currentPolygon < nvl::maxLimitValue<int>() && currentValue < maxDistance && currentValue > -maxDistance) {
                         FaceId originFaceId = gridBirthFace[mId][currentPolygon];
 
-                        double selectValue = internal::getInterpolatedVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
+                        double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
+//                        double selectValue = internal::averageVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
 
                         selectValueSum += selectValue;
 
@@ -700,6 +710,13 @@ typename Model::Mesh getBlendedMesh(
 
     //Convert to mesh
     blendedMesh = convertGridToMesh<Mesh>(blendedGrid, true);
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    nvl::meshSaveToFile("results/blendedMesh_non_rescaled.obj", blendedMesh);
+#endif
+
+    //Rescale back
+    nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
 
     return blendedMesh;
 }
@@ -849,7 +866,7 @@ void attachMeshToMeshByBorders(
                     const Point& nNextPoint = tmpMesh.vertex(mChain[nextI]).point();
 
                     double t;
-                    Point projectionPoint = nvl::getClosestPointOnSegment(nPoint, nNextPoint, pPoint, t);
+                    Point projectionPoint = nvl::closestPointOnSegment(nPoint, nNextPoint, pPoint, t);
                     Scalar dist = (projectionPoint - pPoint).norm();
 
                     if (dist <= closestDist) {
@@ -1273,7 +1290,53 @@ Mesh quadrangulateMesh(
 }
 
 template<class Mesh>
-double getInterpolatedVertexSelectValue(
+double interpolateVertexSelectValue(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const typename Mesh::Point& point,
+        const std::vector<double>& vertexSelectValue)
+{
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::Face Face;
+    typedef typename Mesh::Scalar Scalar;
+    typedef typename Mesh::Point Point;
+
+    const Face& face = mesh.face(faceId);
+
+    VertexId bestV1, bestV2, bestV3;
+    Point bestPoint;
+    Scalar maxDistance = nvl::maxLimitValue<Scalar>();
+    for (VertexId j = 0; j < face.vertexNumber() - 2; ++j) {
+        const VertexId& v1 = face.vertexId(0);
+        const VertexId& v2 = face.vertexId(j + 1);
+        const VertexId& v3 = face.vertexId(j + 2);
+
+        const Point& p1 = mesh.vertex(v1).point();
+        const Point& p2 = mesh.vertex(v2).point();
+        const Point& p3 = mesh.vertex(v3).point();
+
+        Point closest = nvl::closestPointOnTriangle(p1, p2, p3, point);
+        Scalar distance = (point - closest).norm();
+        if (distance < maxDistance) {
+            bestV1 = v1;
+            bestV2 = v2;
+            bestV3 = v3;
+            bestPoint = closest;
+        }
+    }
+
+    const Point& p1 = mesh.vertex(bestV1).point();
+    const Point& p2 = mesh.vertex(bestV2).point();
+    const Point& p3 = mesh.vertex(bestV3).point();
+    std::vector<Scalar> barycentricCoordinates = nvl::barycentricCoordinates(p1, p2, p3, bestPoint);
+
+    double selectValue = nvl::barycentricInterpolation(vertexSelectValue[bestV1], vertexSelectValue[bestV2], vertexSelectValue[bestV3], barycentricCoordinates);
+
+    return selectValue;
+}
+
+template<class Mesh>
+double averageVertexSelectValue(
         const Mesh& mesh,
         const typename Mesh::FaceId& faceId,
         const std::vector<double>& vertexSelectValue)

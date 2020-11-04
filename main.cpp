@@ -5,7 +5,6 @@
 #include <nvl/viewer/widgets/drawable_widget.h>
 #include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
 #include <nvl/viewer/widgets/animation_widget.h>
-#include <nvl/viewer/widgets/model_loader_widget.h>
 #include <nvl/viewer/widgets/model_animation_widget.h>
 #include <nvl/viewer/widgets/model_drawer_widget.h>
 #include <nvl/viewer/widgets/qglviewer_canvas.h>
@@ -47,6 +46,7 @@ int main(int argc, char *argv[]) {
 
     //Add a model
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Crypto/crypto.rig");
+//    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Crypto/crypto.rig");
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Timmy/timmy.rig");
 
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Zlorp/zlorp.rig");

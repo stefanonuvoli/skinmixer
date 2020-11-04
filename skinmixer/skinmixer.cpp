@@ -77,12 +77,10 @@ void attach(
     Entry& entry2 = data.entryFromModel(model2);
 
     nvl::modelApplyTransformation(*model1, transformation1);
-    nvl::meshUpdateFaceNormals(model1->mesh);
-    nvl::meshUpdateVertexNormals(model1->mesh);
+    model1->mesh.computeNormals();
 
     nvl::modelApplyTransformation(*model2, transformation2);
-    nvl::meshUpdateFaceNormals(model2->mesh);
-    nvl::meshUpdateVertexNormals(model2->mesh);
+    model2->mesh.computeNormals();
 
     Action action;
     action.operation = OperationType::ATTACH;

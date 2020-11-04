@@ -308,7 +308,7 @@ void SkinMixerManager::slot_drawableAdded(const SkinMixerManager::Index& id, nvl
         ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(drawable);
         if (modelDrawer != nullptr) {
             modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_VERTEX);
-            modelDrawer->meshDrawer().setSurfaceTransparency(true);
+            modelDrawer->meshDrawer().setFaceTransparency(true);
 
             modelDrawer->skeletonDrawer().setVisible(true);
             modelDrawer->skeletonDrawer().setJointSize(8);
@@ -356,8 +356,7 @@ void SkinMixerManager::mix()
         SkinMixerEntry& newEntry = vSkinMixerData.entry(eId);
 
         Model* newModel = newEntry.model;
-        nvl::meshUpdateFaceNormals(newModel->mesh);
-        nvl::meshUpdateVertexNormals(newModel->mesh);
+        newModel->mesh.computeNormals();
 
         ModelDrawer* modelDrawer = new ModelDrawer(newModel);
         modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_VERTEX);
@@ -1233,10 +1232,10 @@ void SkinMixerManager::initializeLoadedModel(Model* model)
         nvl::modelApplyTransformation(*model, transformation);
     }
     if (ui->updateFaceNormalsCheckBox->isChecked()) {
-        nvl::meshUpdateFaceNormals(model->mesh);
+        model->mesh.computeFaceNormals();
     }
     if (ui->updateVertexNormalsCheckBox->isChecked()) {
-        nvl::meshUpdateVertexNormals(model->mesh);
+        model->mesh.computeVertexNormals();
     }
 }
 

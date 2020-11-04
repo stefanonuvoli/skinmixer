@@ -298,10 +298,10 @@ void blendSkeletons(
 
 
 
-                    assert(distanceScore >= 0 && distanceScore <= 1);
-                    assert(directionScore >= 0 && directionScore <= 1);
-                    assert(topologyScore >= 0 && topologyScore <= 1);
-                    assert(matchedWeight >= 0 && matchedWeight <= 1);
+                    assert(distanceScore >= 0 - nvl::EPSILON && distanceScore <= 1 + nvl::EPSILON);
+                    assert(directionScore >= 0 - nvl::EPSILON && directionScore <= 1 + nvl::EPSILON);
+                    assert(topologyScore >= 0 - nvl::EPSILON && topologyScore <= 1 + nvl::EPSILON);
+                    assert(matchedWeight >= 0 - nvl::EPSILON && matchedWeight <= 1 + nvl::EPSILON);
 
                     double score = distanceWeight * distanceScore + directionWeight * directionScore + topologyWeight * topologyScore + matchedScore * matchedWeight;
                     assert(score >= 0 && score <= 1);
