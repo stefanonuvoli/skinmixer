@@ -12,7 +12,7 @@ namespace skinmixer {
 namespace internal {
 
 template<class Mesh, class SkinningWeights, class JointId>
-double interpolateSkinningWeightOnFace(
+typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
         const Mesh& mesh,
         const SkinningWeights& skinningWeights,
         const JointId& jointId,
@@ -77,13 +77,6 @@ void blendSkinningWeights(
                     else {
                         double interpolatedWeight = internal::interpolateSkinningWeightOnFace(currentMesh, currentSkinningWeights, jointInfo.jId, vertexInfo.closestFaceId, point);
 
-//                        double interpolatedWeight = 0;
-//                        const Face& face = currentMesh.face(vertexInfo.closestFaceId);
-//                        for (VertexId j = 0; j < face.vertexNumber(); j++) {
-//                            interpolatedWeight += currentSkinningWeights.weight(face.vertexId(j), jointInfo.jId);
-//                        }
-//                        interpolatedWeight /= face.vertexNumber();
-
                         weight += vertexInfo.weight * interpolatedWeight;
                         sumSelectValues += vertexInfo.weight;
                     }
@@ -102,8 +95,9 @@ void blendSkinningWeights(
 }
 
 namespace internal {
+
 template<class Mesh, class SkinningWeights, class JointId>
-double interpolateSkinningWeightOnFace(
+typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
         const Mesh& mesh,
         const SkinningWeights& skinningWeights,
         const JointId& jointId,
@@ -114,43 +108,28 @@ double interpolateSkinningWeightOnFace(
     typedef typename Mesh::Face Face;
     typedef typename Mesh::Scalar Scalar;
     typedef typename Mesh::Point Point;
+    typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
 
+    //Get polygon points and skinning weights
     const Face& face = mesh.face(faceId);
 
-    VertexId bestV1, bestV2, bestV3;
-    Point bestPoint;
-    Scalar maxDistance = nvl::maxLimitValue<Scalar>();
-    for (VertexId j = 0; j < face.vertexNumber() - 2; ++j) {
-        const VertexId& v1 = face.vertexId(0);
-        const VertexId& v2 = face.vertexId(j + 1);
-        const VertexId& v3 = face.vertexId(j + 2);
+    std::vector<Point> polygon(face.vertexNumber());
+    std::vector<SkinningWeightsScalar> values(face.vertexNumber());
+    for (VertexId j = 0; j < face.vertexNumber(); ++j) {
+        const VertexId& vId = face.vertexId(j);
 
-        const Point& p1 = mesh.vertex(v1).point();
-        const Point& p2 = mesh.vertex(v2).point();
-        const Point& p3 = mesh.vertex(v3).point();
-
-        Point closest = nvl::closestPointOnTriangle(p1, p2, p3, point);
-        Scalar distance = (point - closest).norm();
-        if (distance < maxDistance) {
-            bestV1 = v1;
-            bestV2 = v2;
-            bestV3 = v3;
-            bestPoint = closest;
-        }
+        polygon[j] = mesh.vertex(vId).point();
+        values[j] = skinningWeights.weight(vId, jointId);
     }
 
-    const Point& p1 = mesh.vertex(bestV1).point();
-    const Point& p2 = mesh.vertex(bestV2).point();
-    const Point& p3 = mesh.vertex(bestV3).point();
-    std::vector<Scalar> barycentricCoordinates = nvl::barycentricCoordinates(p1, p2, p3, bestPoint);
+    //Interpolation on polygon using barycenter subdivision
+    SkinningWeightsScalar value = nvl::barycentricInterpolationBarycenterSubdivision(
+        polygon,
+        point,
+        values,
+        true);
 
-    double weight = nvl::barycentricInterpolation(
-        skinningWeights.weight(bestV1, jointId),
-        skinningWeights.weight(bestV2, jointId),
-        skinningWeights.weight(bestV3, jointId),
-        barycentricCoordinates);
-
-    return weight;
+    return value;
 }
 
 }

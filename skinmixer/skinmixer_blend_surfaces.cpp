@@ -319,7 +319,6 @@ void blendSurfaces(
                 FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
                 double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
-//                double selectValue = internal::averageVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
 
                 if (selectValue >= SMOOTHING_THRESHOLD) {
                     verticesToSmooth.push_back(vId);
@@ -387,7 +386,6 @@ void blendSurfaces(
                     FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
                     double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
-//                    double selectValue = internal::averageVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
 
                     selectValueSum += selectValue;
 
@@ -664,7 +662,6 @@ typename Model::Mesh getBlendedMesh(
                         FaceId originFaceId = gridBirthFace[mId][currentPolygon];
 
                         double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
-//                        double selectValue = internal::averageVertexSelectValue(mesh, originFaceId, vertexSelectValue[mId]);
 
                         selectValueSum += selectValue;
 
@@ -852,12 +849,12 @@ void attachMeshToMeshByBorders(
             double startT = nvl::maxLimitValue<double>();
 
             //Compute the start vertices
-            std::vector<VertexId> closestIMap(dChain.size(), nvl::MAX_INDEX);
-            std::vector<double> closestTMap(dChain.size(), nvl::maxLimitValue<double>());
+            std::vector<VertexId> minIMap(dChain.size(), nvl::MAX_INDEX);
+            std::vector<double> minTMap(dChain.size(), nvl::maxLimitValue<double>());
             for (Index j = 0; j < dChain.size(); ++j) {
                 const Point& pPoint = destMesh.vertex(dChain[j]).point();
 
-                Scalar closestDist = nvl::maxLimitValue<Scalar>();
+                Scalar minDist = nvl::maxLimitValue<Scalar>();
 
                 for (Index i = 0; i < mChain.size(); ++i) {
                     Index nextI = (i + 1) % mChain.size();
@@ -869,10 +866,10 @@ void attachMeshToMeshByBorders(
                     Point projectionPoint = nvl::closestPointOnSegment(nPoint, nNextPoint, pPoint, t);
                     Scalar dist = (projectionPoint - pPoint).norm();
 
-                    if (dist <= closestDist) {
-                        closestDist = dist;
-                        closestIMap[j] = i;
-                        closestTMap[j] = t;
+                    if (dist <= minDist) {
+                        minDist = dist;
+                        minIMap[j] = i;
+                        minTMap[j] = t;
 
                         if (dist <= startDist) {
                             startDist = dist;
@@ -887,11 +884,11 @@ void attachMeshToMeshByBorders(
             //Compute score by computing the distortion
             Scalar pairScore = 0.0;
             for (Index j = 0; j < dChain.size(); ++j) {
-                Index currentI = closestIMap[j];
+                Index currentI = minIMap[j];
                 Index nextI = (currentI + 1) % mChain.size();
 
                 const Point& pPoint = destMesh.vertex(dChain[j]).point();
-                const Scalar& targetT = closestTMap[j];
+                const Scalar& targetT = minTMap[j];
 
                 Point currentIPoint = tmpMesh.vertex(mChain[currentI]).point();
                 Point nextIPoint = tmpMesh.vertex(mChain[nextI]).point();
@@ -900,6 +897,7 @@ void attachMeshToMeshByBorders(
 
                 pairScore += (nPoint - pPoint).norm();
             }
+            pairScore /= dChain.size();
 
             //We save the best score pair of chains
             if (pairScore <= bestScore) {
@@ -1014,8 +1012,8 @@ void attachMeshToMeshByBorders(
 
                     //Distance cost
                     for (size_t j = 0; j < dChain.size(); j++) {
-                        Index currentI = closestIMap[j];
-                        double currentT = closestTMap[j];
+                        Index currentI = minIMap[j];
+                        double currentT = minTMap[j];
                         Index nextI = (currentI + 1) % mChain.size();
 
                         Scalar parametrizedDistance = (tmpMesh.vertex(mChain[nextI]).point() - tmpMesh.vertex(mChain[currentI]).point()).norm() / mChainTotalDist;
@@ -1301,38 +1299,26 @@ double interpolateVertexSelectValue(
     typedef typename Mesh::Scalar Scalar;
     typedef typename Mesh::Point Point;
 
+    //Get polygon points and select values
     const Face& face = mesh.face(faceId);
 
-    VertexId bestV1, bestV2, bestV3;
-    Point bestPoint;
-    Scalar maxDistance = nvl::maxLimitValue<Scalar>();
-    for (VertexId j = 0; j < face.vertexNumber() - 2; ++j) {
-        const VertexId& v1 = face.vertexId(0);
-        const VertexId& v2 = face.vertexId(j + 1);
-        const VertexId& v3 = face.vertexId(j + 2);
+    std::vector<Point> polygon(face.vertexNumber());
+    std::vector<double> values(face.vertexNumber());
+    for (VertexId j = 0; j < face.vertexNumber(); ++j) {
+        const VertexId& vId = face.vertexId(j);
 
-        const Point& p1 = mesh.vertex(v1).point();
-        const Point& p2 = mesh.vertex(v2).point();
-        const Point& p3 = mesh.vertex(v3).point();
-
-        Point closest = nvl::closestPointOnTriangle(p1, p2, p3, point);
-        Scalar distance = (point - closest).norm();
-        if (distance < maxDistance) {
-            bestV1 = v1;
-            bestV2 = v2;
-            bestV3 = v3;
-            bestPoint = closest;
-        }
+        polygon[j] = mesh.vertex(vId).point();
+        values[j] = vertexSelectValue[vId];
     }
 
-    const Point& p1 = mesh.vertex(bestV1).point();
-    const Point& p2 = mesh.vertex(bestV2).point();
-    const Point& p3 = mesh.vertex(bestV3).point();
-    std::vector<Scalar> barycentricCoordinates = nvl::barycentricCoordinates(p1, p2, p3, bestPoint);
+    //Interpolation on polygon using barycenter subdivision
+    double value = nvl::barycentricInterpolationBarycenterSubdivision(
+        polygon,
+        point,
+        values,
+        true);
 
-    double selectValue = nvl::barycentricInterpolation(vertexSelectValue[bestV1], vertexSelectValue[bestV2], vertexSelectValue[bestV3], barycentricCoordinates);
-
-    return selectValue;
+    return value;
 }
 
 template<class Mesh>
