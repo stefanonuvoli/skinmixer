@@ -796,13 +796,13 @@ void attachMeshToMeshByBorders(
     std::vector<std::vector<VertexId>> dChains = nvl::meshBorderVertexChains(destMesh);
 
     //Define snappable flags
-    std::vector<bool> mSnappableChain(mChains.size(), true);
-    std::vector<bool> dSnappableChain(dChains.size(), true);
+    std::vector<bool> mSnappable(mChains.size(), true);
+    std::vector<bool> dSnappable(dChains.size(), true);
     for (Index mChainId = 0; mChainId < mChains.size(); ++mChainId) {
         const std::vector<VertexId>& mChain = mChains[mChainId];
         for (const VertexId& vId : mChain) {
             if (meshNonSnappableVertices.find(vId) != meshNonSnappableVertices.end()) {
-                mSnappableChain[mChainId] = false;
+                mSnappable[mChainId] = false;
             }
         }
     }
@@ -810,35 +810,28 @@ void attachMeshToMeshByBorders(
         const std::vector<VertexId>& dChain = dChains[dChainId];
         for (const VertexId& vId : dChain) {
             if (destNonSnappableVertices.find(vId) != destNonSnappableVertices.end()) {
-                dSnappableChain[dChainId] = false;
+                dSnappable[dChainId] = false;
             }
         }
     }
 
     //Data to be used for the attaching
-    std::unordered_set<Index> usedComponents;
-    std::vector<std::pair<Index, Index>> selectedMChains;
-    std::vector<std::pair<Index, Index>> selectedDChains;
-    std::vector<std::vector<double>> selectedMParametrization;
-    std::vector<std::vector<double>> selectedDParametrization;
+    std::vector<double> candidateScore;
+    std::vector<Index> candidateMChains;
+    std::vector<Index> candidateDChains;
+    std::vector<Index> candidateMStartIndex;
+    std::vector<Index> candidateDStartIndex;
+    std::vector<std::vector<Index>> candidateDClosestVertex;
+    std::vector<std::vector<double>> candidateDClosestParametrization;
 
-    //Find parametrizations
     for (Index dChainId = 0; dChainId < dChains.size(); ++dChainId) {
-        if (!dSnappableChain[dChainId])
+        if (!dSnappable[dChainId])
             continue;
 
         const std::vector<VertexId>& dChain = dChains[dChainId];
 
-        Scalar bestScore = nvl::maxLimitValue<Scalar>();
-        Index bestMChainId = nvl::MAX_INDEX;
-
-        std::pair<Index, Index> bestMChain;
-        std::pair<Index, Index> bestDChain;
-        std::vector<double> bestMParametrization;
-        std::vector<double> bestDParametrization;
-
         for (Index mChainId = 0; mChainId < mChains.size(); ++mChainId) {
-            if (!mSnappableChain[mChainId])
+            if (!mSnappable[mChainId])
                 continue;
 
             const std::vector<VertexId>& mChain = mChains[mChainId];
@@ -846,11 +839,10 @@ void attachMeshToMeshByBorders(
             VertexId startI = nvl::MAX_INDEX;
             VertexId startJ = nvl::MAX_INDEX;
             Scalar startDist = nvl::maxLimitValue<Scalar>();
-            double startT = nvl::maxLimitValue<double>();
 
-            //Compute the start vertices
-            std::vector<VertexId> minIMap(dChain.size(), nvl::MAX_INDEX);
-            std::vector<double> minTMap(dChain.size(), nvl::maxLimitValue<double>());
+            //Compute the start vertices (closest projected point)
+            std::vector<VertexId> minDClosestVertex(dChain.size(), nvl::MAX_INDEX);
+            std::vector<double> minDClosestParametrization(dChain.size(), nvl::maxLimitValue<double>());
             for (Index j = 0; j < dChain.size(); ++j) {
                 const Point& pPoint = destMesh.vertex(dChain[j]).point();
 
@@ -868,214 +860,239 @@ void attachMeshToMeshByBorders(
 
                     if (dist <= minDist) {
                         minDist = dist;
-                        minIMap[j] = i;
-                        minTMap[j] = t;
+                        minDClosestVertex[j] = i;
+                        minDClosestParametrization[j] = t;
 
                         if (dist <= startDist) {
                             startDist = dist;
                             startI = i;
                             startJ = j;
-                            startT = t;
                         }
                     }
                 }
             }
 
-            //Compute score by computing the distortion
-            Scalar pairScore = 0.0;
+            //Compute score by computing the total distortion
+            Scalar score = 0.0;
             for (Index j = 0; j < dChain.size(); ++j) {
-                Index currentI = minIMap[j];
+                Index currentI = minDClosestVertex[j];
                 Index nextI = (currentI + 1) % mChain.size();
 
                 const Point& pPoint = destMesh.vertex(dChain[j]).point();
-                const Scalar& targetT = minTMap[j];
+                const Scalar& targetT = minDClosestParametrization[j];
 
                 Point currentIPoint = tmpMesh.vertex(mChain[currentI]).point();
                 Point nextIPoint = tmpMesh.vertex(mChain[nextI]).point();
 
                 Point nPoint = currentIPoint + (nextIPoint - currentIPoint) * targetT;
 
-                pairScore += (nPoint - pPoint).norm();
+                score += (nPoint - pPoint).norm();
             }
-            pairScore /= dChain.size();
 
-            //We save the best score pair of chains
-            if (pairScore <= bestScore) {
-                bestScore = pairScore;
+            score /= dChain.size();
 
-                //Smooth vertices in the loops
-                std::vector<Point> mSmoothPoint(mChain.size());
-                std::vector<Point> dSmoothPoint(dChain.size());
-                for (Index i = 0; i < mChain.size(); ++i) {
-                    mSmoothPoint[i] = tmpMesh.vertex(mChain[i]).point();
-                }
-                for (Index j = 0; j < dChain.size(); ++j) {
-                    dSmoothPoint[j] = destMesh.vertex(dChain[j]).point();
-                }
+            candidateScore.push_back(score);
+            candidateMChains.push_back(mChainId);
+            candidateDChains.push_back(dChainId);
+            candidateMStartIndex.push_back(startI);
+            candidateDStartIndex.push_back(startJ);
+            candidateDClosestVertex.push_back(minDClosestVertex);
+            candidateDClosestParametrization.push_back(minDClosestParametrization);
+        }
+    }
 
-                //TODO FUNCTION IN NVL
-                for (Index t = 0; t < 5; ++t) {
-                    std::vector<Point> mChainPointsCopy = mSmoothPoint;
-                    for (Index i = 0; i < mSmoothPoint.size(); ++i) {
-                        Index nextI = (i + 1) % mSmoothPoint.size();
-                        Index prevI = i > 0 ? i - 1 : mSmoothPoint.size() - 1;
-                        mSmoothPoint[i] = 0.5 * mChainPointsCopy[i] + 0.5 * (mChainPointsCopy[prevI] + mChainPointsCopy[nextI]);
-                    }
+    //Order by best distortion
+    std::vector<Index> orderedCandidateId(candidateScore.size());
+    std::iota(orderedCandidateId.begin(), orderedCandidateId.end(), 0);
+    std::sort(orderedCandidateId.begin(), orderedCandidateId.end(), [&candidateScore] (const Index& a, const Index& b){
+        return candidateScore[a] < candidateScore[b];
+    });
 
-                    std::vector<Point> dChainPointsCopy = dSmoothPoint;
-                    for (Index j = 0; j < dSmoothPoint.size(); ++j) {
-                        Index nextJ = (j + 1) % dSmoothPoint.size();
-                        Index prevJ = j > 0 ? j - 1 : dSmoothPoint.size() - 1;
-                        dSmoothPoint[j] = 0.5 * dChainPointsCopy[j] + 0.5 * (dChainPointsCopy[prevJ] + dChainPointsCopy[nextJ]);
-                    }
-                }
+    //Used components in the mesh
+    std::unordered_set<Index> mUsedComponents;
 
-                //Parametrization functions on length
-                std::vector<double> mParametrization(mChain.size());
-                std::vector<double> dParametrization(dChain.size());
+    //Final parametrization for the candidates
+    std::vector<std::vector<double>> dFinalParametrization(candidateScore.size(), std::vector<double>());
+    std::vector<std::vector<double>> mFinalParametrization(candidateScore.size(), std::vector<double>());
+    std::vector<bool> candidateComputed(candidateScore.size(), false);
 
-                //Total distances
-                Scalar dChainTotalDist = 0.0;
-                Scalar mChainTotalDist = 0.0;
-                for (Index j = 0; j < dChain.size(); ++j) {
-                    Index nextJ = (j + 1) % dChain.size();
-                    nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[j];
-                    dChainTotalDist += vec.norm();
-                }
-                for (Index i = 0; i < mChain.size(); ++i) {
-                    Index nextI = (i + 1) % mChain.size();
-                    nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[i];
-                    mChainTotalDist += vec.norm();
-                }
+    for (Index candidateId : orderedCandidateId) {
+        Index dChainId = candidateDChains[candidateId];
+        Index mChainId = candidateMChains[candidateId];
 
-                //Compute parametrization for destination mesh
-                Scalar dChainCurrentDist = 0.0;
-                dParametrization[startJ] = 0.0;
-                for (Index j = 0; j < dChain.size() - 1; ++j) {
-                    Index currentJ = (startJ + j) % dChain.size();
-                    Index nextJ = (currentJ + 1) % dChain.size();
+        if (!dSnappable[dChainId] || !mSnappable[mChainId]) {
+            candidateDClosestVertex[candidateId].clear();
+            candidateDClosestParametrization[candidateId].clear();
+            continue;
+        }
 
-                    nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[currentJ];
-                    dChainCurrentDist += vec.norm();
+        const Index& startJ = candidateDStartIndex[candidateId];
+        const Index& startI = candidateMStartIndex[candidateId];
+        const std::vector<Index>& dClosestVertex = candidateDClosestVertex[candidateId];
+        const std::vector<double>& dClosestParametrization = candidateDClosestParametrization[candidateId];
 
-                    dParametrization[nextJ] = std::max(std::min(dChainCurrentDist / dChainTotalDist, 1.0), 0.0);
-                }
+        const std::vector<VertexId>& dChain = dChains[dChainId];
+        const std::vector<VertexId>& mChain = mChains[mChainId];
 
-                //Compute offset of the parametrization
-                const double offsetT = (
-                            startT * (
-                                tmpMesh.vertex(mChain[(startI + 1) % mChain.size()]).point() -
-                                tmpMesh.vertex(mChain[startI]).point()
-                            ).norm()
-                        ) / mChainTotalDist;
+        //Smooth vertices in the loops
+        std::vector<Point> mSmoothPoint(mChain.size());
+        std::vector<Point> dSmoothPoint(dChain.size());
+        for (Index i = 0; i < mChain.size(); ++i) {
+            mSmoothPoint[i] = tmpMesh.vertex(mChain[i]).point();
+        }
+        for (Index j = 0; j < dChain.size(); ++j) {
+            dSmoothPoint[j] = destMesh.vertex(dChain[j]).point();
+        }
+        for (Index t = 0; t < 5; ++t) {
+            std::vector<Point> mChainPointsCopy = mSmoothPoint;
+            for (Index i = 0; i < mSmoothPoint.size(); ++i) {
+                Index nextI = (i + 1) % mSmoothPoint.size();
+                Index prevI = i > 0 ? i - 1 : mSmoothPoint.size() - 1;
+                mSmoothPoint[i] = 0.5 * mChainPointsCopy[i] + 0.5 * (mChainPointsCopy[prevI] + mChainPointsCopy[nextI]);
+            }
 
-                //Compute parametrization for destination mesh
-                Scalar mChainCurrentDist = 0.0;
-                for (Index i = 0; i < mChain.size(); ++i) {
-                    Index currentI = (startI + i) % mChain.size();
-                    Index nextI = (currentI + 1) % mChain.size();
+            std::vector<Point> dChainPointsCopy = dSmoothPoint;
+            for (Index j = 0; j < dSmoothPoint.size(); ++j) {
+                Index nextJ = (j + 1) % dSmoothPoint.size();
+                Index prevJ = j > 0 ? j - 1 : dSmoothPoint.size() - 1;
+                dSmoothPoint[j] = 0.5 * dChainPointsCopy[j] + 0.5 * (dChainPointsCopy[prevJ] + dChainPointsCopy[nextJ]);
+            }
+        }
 
-                    nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[currentI];
-                    mChainCurrentDist += vec.norm();
+        //Parametrization functions on length
+        std::vector<double>& mParametrization = mFinalParametrization[candidateId];
+        mParametrization.resize(mChain.size());
+        std::vector<double>& dParametrization = dFinalParametrization[candidateId];
+        dParametrization.resize(dChain.size());
 
-                    mParametrization[nextI] = std::max(std::min((mChainCurrentDist / mChainTotalDist) - offsetT, 1.0), 0.0);
-                }
+        //Total distances
+        Scalar dChainTotalDist = 0.0;
+        Scalar mChainTotalDist = 0.0;
+        for (Index j = 0; j < dChain.size(); ++j) {
+            Index nextJ = (j + 1) % dChain.size();
+            nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[j];
+            dChainTotalDist += vec.norm();
+        }
+        for (Index i = 0; i < mChain.size(); ++i) {
+            Index nextI = (i + 1) % mChain.size();
+            nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[i];
+            mChainTotalDist += vec.norm();
+        }
 
-                //Optimization parameters
-                const double alpha = 0.8;
-                const double closestCost = alpha / mChain.size();
-                const double lengthCost = (1 - alpha) / (dChain.size() * 2);
+        //Compute parametrization for destination mesh
+        Scalar dChainCurrentDist = 0.0;
+        dParametrization[startJ] = 0.0;
+        for (Index j = 0; j < dChain.size() - 1; ++j) {
+            Index currentJ = (startJ + j) % dChain.size();
+            Index nextJ = (currentJ + 1) % dChain.size();
 
-                //Final parametrization
-                try {
-                    GRBEnv env = GRBEnv();
+            nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[currentJ];
+            dChainCurrentDist += vec.norm();
 
-                    GRBModel model = GRBModel(env);
+            dParametrization[nextJ] = std::max(std::min(dChainCurrentDist / dChainTotalDist, 1.0), 0.0);
+        }
+
+        //Compute offset of the parametrization
+        const double offsetT = (
+                    dClosestParametrization[startJ] * (
+                        tmpMesh.vertex(mChain[(startI + 1) % mChain.size()]).point() -
+                        tmpMesh.vertex(mChain[startI]).point()
+                    ).norm()
+                ) / mChainTotalDist;
+
+        //Compute parametrization for destination mesh
+        Scalar mChainCurrentDist = 0.0;
+        for (Index i = 0; i < mChain.size(); ++i) {
+            Index currentI = (startI + i) % mChain.size();
+            Index nextI = (currentI + 1) % mChain.size();
+
+            nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[currentI];
+            mChainCurrentDist += vec.norm();
+
+            mParametrization[nextI] = std::max(std::min((mChainCurrentDist / mChainTotalDist) - offsetT, 1.0), 0.0);
+        }
+
+        //Optimization parameters
+        const double alpha = 0.8;
+        const double closestCost = alpha;
+        const double lengthCost = 1 - alpha;
+
+        //Final parametrization
+        try {
+            GRBEnv env = GRBEnv();
+
+            GRBModel model = GRBModel(env);
 
 #ifdef GUROBI_NON_VERBOSE
-                    model.set(GRB_IntParam_OutputFlag, 0);
+            model.set(GRB_IntParam_OutputFlag, 0);
 #endif
-                    //Variables
-                    std::vector<GRBVar> vars(mChain.size());
-                    for (size_t i = 0; i < mChain.size(); i++) {
-                        vars[i] = model.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "t" + std::to_string(i));
-                    }
-
-                    //Objective function
-                    GRBQuadExpr obj = 0;
-
-                    //Length parametrization cost
-                    for (size_t i = 0; i < mChain.size(); i++) {
-                        double value = mParametrization[i];
-                        obj += lengthCost * (vars[i] - value) * (vars[i] - value);
-                    }
-
-                    //Distance cost
-                    for (size_t j = 0; j < dChain.size(); j++) {
-                        Index currentI = minIMap[j];
-                        double currentT = minTMap[j];
-                        Index nextI = (currentI + 1) % mChain.size();
-
-                        Scalar parametrizedDistance = (tmpMesh.vertex(mChain[nextI]).point() - tmpMesh.vertex(mChain[currentI]).point()).norm() / mChainTotalDist;
-
-                        double value1 = dParametrization[j] - currentT * parametrizedDistance;
-                        obj += closestCost * (vars[currentI] - value1) * (vars[currentI] - value1);
-
-                        double value2 = dParametrization[j] + (1 - currentT) * parametrizedDistance;
-                        obj += closestCost * (vars[nextI] - value2) * (vars[nextI] - value2);
-                    }
-
-                    //Add constraints
-                    model.addConstr(vars[startI] == std::min(0.999999, mParametrization[startI]));
-                    for (size_t i = 1; i < mChain.size(); i++) {
-                        Index currentI = (startI + i) % mChain.size();
-                        Index nextI = (currentI + 1) % mChain.size();
-                        model.addConstr(vars[nextI] >= vars[currentI] + 0.000001);
-                    }
-
-                    //Set objective function
-                    model.setObjective(obj, GRB_MINIMIZE);
-
-                    //Optimize model
-                    model.optimize();
-
-                    //Retrieve result
-                    for (size_t i = 0; i < mChain.size(); i++) {
-                        mParametrization[i] = vars[i].get(GRB_DoubleAttr_X);
-                    }
-
-                    std::cout << "Obj: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
-                }
-                catch (GRBException e) {
-                    std::cout << "Error code = " << e.getErrorCode() << std::endl;
-                    std::cout << e.getMessage() << std::endl;
-                }
-
-                bestMChain = std::make_pair(mChainId, startI);
-                bestDChain = std::make_pair(dChainId, startJ);
-                bestMParametrization = mParametrization;
-                bestDParametrization = dParametrization;
-                bestMChainId = mChainId;
+            //Variables
+            std::vector<GRBVar> vars(mChain.size());
+            for (size_t i = 0; i < mChain.size(); i++) {
+                vars[i] = model.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "t" + std::to_string(i));
             }
+
+            //Objective function
+            GRBQuadExpr obj = 0;
+
+            //Length parametrization cost
+            for (size_t i = 0; i < mChain.size(); i++) {
+                double value = mParametrization[i];
+                obj += lengthCost * ((vars[i] - value) * (vars[i] - value)) / mChain.size();
+            }
+
+            //Distance cost
+            for (size_t j = 0; j < dChain.size(); j++) {
+                Index currentI = dClosestVertex[j];
+                double currentT = dClosestParametrization[j];
+                Index nextI = (currentI + 1) % mChain.size();
+
+                Scalar parametrizedDistance = (tmpMesh.vertex(mChain[nextI]).point() - tmpMesh.vertex(mChain[currentI]).point()).norm() / mChainTotalDist;
+
+                double value1 = dParametrization[j] - currentT * parametrizedDistance;
+                double value2 = dParametrization[j] + (1 - currentT) * parametrizedDistance;
+
+                obj += closestCost * (
+                            0.5 * ((vars[currentI] - value1) * (vars[currentI] - value1)) +
+                            0.5 * ((vars[nextI] - value2) * (vars[nextI] - value2))
+                        ) / dChain.size();
+            }
+
+            //Add constraints
+            model.addConstr(vars[startI] == std::min(0.999999, mParametrization[startI]));
+            for (size_t i = 1; i < mChain.size(); i++) {
+                Index currentI = (startI + i) % mChain.size();
+                Index nextI = (currentI + 1) % mChain.size();
+                model.addConstr(vars[nextI] >= vars[currentI] + 0.000001);
+            }
+
+            //Set objective function
+            model.setObjective(obj, GRB_MINIMIZE);
+
+            //Optimize model
+            model.optimize();
+
+            //Retrieve result
+            for (size_t i = 0; i < mChain.size(); i++) {
+                mParametrization[i] = vars[i].get(GRB_DoubleAttr_X);
+            }
+
+            std::cout << "Obj: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
+        }
+        catch (GRBException e) {
+            std::cout << "Error code = " << e.getErrorCode() << std::endl;
+            std::cout << e.getMessage() << std::endl;
         }
 
-        //Select the best pair to connect
-        if (bestScore < nvl::maxLimitValue<Scalar>()) {
-            selectedMChains.push_back(bestMChain);
-            selectedDChains.push_back(bestDChain);
-            selectedMParametrization.push_back(bestMParametrization);
-            selectedDParametrization.push_back(bestDParametrization);
-
-            usedComponents.insert(mChainsComponent[bestMChainId]);
-
-            dSnappableChain[dChainId] = false;
-            mSnappableChain[bestMChainId] = false;
-        }
+        mUsedComponents.insert(mChainsComponent[mChainId]);
+        dSnappable[dChainId] = false;
+        mSnappable[mChainId] = false;
+        candidateComputed[candidateId] = true;
     }
 
     //Clean mesh from components that are non-splitted in borders
     std::vector<FaceId> facesToKeep;
-    for (const Index& cId : usedComponents) {
+    for (const Index& cId : mUsedComponents) {
         const std::vector<FaceId>& connectedComponent = mConnectedComponents[cId];
         facesToKeep.insert(facesToKeep.end(), connectedComponent.begin(), connectedComponent.end());
     }
@@ -1087,12 +1104,16 @@ void attachMeshToMeshByBorders(
     nvl::meshTransferFaces(tmpMesh, facesToKeep, mesh, cleaningBirthVertex, cleaningBirthFace);
 
     std::vector<VertexId> cleaningVertexMap = nvl::getInverseMap(cleaningBirthVertex);
-    for (Index k = 0; k < selectedMChains.size(); ++k) {
-        Index mChainId = selectedMChains[k].first;
+    for (Index candidateId : orderedCandidateId) {
+        //Parametrization not computed
+        if (!candidateComputed[candidateId])
+            continue;
+
+        const Index& mChainId = candidateMChains[candidateId];
         std::vector<VertexId>& mChain = mChains[mChainId];
 
         for (Index i = 0; i < mChain.size(); ++i) {
-            assert(mChain[i] != nvl::MAX_INDEX);
+            assert(cleaningVertexMap[mChain[i]] != nvl::MAX_INDEX);
             mChain[i] = cleaningVertexMap[mChain[i]];
         }
     }
@@ -1102,19 +1123,25 @@ void attachMeshToMeshByBorders(
 #endif
 
     std::vector<std::vector<FaceId>> meshVFAdj = nvl::meshVertexFaceAdjacencies(mesh);
-    for (Index k = 0; k < selectedMChains.size(); ++k) {
-        Index mChainId = selectedMChains[k].first;
-        Index dChainId = selectedDChains[k].first;
-        Index startI = selectedMChains[k].second;
-        Index startJ = selectedDChains[k].second;
 
+    for (Index candidateId : orderedCandidateId) {
+        const std::vector<double>& mParametrization = mFinalParametrization[candidateId];
+        const std::vector<double>& dParametrization = dFinalParametrization[candidateId];
+
+        //Parametrization not computed
+        if (!candidateComputed[candidateId])
+            continue;
+
+        const Index& mChainId = candidateMChains[candidateId];
+        const Index& dChainId = candidateDChains[candidateId];
+        const Index& startI = candidateMStartIndex[candidateId];
+        const Index& startJ = candidateDStartIndex[candidateId];
         const std::vector<VertexId>& mChain = mChains[mChainId];
-        const std::vector<double>& mParametrization = selectedMParametrization[k];
         const std::vector<VertexId>& dChain = dChains[dChainId];
-        const std::vector<double>& dParametrization = selectedDParametrization[k];
 
         Index i = 0;
-        VertexId currentNVertexId = mChain[startI];
+
+        VertexId currentMVertexId = mChain[startI];
         for (Index j = 0; j < dChain.size(); ++j) {
             Index currentJ = (startJ + j) % dChain.size();
             Index currentI = (startI + i) % mChain.size();
@@ -1130,12 +1157,12 @@ void attachMeshToMeshByBorders(
                 currentI = (startI + i) % mChain.size();
                 nextI = (currentI + 1) % mChain.size();
 
-                currentNVertexId = mChain[currentI];
+                currentMVertexId = mChain[currentI];
             }
 
-            VertexId newNVertexId = nvl::meshSplitEdge(mesh, currentNVertexId, mChain[nextI], jPoint, meshVFAdj);
+            VertexId newNVertexId = nvl::meshSplitEdge(mesh, currentMVertexId, mChain[nextI], jPoint, meshVFAdj);
             snappedVertices.push_back(newNVertexId);
-            currentNVertexId = newNVertexId;
+            currentMVertexId = newNVertexId;
         }
     }
 
