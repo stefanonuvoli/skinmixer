@@ -42,6 +42,7 @@
 #define KEEP_THRESHOLD 0.99
 #define DISCARD_THRESHOLD 0.01
 #define SMOOTHING_THRESHOLD 0.94
+#define MAX_DISTANCE_FOR_NEW_SURFACE 2.0
 
 namespace skinmixer {
 
@@ -80,12 +81,21 @@ template<class Mesh>
 Mesh convertGridToMesh(const typename openvdb::FloatGrid::Ptr& gridPtr, bool transformQuadsToTriangles);
 
 template<class Mesh>
-void attachMeshToMeshByBorders(
+void attachMeshesByBorders(
         Mesh& mesh,
         const Mesh& destMesh,
         const std::unordered_set<typename Mesh::VertexId>& meshNonSnappableVertices,
         const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices,
-        std::vector<typename Mesh::VertexId>& snappedVertices);
+        std::unordered_set<typename Mesh::VertexId>& newSnappedVertices,
+        std::unordered_set<typename Mesh::VertexId>& preSnappedVertices);
+
+template<class Mesh>
+void cleanPreservedMeshAfterAttaching(
+        Mesh& preMesh,
+        const std::unordered_set<typename Mesh::VertexId>& preNonSnappableVertices,
+        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices,
+        std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
+        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace);
 
 template<class Mesh>
 Mesh quadrangulateMesh(
@@ -126,6 +136,7 @@ void blendSurfaces(
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
+    typedef typename Mesh::Face Face;
     typedef typename Mesh::Point Point;
     typedef typename Mesh::Scalar Scalar;
     typedef typename nvl::Index Index;
@@ -183,19 +194,37 @@ void blendSurfaces(
                 meshFacesToKeep[mId].insert(fId);
             }
         }
+
+        nvl::meshOpenFaceSelection(mesh, meshFacesToKeep[mId]);
+        nvl::meshCloseFaceSelection(mesh, meshFacesToKeep[mId]);
+
+        for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+            const Face& face = mesh.face(fId);
+
+            bool toKeep = true;
+            for (Index j = 0; j < face.vertexNumber(); j++) {
+                double selectValue = vertexSelectValue[mId][face.vertexId(j)];
+                if (!nvl::epsEqual(selectValue, 1.0)) {
+                    toKeep = false;
+                }
+            }
+            if (toKeep) {
+                meshFacesToKeep[mId].insert(fId);
+            }
+        }
     }
 
+    //Create meshes
     Mesh newMesh;
     Mesh preMesh;
 
-    //Create preserved mesh
-    std::unordered_set<VertexId> preAlreadyBorderVertices;
+    std::unordered_set<VertexId> preNonSnappableVertices;
 
+    //Create preserved
     std::vector<std::pair<nvl::Index, VertexId>> preBirthVertex;
     std::vector<std::pair<nvl::Index, FaceId>> preBirthFace;
-
     for (Index mId = 0; mId < models.size(); ++mId) {
-        Mesh& mesh = models[mId]->mesh;
+        const Mesh& mesh = models[mId]->mesh;
 
         //Find vertices that were already in the border of the original mesh
         std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
@@ -219,15 +248,19 @@ void blendSurfaces(
             preBirthFace[fId] = std::make_pair(mId, tmpBirthFace[fId]);
         }
 
+        //Non snappable vertices in preserved mesh (border or select value equal to 1)
         for (VertexId vId = lastVertexId; vId < preMesh.nextVertexId(); vId++) {
+            if (preMesh.isVertexDeleted(vId))
+                continue;
+
             if (borderVerticesSet.find(tmpBirthVertex[vId]) != borderVerticesSet.end()) {
-                preAlreadyBorderVertices.insert(vId);
+                preNonSnappableVertices.insert(vId);
             }
         }
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/premesh.obj", preMesh);
+    nvl::meshSaveToFile("results/premesh_1_initial.obj", preMesh);
 #endif
 
     //Fill vertices to keep in the blended mesh
@@ -254,7 +287,7 @@ void blendSurfaces(
                 FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
                 IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
 
-                if (currentPolygonIndex >= 0 && currentValue <= 2.0) {
+                if (currentPolygonIndex >= 0 && currentValue <= MAX_DISTANCE_FOR_NEW_SURFACE) {
                     FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
 
                     if (meshFacesToKeep[mId].find(originFaceId) != meshFacesToKeep[mId].end()) {
@@ -269,7 +302,7 @@ void blendSurfaces(
         }
     }
 
-    //Erode-dilate
+    //Regularization
     nvl::meshOpenFaceSelection(blendedMesh, blendedMeshFacesToKeep);
 
     //Transfer in the new surface the faces to be kept
@@ -279,11 +312,19 @@ void blendSurfaces(
     nvl::meshSaveToFile("results/newmesh_1_regularized.obj", newMesh);
 #endif
 
-    std::vector<VertexId> snappedVertices;
-    internal::attachMeshToMeshByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preAlreadyBorderVertices, snappedVertices);
+    //Attach mesh borders to the preserved mesh
+    std::unordered_set<VertexId> newSnappedVertices;
+    std::unordered_set<VertexId> preSnappedVertices;
+    internal::attachMeshesByBorders(newMesh, preMesh, std::unordered_set<VertexId>(), preNonSnappableVertices, newSnappedVertices, preSnappedVertices);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newmesh_5_final.obj", newMesh);
+    nvl::meshSaveToFile("results/newmesh.obj", newMesh);
+#endif
+
+    internal::cleanPreservedMeshAfterAttaching(preMesh, preNonSnappableVertices, preSnappedVertices, preBirthVertex, preBirthFace);
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    nvl::meshSaveToFile("results/premesh.obj", preMesh);
 #endif
 
     //Select vertices to smooth
@@ -426,7 +467,6 @@ void blendSurfaces(
 
                     vertexInfo.push_back(info);
                 }
-
             }
         }
     }
@@ -755,12 +795,13 @@ Mesh convertGridToMesh(const typename openvdb::FloatGrid::Ptr& gridPtr, bool tra
 }
 
 template<class Mesh>
-void attachMeshToMeshByBorders(
+void attachMeshesByBorders(
         Mesh& mesh,
         const Mesh& destMesh,
         const std::unordered_set<typename Mesh::VertexId>& meshNonSnappableVertices,
         const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices,
-        std::vector<typename Mesh::VertexId>& snappedVertices)
+        std::unordered_set<typename Mesh::VertexId>& newSnappedVertices,
+        std::unordered_set<typename Mesh::VertexId>& preSnappedVertices)
 {
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
@@ -777,8 +818,8 @@ void attachMeshToMeshByBorders(
     //Calculate chains for mesh, taking into account the connected component
     std::vector<std::vector<VertexId>> mChains;
     std::vector<Index> mChainsComponent;
-    for (Index mChainId = 0; mChainId < mConnectedComponents.size(); mChainId++) {
-        const std::vector<FaceId>& component = mConnectedComponents[mChainId];
+    for (Index cId = 0; cId < mConnectedComponents.size(); cId++) {
+        const std::vector<FaceId>& component = mConnectedComponents[cId];
 
         std::vector<std::vector<VertexId>> componentVertexChains = nvl::meshSubsetBorderVertexChains(
                     tmpMesh, std::unordered_set<FaceId>(component.begin(), component.end()), mFFAdj);
@@ -788,9 +829,12 @@ void attachMeshToMeshByBorders(
             std::reverse(componentVertexChain.begin(), componentVertexChain.end());
 
             mChains.push_back(componentVertexChain);
-            mChainsComponent.push_back(mChainId);
+            mChainsComponent.push_back(cId);
         }
     }
+
+    //Used components in the mesh
+    std::unordered_set<Index> mUsedComponents;
 
     //Calculate chains for destination mesh
     std::vector<std::vector<VertexId>> dChains = nvl::meshBorderVertexChains(destMesh);
@@ -798,14 +842,17 @@ void attachMeshToMeshByBorders(
     //Define snappable flags
     std::vector<bool> mSnappable(mChains.size(), true);
     std::vector<bool> dSnappable(dChains.size(), true);
+
     for (Index mChainId = 0; mChainId < mChains.size(); ++mChainId) {
         const std::vector<VertexId>& mChain = mChains[mChainId];
         for (const VertexId& vId : mChain) {
             if (meshNonSnappableVertices.find(vId) != meshNonSnappableVertices.end()) {
                 mSnappable[mChainId] = false;
+                mUsedComponents.insert(mChainsComponent[mChainId]);
             }
         }
     }
+
     for (Index dChainId = 0; dChainId < dChains.size(); ++dChainId) {
         const std::vector<VertexId>& dChain = dChains[dChainId];
         for (const VertexId& vId : dChain) {
@@ -907,9 +954,6 @@ void attachMeshToMeshByBorders(
     std::sort(orderedCandidateId.begin(), orderedCandidateId.end(), [&candidateScore] (const Index& a, const Index& b){
         return candidateScore[a] < candidateScore[b];
     });
-
-    //Used components in the mesh
-    std::unordered_set<Index> mUsedComponents;
 
     //Final parametrization for the candidates
     std::vector<std::vector<double>> dFinalParametrization(candidateScore.size(), std::vector<double>());
@@ -1013,7 +1057,7 @@ void attachMeshToMeshByBorders(
         }
 
         //Optimization parameters
-        const double alpha = 0.8;
+        const double alpha = 0.9;
         const double closestCost = alpha;
         const double lengthCost = 1 - alpha;
 
@@ -1053,9 +1097,9 @@ void attachMeshToMeshByBorders(
                 double value2 = dParametrization[j] + (1 - currentT) * parametrizedDistance;
 
                 obj += closestCost * (
-                            0.5 * ((vars[currentI] - value1) * (vars[currentI] - value1)) +
-                            0.5 * ((vars[nextI] - value2) * (vars[nextI] - value2))
-                        ) / dChain.size();
+                        0.5 * ((vars[currentI] - value1) * (vars[currentI] - value1)) +
+                        0.5 * ((vars[nextI] - value2) * (vars[nextI] - value2))
+                    ) / dChain.size();
             }
 
             //Add constraints
@@ -1103,79 +1147,189 @@ void attachMeshToMeshByBorders(
     std::vector<FaceId> cleaningBirthFace;
     nvl::meshTransferFaces(tmpMesh, facesToKeep, mesh, cleaningBirthVertex, cleaningBirthFace);
 
-    std::vector<VertexId> cleaningVertexMap = nvl::getInverseMap(cleaningBirthVertex);
-    for (Index candidateId : orderedCandidateId) {
-        //Parametrization not computed
-        if (!candidateComputed[candidateId])
-            continue;
+    std::vector<VertexId> cleaningVertexMap = nvl::inverseMap(cleaningBirthVertex, tmpMesh.nextVertexId());
 
-        const Index& mChainId = candidateMChains[candidateId];
+    for (Index mChainId = 0; mChainId < mChains.size(); ++mChainId) {
         std::vector<VertexId>& mChain = mChains[mChainId];
-
         for (Index i = 0; i < mChain.size(); ++i) {
-            assert(cleaningVertexMap[mChain[i]] != nvl::MAX_INDEX);
             mChain[i] = cleaningVertexMap[mChain[i]];
         }
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newmesh_3_cleaned.obj", mesh);
+    nvl::meshSaveToFile("results/attaching_1_cleaned.obj", mesh);
 #endif
 
     std::vector<std::vector<FaceId>> meshVFAdj = nvl::meshVertexFaceAdjacencies(mesh);
 
+    std::vector<VertexId> fixedBorderVertices;
+    std::unordered_set<Index> computedMChain;
+
     for (Index candidateId : orderedCandidateId) {
-        const std::vector<double>& mParametrization = mFinalParametrization[candidateId];
-        const std::vector<double>& dParametrization = dFinalParametrization[candidateId];
+        //Parametrization computed
+        if (candidateComputed[candidateId]) {
+            const std::vector<double>& mParametrization = mFinalParametrization[candidateId];
+            const std::vector<double>& dParametrization = dFinalParametrization[candidateId];
 
-        //Parametrization not computed
-        if (!candidateComputed[candidateId])
-            continue;
+            const Index& mChainId = candidateMChains[candidateId];
+            const Index& dChainId = candidateDChains[candidateId];
+            const Index& startI = candidateMStartIndex[candidateId];
+            const Index& startJ = candidateDStartIndex[candidateId];
 
-        const Index& mChainId = candidateMChains[candidateId];
-        const Index& dChainId = candidateDChains[candidateId];
-        const Index& startI = candidateMStartIndex[candidateId];
-        const Index& startJ = candidateDStartIndex[candidateId];
-        const std::vector<VertexId>& mChain = mChains[mChainId];
-        const std::vector<VertexId>& dChain = dChains[dChainId];
+            const std::vector<VertexId>& mChain = mChains[mChainId];
+            const std::vector<VertexId>& dChain = dChains[dChainId];
 
-        Index i = 0;
+            Index i = 0;
 
-        VertexId currentMVertexId = mChain[startI];
-        for (Index j = 0; j < dChain.size(); ++j) {
-            Index currentJ = (startJ + j) % dChain.size();
-            Index currentI = (startI + i) % mChain.size();
-            Index nextI = (currentI + 1) % mChain.size();
+            computedMChain.insert(mChainId);
 
-            const Point& jPoint = destMesh.vertex(dChain[currentJ]).point();
+            VertexId currentMVertexId = mChain[startI];
+            for (Index j = 0; j < dChain.size(); ++j) {
+                Index currentJ = (startJ + j) % dChain.size();
+                Index currentI = (startI + i) % mChain.size();
+                Index nextI = (currentI + 1) % mChain.size();
 
-            const Scalar& pT = dParametrization[currentJ];
+                const VertexId& destVertexId = dChain[currentJ];
+                const Point& jPoint = destMesh.vertex(destVertexId).point();
 
-            while (i < mChain.size() - 1 && mParametrization[nextI] < pT) {
-                i++;
+                const Scalar& pT = dParametrization[currentJ];
 
-                currentI = (startI + i) % mChain.size();
-                nextI = (currentI + 1) % mChain.size();
+                while (i < mChain.size() - 1 && mParametrization[nextI] < pT) {
+                    i++;
 
-                currentMVertexId = mChain[currentI];
+                    currentI = (startI + i) % mChain.size();
+                    nextI = (currentI + 1) % mChain.size();
+
+                    currentMVertexId = mChain[currentI];
+                }
+
+                VertexId newNVertexId = nvl::meshSplitEdge(mesh, currentMVertexId, mChain[nextI], jPoint, meshVFAdj);
+
+                newSnappedVertices.insert(newNVertexId);
+                preSnappedVertices.insert(destVertexId);
+
+                fixedBorderVertices.push_back(newNVertexId);
+
+                currentMVertexId = newNVertexId;
             }
-
-            VertexId newNVertexId = nvl::meshSplitEdge(mesh, currentMVertexId, mChain[nextI], jPoint, meshVFAdj);
-            snappedVertices.push_back(newNVertexId);
-            currentMVertexId = newNVertexId;
         }
     }
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newmesh_4_splitted.obj", mesh);
+    nvl::meshSaveToFile("results/attaching_2_splitted.obj", mesh);
 #endif
 
-    std::vector<VertexId> nonCollapsed = nvl::collapseBorders(mesh, snappedVertices);
+    for (Index mChainId = 0; mChainId < mChains.size(); ++mChainId) {
+        if (computedMChain.find(mChainId) != computedMChain.end())
+            continue;
+
+        const std::vector<VertexId>& mChain = mChains[mChainId];
+        for (Index i = 0; i < mChain.size(); ++i) {
+            if (mChain[i] != nvl::MAX_INDEX) {
+                fixedBorderVertices.push_back(mChain[i]);
+            }
+        }
+    }
+
+
+    std::vector<VertexId> nonCollapsed = nvl::collapseBorders(mesh, fixedBorderVertices);
     std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    nvl::meshSaveToFile("results/attaching_3_collapsed.obj", mesh);
+#endif
 
     if (!nonCollapsed.empty()) {
         //TODO!!
     }
+}
+
+template<class Mesh>
+void cleanPreservedMeshAfterAttaching(
+        Mesh& preMesh,
+        const std::unordered_set<typename Mesh::VertexId>& preNonSnappableVertices,
+        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices,
+        std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
+        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace)
+{
+    typedef typename nvl::Index Index;
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::FaceId FaceId;
+
+    //Get adjacencies of the mesh and connected components
+    std::vector<std::vector<FaceId>> preFFAdj = nvl::meshFaceFaceAdjacencies(preMesh);
+    std::vector<std::vector<FaceId>> preConnectedComponents = nvl::meshConnectedComponents(preMesh, preFFAdj);
+
+    //Used components in the mesh
+    std::unordered_set<Index> preUsedComponents;
+
+    //Calculate chains for mesh, taking into account the connected component
+    std::vector<std::vector<VertexId>> preChains;
+    std::vector<Index> preChainsComponent;
+    for (Index cId = 0; cId < preConnectedComponents.size(); cId++) {
+        const std::vector<FaceId>& component = preConnectedComponents[cId];
+
+        std::vector<std::vector<VertexId>> componentVertexChains = nvl::meshSubsetBorderVertexChains(
+                    preMesh, std::unordered_set<FaceId>(component.begin(), component.end()), preFFAdj);
+
+        if (componentVertexChains.empty()) {
+            preUsedComponents.insert(cId);
+        }
+        for (std::vector<VertexId> componentVertexChain : componentVertexChains) {
+            preChains.push_back(componentVertexChain);
+            preChainsComponent.push_back(cId);
+        }
+    }
+
+    //Add components snapped or that have already border vertices
+    for (Index preChainId = 0; preChainId < preChains.size(); ++preChainId) {
+        const std::vector<VertexId>& pChain = preChains[preChainId];
+        for (const VertexId& vId : pChain) {
+            if (preNonSnappableVertices.find(vId) != preNonSnappableVertices.end() || preSnappedVertices.find(vId) != preSnappedVertices.end()) {
+                preUsedComponents.insert(preChainsComponent[preChainId]);
+            }
+        }
+    }
+
+    //Clean mesh from components that are not used
+    std::vector<FaceId> preFacesToKeep;
+    for (const Index& cId : preUsedComponents) {
+        const std::vector<FaceId>& connectedComponent = preConnectedComponents[cId];
+        preFacesToKeep.insert(preFacesToKeep.end(), connectedComponent.begin(), connectedComponent.end());
+    }
+
+    //Save in the final mesh data-structure
+    Mesh preMeshCopy = preMesh;
+    std::vector<VertexId> cleaningBirthVertex;
+    std::vector<FaceId> cleaningBirthFace;
+    preMesh.clear();
+    nvl::meshTransferFaces(preMeshCopy, preFacesToKeep, preMesh, cleaningBirthVertex, cleaningBirthFace);
+
+    std::vector<std::pair<Index, VertexId>> tmpPreBirthVertex(preMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));;
+    std::vector<std::pair<Index, FaceId>> tmpPreBirthFace(preMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+    for (VertexId vId = 0; vId < preMesh.nextVertexId(); ++vId) {
+        if (preMesh.isVertexDeleted(vId))
+            continue;
+
+        assert(cleaningBirthVertex[vId] != nvl::MAX_INDEX);
+        const std::pair<Index, VertexId>& pair = preBirthVertex[cleaningBirthVertex[vId]];
+        assert(pair.first != nvl::MAX_INDEX);
+        assert(pair.second != nvl::MAX_INDEX);
+        tmpPreBirthVertex[vId] = std::make_pair(pair.first, pair.second);
+    }
+    for (FaceId fId = 0; fId < preMesh.nextFaceId(); ++fId) {
+        if (preMesh.isFaceDeleted(fId))
+            continue;
+
+        assert(cleaningBirthFace[fId] != nvl::MAX_INDEX);
+        const std::pair<Index, FaceId>& pair = preBirthFace[cleaningBirthFace[fId]];
+        assert(pair.first != nvl::MAX_INDEX);
+        assert(pair.second != nvl::MAX_INDEX);
+        tmpPreBirthFace[fId] = std::make_pair(pair.first, pair.second);
+    }
+
+    preBirthVertex = tmpPreBirthVertex;
+    preBirthFace = tmpPreBirthFace;
 }
 
 template<class Mesh>
@@ -1289,9 +1443,8 @@ Mesh quadrangulateMesh(
     birthVertex.resize(result.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
     birthFace.resize(result.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
     for (VertexId vId = 0; vId < result.nextVertexId(); vId++) {
-        if (result.isVertexDeleted(vId)) {
+        if (result.isVertexDeleted(vId))
             continue;
-        }
 
         nvl::Index vcgResultVId = vcgResultBirthVertex[vId];
         int vcgPreMeshVId = resultPreservedVertexMap[vcgResultVId];
@@ -1300,9 +1453,8 @@ Mesh quadrangulateMesh(
         }
     }
     for (FaceId fId = 0; fId < result.nextFaceId(); fId++) {
-        if (result.isFaceDeleted(fId)) {
+        if (result.isFaceDeleted(fId))
             continue;
-        }
 
         nvl::Index vcgResultFId = vcgResultBirthFace[fId];
         int vcgPreMeshFId = resultPreservedFaceMap[vcgResultFId];

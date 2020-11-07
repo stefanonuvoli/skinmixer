@@ -27,7 +27,7 @@ void initializeAnimationWeights(
 
     animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(cluster.size(), 0.0));
 
-    std::vector<Index> clusterMap = nvl::getInverseMap(cluster);
+    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
     for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
         const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
@@ -106,7 +106,7 @@ void blendAnimations(
     const std::vector<nvl::Index>& animationIds = entry.blendingAnimations;
     const std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
 
-    std::vector<Index> clusterMap = nvl::getInverseMap(cluster);
+    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
 
     Animation targetAnimation;
 
