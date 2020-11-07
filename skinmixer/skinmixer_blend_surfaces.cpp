@@ -43,6 +43,8 @@
 #define DISCARD_THRESHOLD 0.01
 #define SMOOTHING_THRESHOLD 0.94
 #define MAX_DISTANCE_FOR_NEW_SURFACE 2.0
+#define SELECT_VALUE_MIN_THRESHOLD 0.01
+#define SELECT_VALUE_MAX_THRESHOLD 0.99
 
 namespace skinmixer {
 
@@ -431,7 +433,7 @@ void blendSurfaces(
                     selectValueSum += selectValue;
 
                     involvedEntries.push_back(std::make_tuple(mId, selectValue, currentPolygonIndex, currentValue));
-                    if (selectValue >= KEEP_THRESHOLD) {
+                    if (selectValue >= SELECT_VALUE_MAX_THRESHOLD) {
                         overThresholdValues.push_back(involvedEntries.size() - 1);
                     }
                 }
@@ -456,7 +458,7 @@ void blendSurfaces(
                     VertexInfo info;
                     info.eId = cluster[std::get<0>(tuple)];
                     info.vId = nvl::MAX_INDEX;
-                    if (selectValueSum >= DISCARD_THRESHOLD) {
+                    if (selectValueSum >= SELECT_VALUE_MIN_THRESHOLD) {
                         info.weight = std::get<1>(tuple) / selectValueSum;
                     }
                     else {
@@ -706,7 +708,7 @@ typename Model::Mesh getBlendedMesh(
                         selectValueSum += selectValue;
 
                         involvedEntries.push_back(std::make_pair(currentValue, selectValue));
-                        if (selectValue >= KEEP_THRESHOLD) {
+                        if (selectValue >= SELECT_VALUE_MAX_THRESHOLD) {
                             overThresholdValues.push_back(involvedEntries.size() - 1);
                         }
                     }
@@ -725,7 +727,7 @@ typename Model::Mesh getBlendedMesh(
                     for (Index m = 0; m < involvedEntries.size(); ++m) {
 
                         FloatGrid::ValueType currentDistance = involvedEntries[m].first;
-                        if (selectValueSum >= DISCARD_THRESHOLD) {
+                        if (selectValueSum >= SELECT_VALUE_MIN_THRESHOLD) {
                             double selectValue = involvedEntries[m].second;
 
                             assert(currentDistance < maxDistance && currentDistance > -maxDistance);
