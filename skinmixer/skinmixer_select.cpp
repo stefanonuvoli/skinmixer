@@ -8,14 +8,33 @@
 namespace skinmixer {
 
 template<class Model>
+void computeAttachSelectValues(
+        const Model& model1,
+        const Model& model2,
+        const typename Model::Skeleton::JointId& targetJoint1,
+        const typename Model::Skeleton::JointId& targetJoint2,
+        const unsigned int smoothingIterations,
+        const double rigidity,
+        const double offset1,
+        const double offset2,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue2,
+        std::vector<double>& jointSelectValue2)
+{
+    skinmixer::computeRemoveSelectValues(model1, targetJoint1, smoothingIterations, rigidity, offset1, vertexSelectValue1, jointSelectValue1);
+    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, rigidity, offset2, vertexSelectValue2, jointSelectValue2);
+}
+
+template<class Model>
 void computeRemoveSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
+        const unsigned int smoothingIterations,
         const double rigidity,
+        const double offset,
         std::vector<double>& vertexSelectValue,
-        std::vector<bool>& jointSelectValue)
+        std::vector<double>& jointSelectValue)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Model::Skeleton Skeleton;
@@ -27,9 +46,10 @@ void computeRemoveSelectValues(
 
     const Mesh& mesh = model.mesh;
     const Skeleton& skeleton = model.skeleton;
+    const SkinningWeights& skinningWeights = model.skinningWeights;
 
     vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
-    jointSelectValue.resize(skeleton.jointNumber(), true);
+    jointSelectValue.resize(skeleton.jointNumber(), 1.0);
 
     //Get connected components
     std::vector<FaceId> faceComponentMap;
@@ -40,8 +60,28 @@ void computeRemoveSelectValues(
             skinmixer::jointJunctionFunction(
                 model,
                 targetJoint,
-                functionSmoothingIterations);
+                smoothingIterations);
 
+    //Fill vertex values
+    const double offsetFactor = offset - 0.5;
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        vertexSelectValue[vId] = 1.0 - jointFunction[vId];
+        if (vertexSelectValue[vId] >= 0.01 && vertexSelectValue[vId] <= 0.99) {
+            vertexSelectValue[vId] += offsetFactor;
+        }
+        vertexSelectValue[vId] = std::max(std::min(vertexSelectValue[vId], 1.0), 0.0);
+        if (nvl::epsEqual(vertexSelectValue[vId], 0.0, 1e-3)) {
+            vertexSelectValue[vId] = 0.0;
+        }
+        if (nvl::epsEqual(vertexSelectValue[vId], 1.0, 1e-3)) {
+            vertexSelectValue[vId] = 1.0;
+        }
+    }
+
+    //For each component, we check rigidity
     for (const std::vector<FaceId>& componentFaces : connectedComponents) {
         //Create connected component mesh
         Mesh componentMesh;
@@ -49,44 +89,42 @@ void computeRemoveSelectValues(
         std::vector<FaceId> componentBirthFace;
         nvl::meshTransferFaces(mesh, componentFaces, componentMesh, componentBirthVertex, componentBirthFace);
 
-        double minFunction = nvl::maxLimitValue<double>();
-        double maxFunction = nvl::minLimitValue<double>();
-        double avgFunction = 0.0;
-        std::vector<double> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<double>());
-
-        for (VertexId vId = 0; vId < componentMesh.nextVertexId(); ++vId) {
-            if (componentMesh.isVertexDeleted(vId))
+        //Check rigidity
+        double minValue = nvl::maxLimitValue<double>();
+        double maxValue = nvl::minLimitValue<double>();
+        double avgValue = 0.0;
+        for (VertexId cId = 0; cId < componentMesh.nextVertexId(); ++cId) {
+            if (componentMesh.isVertexDeleted(cId))
                 continue;
 
-            assert(componentBirthVertex[vId] != nvl::MAX_INDEX);
-            componentFunction[vId] = std::max(std::min(1.0f - jointFunction[componentBirthVertex[vId]], 1.0), 0.0);
-            minFunction = nvl::min(minFunction, componentFunction[vId]);
-            maxFunction = nvl::max(maxFunction, componentFunction[vId]);
-            avgFunction += componentFunction[vId];
+            VertexId vId = componentBirthVertex[cId];
+
+            assert(vId != nvl::MAX_INDEX);
+            minValue = nvl::min(minValue, vertexSelectValue[vId]);
+            maxValue = nvl::max(maxValue, vertexSelectValue[vId]);
+
+            avgValue += vertexSelectValue[vId];
         }
-        avgFunction /= componentMesh.vertexNumber();
+        avgValue /= componentMesh.vertexNumber();
 
-        const double minRigidityLimit = 1.0 - rigidity;
-        const double maxRigidityLimit = 1.0 - minRigidityLimit;
+        bool isRigid = minValue >= 1.0 - rigidity || maxValue <= rigidity;
 
-        bool isRigid = minFunction >= minRigidityLimit || maxFunction <= maxRigidityLimit;
+        //1.0 or 0.0 depending on avg value
+        if (isRigid) {
+            for (VertexId cId = 0; cId < componentMesh.nextVertexId(); ++cId) {
+                if (componentMesh.isVertexDeleted(cId))
+                    continue;
 
-        for (VertexId vId = 0; vId < componentMesh.nextVertexId(); vId++) {
-            if (componentMesh.isVertexDeleted(vId))
-                continue;
+                const VertexId& vId = componentBirthVertex[cId];
 
-            if (!isRigid) {
-                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], componentFunction[vId]);
-            }
-            else {
-                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5 ? 1.0 : -1.0));
+                vertexSelectValue[vId] = avgValue >= 0.5 ? 1.0 : 0.0;
             }
         }
     }
 
-    std::vector<JointId> removedJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
-    for (JointId jId : removedJoints) {
-        jointSelectValue[jId] = false;
+    std::vector<JointId> descendantJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
+    for (JointId jId : descendantJoints) {
+        jointSelectValue[jId] = 0.0;
     }
 }
 
@@ -94,11 +132,11 @@ template<class Model>
 void computeDetachSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
+        const unsigned int smoothingIterations,
         const double rigidity,
+        const double offset,
         std::vector<double>& vertexSelectValue,
-        std::vector<bool>& jointSelectValue)
+        std::vector<double>& jointSelectValue)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Model::Skeleton Skeleton;
@@ -109,10 +147,11 @@ void computeDetachSelectValues(
     typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
 
     const Mesh& mesh = model.mesh;
-    const Skeleton& skeleton = model.skeleton;    
+    const Skeleton& skeleton = model.skeleton;
+    const SkinningWeights& skinningWeights = model.skinningWeights;
 
     vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
-    jointSelectValue.resize(skeleton.jointNumber(), true);
+    jointSelectValue.resize(skeleton.jointNumber(), 1.0);
 
     //Get connected components
     std::vector<FaceId> faceComponentMap;
@@ -123,8 +162,28 @@ void computeDetachSelectValues(
             skinmixer::jointJunctionFunction(
                 model,
                 targetJoint,
-                functionSmoothingIterations);
+                smoothingIterations);
 
+    //Fill vertex values
+    const double offsetFactor = offset - 0.5;
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        vertexSelectValue[vId] = jointFunction[vId];
+        if (vertexSelectValue[vId] >= 0.01 && vertexSelectValue[vId] <= 0.99) {
+            vertexSelectValue[vId] += offsetFactor;
+        }
+        vertexSelectValue[vId] = std::max(std::min(vertexSelectValue[vId], 1.0), 0.0);
+        if (nvl::epsEqual(vertexSelectValue[vId], 0.0, 1e-3)) {
+            vertexSelectValue[vId] = 0.0;
+        }
+        if (nvl::epsEqual(vertexSelectValue[vId], 1.0, 1e-3)) {
+            vertexSelectValue[vId] = 1.0;
+        }
+    }
+
+    //For each component, we check rigidity
     for (const std::vector<FaceId>& componentFaces : connectedComponents) {
         //Create connected component mesh
         Mesh componentMesh;
@@ -132,44 +191,42 @@ void computeDetachSelectValues(
         std::vector<FaceId> componentBirthFace;
         nvl::meshTransferFaces(mesh, componentFaces, componentMesh, componentBirthVertex, componentBirthFace);
 
-        double minFunction = nvl::maxLimitValue<double>();
-        double maxFunction = nvl::minLimitValue<double>();
-        double avgFunction = 0.0;
-        std::vector<double> componentFunction(componentMesh.vertexNumber(), nvl::maxLimitValue<double>());
-
-        for (VertexId vId = 0; vId < componentMesh.nextVertexId(); ++vId) {
-            if (componentMesh.isVertexDeleted(vId))
+        //Check rigidity
+        double minValue = nvl::maxLimitValue<double>();
+        double maxValue = nvl::minLimitValue<double>();
+        double avgValue = 0.0;
+        for (VertexId cId = 0; cId < componentMesh.nextVertexId(); ++cId) {
+            if (componentMesh.isVertexDeleted(cId))
                 continue;
 
-            assert(componentBirthVertex[vId] != nvl::MAX_INDEX);
-            componentFunction[vId] = std::max(std::min(jointFunction[componentBirthVertex[vId]], 1.0), 0.0);
-            minFunction = nvl::min(minFunction, componentFunction[vId]);
-            maxFunction = nvl::max(maxFunction, componentFunction[vId]);
-            avgFunction += componentFunction[vId];
+            VertexId vId = componentBirthVertex[cId];
+
+            assert(vId != nvl::MAX_INDEX);
+            minValue = nvl::min(minValue, vertexSelectValue[vId]);
+            maxValue = nvl::max(maxValue, vertexSelectValue[vId]);
+
+            avgValue += vertexSelectValue[vId];
         }
-        avgFunction /= componentMesh.vertexNumber();
+        avgValue /= componentMesh.vertexNumber();
 
-        const double minRigidityLimit = 1.0 - rigidity;
-        const double maxRigidityLimit = 1.0 - minRigidityLimit;
+        bool isRigid = minValue >= 1.0 - rigidity || maxValue <= rigidity;
 
-        bool isRigid = minFunction >= minRigidityLimit || maxFunction <= maxRigidityLimit;
+        //1.0 or 0.0 depending on avg value
+        if (isRigid) {
+            for (VertexId cId = 0; cId < componentMesh.nextVertexId(); ++cId) {
+                if (componentMesh.isVertexDeleted(cId))
+                    continue;
 
-        for (VertexId vId = 0; vId < componentMesh.nextVertexId(); vId++) {
-            if (componentMesh.isVertexDeleted(vId))
-                continue;
+                const VertexId& vId = componentBirthVertex[cId];
 
-            if (!isRigid) {
-                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], componentFunction[vId]);
-            }
-            else {
-                vertexSelectValue[componentBirthVertex[vId]] = std::min(vertexSelectValue[componentBirthVertex[vId]], (avgFunction >= 0.5 ? 1.0 : -1.0));
+                vertexSelectValue[vId] = avgValue >= 0.5 ? 1.0 : 0.0;
             }
         }
     }
 
-    std::vector<JointId> removedJoints = nvl::skeletonJointNonDescendants(skeleton, targetJoint);
-    for (JointId jId : removedJoints) {
-        jointSelectValue[jId] = false;
+    std::vector<JointId> nonDescendantJoints = nvl::skeletonJointNonDescendants(skeleton, targetJoint);
+    for (JointId jId : nonDescendantJoints) {
+        jointSelectValue[jId] = 0.0;
     }
 }
 

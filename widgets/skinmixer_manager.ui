@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>298</width>
-    <height>770</height>
+    <height>746</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -132,6 +132,13 @@
         </property>
        </widget>
       </item>
+      <item row="6" column="1" colspan="3">
+       <widget class="QPushButton" name="mixButton">
+        <property name="text">
+         <string>Mix</string>
+        </property>
+       </widget>
+      </item>
       <item row="7" column="1" colspan="3">
        <widget class="QTabWidget" name="parametersTabWidget">
         <property name="enabled">
@@ -154,7 +161,27 @@
           <item row="0" column="0">
            <widget class="QLabel" name="functionSmoothingLabel">
             <property name="text">
-             <string>Func smoothing</string>
+             <string>WF smooth</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSlider" name="rigiditySlider">
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="value">
+             <number>80</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="rigidityLabel">
+            <property name="text">
+             <string>Rigidity</string>
             </property>
            </widget>
           </item>
@@ -170,77 +197,59 @@
           </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="cutParametersPage">
+        <widget class="QWidget" name="offsetParametersPage">
          <attribute name="title">
-          <string>Cut</string>
+          <string>Offset</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="1" column="2">
-           <widget class="QPushButton" name="cutOffsetRigidityButton">
+          <item row="2" column="0">
+           <widget class="QLabel" name="offset1Label">
             <property name="text">
-             <string>Reset</string>
+             <string>Offset 1</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="cutOffsetLabel">
-            <property name="text">
-             <string>Offset</string>
+          <item row="2" column="1">
+           <widget class="QSlider" name="offset1Slider">
+            <property name="minimum">
+             <number>1</number>
             </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSlider" name="cutRigiditySlider">
             <property name="maximum">
-             <number>100</number>
+             <number>99</number>
             </property>
             <property name="value">
-             <number>80</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QSlider" name="cutOffsetSlider">
-            <property name="minimum">
-             <number>-50</number>
-            </property>
-            <property name="maximum">
              <number>50</number>
             </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QSlider" name="offset2Slider">
+            <property name="minimum">
+             <number>10</number>
+            </property>
+            <property name="maximum">
+             <number>90</number>
+            </property>
             <property name="value">
-             <number>0</number>
+             <number>50</number>
             </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="cutOffsetResetButton">
+          <item row="7" column="0">
+           <widget class="QLabel" name="offset2Label">
             <property name="text">
-             <string>Reset</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="cutRigidityLabel">
-            <property name="text">
-             <string>Rigidity</string>
+             <string>Offset 2</string>
             </property>
            </widget>
           </item>
          </layout>
         </widget>
-       </widget>
-      </item>
-      <item row="6" column="1" colspan="3">
-       <widget class="QPushButton" name="mixButton">
-        <property name="text">
-         <string>Mix</string>
-        </property>
        </widget>
       </item>
      </layout>

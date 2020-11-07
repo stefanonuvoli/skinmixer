@@ -8,24 +8,39 @@
 namespace skinmixer {
 
 template<class Model>
+void computeAttachSelectValues(
+        const Model& model1,
+        const Model& model2,
+        const typename Model::Skeleton::JointId& targetJoint1,
+        const typename Model::Skeleton::JointId& targetJoint2,
+        const unsigned int smoothingIterations,
+        const double rigidity,
+        const double offset1,
+        const double offset2,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue2,
+        std::vector<double>& jointSelectValue2);
+
+template<class Model>
 void computeRemoveSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
+        const unsigned int smoothingIterations,
         const double rigidity,
+        const double offset,
         std::vector<double>& vertexSelectValue,
-        std::vector<bool>& jointSelectValue);
+        std::vector<double>& jointSelectValue);
 
 template<class Model>
 void computeDetachSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
+        const unsigned int smoothingIterations,
         const double rigidity,
+        const double offset,
         std::vector<double>& vertexSelectValue,
-        std::vector<bool>& jointSelectValue);
+        std::vector<double>& jointSelectValue);
 
 
 }

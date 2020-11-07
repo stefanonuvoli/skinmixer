@@ -26,6 +26,7 @@ void blendSkeletons(
     typedef typename SkinMixerData<Model>::Action Action;
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
+    typedef typename SkinMixerData<Model>::SelectInfo SelectInfo;
 
     typedef typename Model::Skeleton Skeleton;
     typedef typename Skeleton::JointId JointId;
@@ -47,12 +48,15 @@ void blendSkeletons(
 
     for (const nvl::Index& eId : cluster) {
         const Entry& currentEntry = data.entry(eId);
+
+        SelectInfo select = data.computeGlobalSelectInfo(eId);
+
         Model* currentModel = currentEntry.model;
         Skeleton& currentSkeleton = currentModel->skeleton;
 
         //Get joints to be retrieved using the select values
         for (JointId jId = 0; jId < currentSkeleton.jointNumber(); jId++) {
-            if (currentEntry.select.joint[jId]) {
+            if (select.joint[jId] > 0.5) {
                 keptJoints[eId].insert(jId);
             }
             else {

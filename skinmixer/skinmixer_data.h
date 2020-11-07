@@ -8,7 +8,7 @@
 
 #include "skinmixer/skinmixer_operation.h"
 
-#include <nvl/math/scaling.h>
+#include <nvl/math/affine.h>
 
 namespace skinmixer {
 
@@ -22,11 +22,11 @@ public:
     typedef typename Model::Mesh::VertexId VertexId;
     typedef typename Model::Mesh::FaceId FaceId;
     typedef typename nvl::Index Index;
-    typedef typename nvl::Scaling3d ScalingTransform;
+    typedef typename nvl::Affine3d Transformation;
 
     struct SelectInfo {
         std::vector<double> vertex;
-        std::vector<bool> joint;
+        std::vector<double> joint;
 
         void clear();
     };
@@ -62,13 +62,14 @@ public:
 
         Model* model;
 
-        SelectInfo select;
         BirthInfo birth;
+
+        Transformation frame;
+
+        std::vector<Index> relatedActions;
 
         std::vector<Index> blendingAnimations;
         std::vector<std::vector<double>> blendingAnimationWeights;
-
-        std::vector<Index> relatedActions;
 
         void clear();
     };    
@@ -79,6 +80,13 @@ public:
         Index entry2;
         JointId joint1;
         JointId joint2;
+
+        SelectInfo select1;
+        SelectInfo select2;
+        double offset1;
+        double offset2;
+
+        void clear();
     };
 
 
@@ -97,10 +105,14 @@ public:
     Entry& entryFromModel(const Model* model);
 
     nvl::Index addAction(const Action& action);
+    void removeAction(const Index& index);
     nvl::Size actionNumber() const;
     const std::vector<Action>& actions() const;
     const Action& action(const Index& index) const;
-    Action& action(const Index& index);
+    Action& action(const Index& index);    
+
+    typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Entry& entry);
+    typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Index& eId);
 
     void clear();
 

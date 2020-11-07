@@ -28,7 +28,10 @@ std::vector<nvl::Index> mix(
     //TODO: clusters by actions, for now we insert every model
     std::vector<Index> cluster;
     for (Entry entry : data.entries()) {
-        cluster.push_back(entry.id);
+        if (entry.relatedActions.size() > 0) {
+            nvl::modelApplyTransformation(*entry.model, entry.frame);
+            cluster.push_back(entry.id);
+        }
     }
     entryClusters.push_back(cluster);
 
@@ -37,6 +40,7 @@ std::vector<nvl::Index> mix(
         Index newEntryId = data.addEntry(resultModel);
 
         Entry& entry = data.entry(newEntryId);
+
         entry.birth.entries = cluster;
 
         blendSurfaces(data, cluster, entry);
@@ -67,8 +71,10 @@ void attach(
         Model* model2,
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
-        const nvl::Affine3d& transformation1,
-        const nvl::Affine3d& transformation2)
+        const unsigned int functionSmoothingIterations,
+        const double rigidity,
+        const double offset1,
+        const double offset2)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -76,11 +82,14 @@ void attach(
     Entry& entry1 = data.entryFromModel(model1);
     Entry& entry2 = data.entryFromModel(model2);
 
-    nvl::modelApplyTransformation(*model1, transformation1);
     model1->mesh.computeNormals();
-
-    nvl::modelApplyTransformation(*model2, transformation2);
     model2->mesh.computeNormals();
+
+    std::vector<double> vertexValues1;
+    std::vector<double> jointValues1;
+    std::vector<double> vertexValues2;
+    std::vector<double> jointValues2;
+    skinmixer::computeAttachSelectValues(*model1, *model2, targetJoint1, targetJoint2, functionSmoothingIterations, rigidity, offset1, offset2, vertexValues1, jointValues1, vertexValues2, jointValues2);
 
     Action action;
     action.operation = OperationType::ATTACH;
@@ -88,6 +97,12 @@ void attach(
     action.entry2 = entry2.id;
     action.joint1 = targetJoint1;
     action.joint2 = targetJoint2;
+    action.offset1 = offset1;
+    action.offset2 = offset2;
+    action.select1.vertex = vertexValues1;
+    action.select1.joint = jointValues1;
+    action.select2.vertex = vertexValues2;
+    action.select2.joint = jointValues2;
 
     nvl::Index actionId = data.addAction(action);
     entry1.relatedActions.push_back(actionId);
@@ -100,15 +115,17 @@ void remove(
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int functionSmoothingIterations,
-        const double offset,
-        const double rigidity)
+        const double rigidity,
+        const double offset)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
 
     Entry& entry = data.entryFromModel(model);
 
-    computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, offset, rigidity, entry.select.vertex, entry.select.joint);
+    std::vector<double> vertexValues;
+    std::vector<double> jointValues;
+    computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, rigidity, offset, vertexValues, jointValues);
 
     Action action;
     action.operation = OperationType::REMOVE;
@@ -116,6 +133,9 @@ void remove(
     action.entry2 = nvl::MAX_INDEX;
     action.joint1 = targetJoint;
     action.joint2 = nvl::MAX_INDEX;
+    action.offset1 = offset;
+    action.select1.vertex = vertexValues;
+    action.select1.joint = jointValues;
 
     nvl::Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);
@@ -126,16 +146,18 @@ void detach(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
-        const double rigidity)
+        const unsigned int smoothingIterations,
+        const double rigidity,
+        const double offset)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
 
     Entry& entry = data.entryFromModel(model);
 
-    computeDetachSelectValues(*model, targetJoint, functionSmoothingIterations, offset, rigidity, entry.select.vertex, entry.select.joint);
+    std::vector<double> vertexValues;
+    std::vector<double> jointValues;
+    computeDetachSelectValues(*model, targetJoint, smoothingIterations, rigidity, offset, vertexValues, jointValues);
 
     Action action;
     action.operation = OperationType::DETACH;
@@ -143,6 +165,9 @@ void detach(
     action.entry2 = nvl::MAX_INDEX;
     action.joint1 = targetJoint;
     action.joint2 = nvl::MAX_INDEX;
+    action.offset1 = offset;
+    action.select1.vertex = vertexValues;
+    action.select1.joint = jointValues;
 
     nvl::Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);

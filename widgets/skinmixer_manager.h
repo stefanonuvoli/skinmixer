@@ -37,6 +37,7 @@ class SkinMixerManager : public QFrame
     typedef skinmixer::SkinMixerData<Model> SkinMixerData;
     typedef typename SkinMixerData::Entry SkinMixerEntry;
     typedef typename SkinMixerData::BirthInfo::JointInfo JointInfo;
+    typedef typename SkinMixerData::SelectInfo SelectInfo;
 
     typedef nvl::Canvas::PickingData PickingData;
 
@@ -72,10 +73,11 @@ private slots:
     void on_modelSaveButton_clicked();    
     void on_modelDuplicateButton_clicked();
 
-    void on_cutOffsetSlider_valueChanged(int value);    
-    void on_cutOffsetResetButton_clicked();
-    void on_cutRigiditySlider_valueChanged(int value);
-    void on_cutOffsetRigidityButton_clicked();
+    void on_functionSmoothingSlider_valueChanged(int value);
+    void on_rigiditySlider_valueChanged(int value);
+
+    void on_offset1Slider_valueChanged(int value);
+    void on_offset2Slider_valueChanged(int value);
 
     void on_operationDetachButton_clicked();
     void on_operationRemoveButton_clicked();
@@ -114,7 +116,7 @@ private:
     void colorizeBySelectValues(
             ModelDrawer* modelDrawer,
             const std::vector<double>& vertexSelectValue,
-            const std::vector<bool>& jointSelectValue);
+            const std::vector<double>& jointSelectValue);
     void colorizeByAnimationWeights(
             ModelDrawer* modelDrawer,
             const std::vector<std::vector<double>>& blendingAnimationWeights);
@@ -151,6 +153,7 @@ private:
     JointId vSelectedJoint;
     ModelDrawer* vAttachModelDrawer;
     JointId vAttachJoint;
+    bool vPreparedAttach;
     nvl::Affine3d vBackupFrame;
 
     Index vBlendingAnimation;

@@ -39,12 +39,12 @@
 
 #include <quadretopology/quadretopology.h>
 
-#define KEEP_THRESHOLD 0.99
+#define KEEP_THRESHOLD 0.98
 #define DISCARD_THRESHOLD 0.01
 #define SMOOTHING_THRESHOLD 0.94
 #define MAX_DISTANCE_FOR_NEW_SURFACE 2.0
-#define SELECT_VALUE_MIN_THRESHOLD 0.01
-#define SELECT_VALUE_MAX_THRESHOLD 0.99
+#define SELECT_VALUE_MIN_THRESHOLD 0.02
+#define SELECT_VALUE_MAX_THRESHOLD 0.98
 
 namespace skinmixer {
 
@@ -143,6 +143,7 @@ void blendSurfaces(
     typedef typename Mesh::Scalar Scalar;
     typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::BirthInfo::VertexInfo VertexInfo;
+    typedef typename SkinMixerData<Model>::SelectInfo SelectInfo;
 
     Model* model = entry.model;
     Mesh& resultMesh = model->mesh;
@@ -156,7 +157,9 @@ void blendSurfaces(
         Index eId = cluster[i];
 
         models[i] = data.entry(eId).model;
-        vertexSelectValue[i] = data.entry(eId).select.vertex;
+
+        SelectInfo select = data.computeGlobalSelectInfo(eId);
+        vertexSelectValue[i] = select.vertex;
     }
 
     //Calculate scale transform (minimum 1/4 of the average length)
@@ -306,6 +309,7 @@ void blendSurfaces(
 
     //Regularization
     nvl::meshOpenFaceSelection(blendedMesh, blendedMeshFacesToKeep);
+    nvl::meshCloseFaceSelection(blendedMesh, blendedMeshFacesToKeep);
 
     //Transfer in the new surface the faces to be kept
     nvl::meshTransferFaces(blendedMesh, std::vector<VertexId>(blendedMeshFacesToKeep.begin(), blendedMeshFacesToKeep.end()), newMesh);

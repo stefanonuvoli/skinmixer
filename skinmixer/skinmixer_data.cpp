@@ -26,6 +26,8 @@ nvl::Index SkinMixerData<Model>::addEntry(Model* model)
     vEntries.push_back(entry);
     vModelMap.insert(std::make_pair(model, entry.id));
 
+    entry.frame.setIdentity();
+
     return entry.id;
 }
 
@@ -89,6 +91,12 @@ nvl::Index SkinMixerData<Model>::addAction(const Action& action)
 }
 
 template<class Model>
+void SkinMixerData<Model>::removeAction(const SkinMixerData::Index &index)
+{
+    vActions[index].clear();
+}
+
+template<class Model>
 nvl::Size SkinMixerData<Model>::actionNumber() const
 {
     return vActions.size();
@@ -113,22 +121,19 @@ const typename SkinMixerData<Model>::Action& SkinMixerData<Model>::action(const 
 }
 
 template<class Model>
-void SkinMixerData<Model>::clear()
-{
-    vEntries.clear();
-    vModelMap.clear();
-    vActions.clear();
-}
-
-template<class Model>
 void SkinMixerData<Model>::Entry::clear()
 {
     id = nvl::MAX_INDEX;
 
     model = nullptr;
 
-    select.clear();
     birth.clear();
+    relatedActions.clear();
+
+    blendingAnimations.clear();
+    blendingAnimationWeights.clear();
+
+    frame = Transformation::Identity();
 }
 
 template<class Model>
@@ -143,6 +148,70 @@ void SkinMixerData<Model>::BirthInfo::clear()
 {
     vertex.clear();
     joint.clear();
+}
+
+template<class Model>
+void SkinMixerData<Model>::Action::clear()
+{
+    operation = OperationType::NONE;
+    entry1 = nvl::MAX_INDEX;
+    entry2 = nvl::MAX_INDEX;
+    joint1 = nvl::MAX_INDEX;
+    joint2 = nvl::MAX_INDEX;
+
+    select1.clear();
+    select2.clear();
+
+    void clear();
+}
+
+template<class Model>
+typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSelectInfo(const Entry& entry)
+{
+    SelectInfo newSelectInfo;
+    newSelectInfo.vertex.resize(entry.model->mesh.nextVertexId(), 1.0);
+    newSelectInfo.joint.resize(entry.model->skeleton.jointNumber(), 1.0);
+
+    for (Index aId : entry.relatedActions) {
+        Action& action = this->action(aId);
+
+        if (action.entry1 == entry.id) {
+            const SelectInfo& selectInfo = action.select1;
+            for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
+                newSelectInfo.vertex[vId] = std::min(newSelectInfo.vertex[vId], selectInfo.vertex[vId]);
+            }
+            for (JointId jId = 0; jId < entry.model->skeleton.jointNumber(); ++jId) {
+                newSelectInfo.joint[jId] = std::min(newSelectInfo.joint[jId], selectInfo.joint[jId]);
+            }
+        }
+        else if (action.entry2 == entry.id) {
+            const SelectInfo& selectInfo = action.select2;
+            for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
+                newSelectInfo.vertex[vId] = std::min(newSelectInfo.vertex[vId], selectInfo.vertex[vId]);
+            }
+            for (JointId jId = 0; jId < entry.model->skeleton.jointNumber(); ++jId) {
+                newSelectInfo.joint[jId] = std::min(newSelectInfo.joint[jId], selectInfo.joint[jId]);
+            }
+        }
+    }
+
+    return newSelectInfo;
+}
+
+template<class Model>
+typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSelectInfo(const Index& eId)
+{
+    const Entry& currentEntry = this->entry(eId);
+
+    return computeGlobalSelectInfo(currentEntry);
+}
+
+template<class Model>
+void SkinMixerData<Model>::clear()
+{
+    vEntries.clear();
+    vModelMap.clear();
+    vActions.clear();
 }
 
 }

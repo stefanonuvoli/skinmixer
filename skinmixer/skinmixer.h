@@ -24,26 +24,28 @@ void attach(
         Model* model2,
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
-        const nvl::Affine3d& transformation1,
-        const nvl::Affine3d& transformation2);
+        const unsigned int functionSmoothingIterations,
+        const double rigidity,
+        const double offset1,
+        const double offset2);
 
 template<class Model>
 void remove(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
-        const double rigidity);
+        const unsigned int smoothingIterations,
+        const double rigidity,
+        const double offset);
 
 template<class Model>
 void detach(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
-        const double offset,
-        const double rigidity);
+        const unsigned int smoothingIteration,
+        const double rigidity,
+        const double offset);
 
 
 }
