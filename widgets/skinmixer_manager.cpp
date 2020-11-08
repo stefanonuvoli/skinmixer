@@ -211,7 +211,7 @@ void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::
     }
 
     updateView();
-    updateCanvasPreview();
+    updatePreview();
 
     vCanvas->updateGL();
 }
@@ -246,7 +246,7 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
     }
 
     updateView();
-    updateCanvasPreview();
+    updatePreview();
 
     vCanvas->setMovableFrame(nvl::Affine3d::Identity());
 
@@ -465,7 +465,7 @@ void SkinMixerManager::abortOperation()
     vPreparedAttach = false;
 }
 
-void SkinMixerManager::updateCanvasPreview()
+void SkinMixerManager::updatePreview()
 {
     typedef Model::Mesh Mesh;
     typedef Model::Skeleton Skeleton;
@@ -473,6 +473,11 @@ void SkinMixerManager::updateCanvasPreview()
     typedef Mesh::FaceId FaceId;
     typedef Mesh::Face Face;
     typedef Skeleton::JointId JointId;
+
+    double minAlpha = 0.0;
+    if (ui->previewCheckBox->isChecked()) {
+        minAlpha = 0.05;
+    }
 
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
     bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
@@ -525,14 +530,14 @@ void SkinMixerManager::updateCanvasPreview()
                 if (attachMesh.isVertexDeleted(vId))
                     continue;
 
-                attachPreviewVertexSelectValue[vId] = std::max(attachPreviewVertexSelectValue[vId], 0.05);
+                attachPreviewVertexSelectValue[vId] = std::max(attachPreviewVertexSelectValue[vId], minAlpha);
                 if (attachSelect.vertex[vId] < attachPreviewVertexSelectValue[vId]) {
                     attachPreviewVertexSelectValue[vId] = attachSelect.vertex[vId];
                 }
             }
 
             for (JointId jId = 0; jId < attachSkeleton.jointNumber(); jId++) {
-                attachPreviewJointSelectValue[jId] = std::max(attachPreviewJointSelectValue[jId], 0.05);
+                attachPreviewJointSelectValue[jId] = std::max(attachPreviewJointSelectValue[jId], minAlpha);
                 if (attachSelect.joint[jId] < attachPreviewJointSelectValue[jId]) {
                     attachPreviewJointSelectValue[jId] = attachSelect.joint[jId];
                 }
@@ -556,7 +561,7 @@ void SkinMixerManager::updateCanvasPreview()
                         faceAffected = true;
                     }
 
-                    double alphaValue = std::max(std::min(attachPreviewVertexSelectValue[vId], 1.0), 0.05);
+                    double alphaValue = std::max(std::min(attachPreviewVertexSelectValue[vId], 1.0), minAlpha);
                     avgValue += alphaValue;
                 }
                 avgValue /= face.vertexNumber();
@@ -574,14 +579,14 @@ void SkinMixerManager::updateCanvasPreview()
                 if (currentMesh.isVertexDeleted(vId))
                     continue;
 
-                currentPreviewVertexSelectValue[vId] = std::max(currentPreviewVertexSelectValue[vId], 0.05);
+                currentPreviewVertexSelectValue[vId] = std::max(currentPreviewVertexSelectValue[vId], minAlpha);
                 if (currentSelect.vertex[vId] < currentPreviewVertexSelectValue[vId]) {
                     currentPreviewVertexSelectValue[vId] = currentSelect.vertex[vId];
                 }
             }
 
             for (JointId jId = 0; jId < currentSkeleton.jointNumber(); jId++) {
-                currentPreviewJointSelectValue[jId] = std::max(currentPreviewJointSelectValue[jId], 0.05);
+                currentPreviewJointSelectValue[jId] = std::max(currentPreviewJointSelectValue[jId], minAlpha);
                 if (currentSelect.joint[jId] < currentPreviewJointSelectValue[jId]) {
                     currentPreviewJointSelectValue[jId] = currentSelect.joint[jId];
                 }
@@ -605,7 +610,7 @@ void SkinMixerManager::updateCanvasPreview()
                         faceAffected = true;
                     }
 
-                    double alphaValue = std::max(std::min(currentPreviewVertexSelectValue[vId], 1.0), 0.05);
+                    double alphaValue = std::max(std::min(currentPreviewVertexSelectValue[vId], 1.0), minAlpha);
                     avgValue += alphaValue;
                 }
                 avgValue /= face.vertexNumber();
@@ -1182,7 +1187,7 @@ void SkinMixerManager::on_modelDuplicateButton_clicked()
 void SkinMixerManager::on_functionSmoothingSlider_valueChanged(int value)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(value);
-    updateCanvasPreview();
+    updatePreview();
 
     vCanvas->updateGL();
 }
@@ -1190,15 +1195,21 @@ void SkinMixerManager::on_functionSmoothingSlider_valueChanged(int value)
 void SkinMixerManager::on_rigiditySlider_valueChanged(int value)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(value);
-    updateCanvasPreview();
+    updatePreview();
 
     vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_previewCheckBox_stateChanged(int arg1)
+{
+    NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
+    updatePreview();
 }
 
 void SkinMixerManager::on_offset1Slider_valueChanged(int value)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(value);
-    updateCanvasPreview();
+    updatePreview();
 
     vCanvas->updateGL();
 }
@@ -1206,7 +1217,7 @@ void SkinMixerManager::on_offset1Slider_valueChanged(int value)
 void SkinMixerManager::on_offset2Slider_valueChanged(int value)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(value);
-    updateCanvasPreview();
+    updatePreview();
 
     vCanvas->updateGL();
 }
@@ -1217,7 +1228,7 @@ void SkinMixerManager::on_operationDetachButton_clicked()
     vCurrentOperation = OperationType::DETACH;    
     ui->offset1Slider->setValue(40);
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();
@@ -1228,7 +1239,7 @@ void SkinMixerManager::on_operationRemoveButton_clicked()
     vCurrentOperation = OperationType::REMOVE;    
     ui->offset1Slider->setValue(30);
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();
@@ -1245,7 +1256,7 @@ void SkinMixerManager::on_operationAttachButton_clicked()
     vAttachJoint = vSelectedJoint;
     vBackupFrame = nvl::Affine3d::Identity();
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();
@@ -1255,7 +1266,7 @@ void SkinMixerManager::on_operationAbortButton_clicked()
 {
     abortOperation();
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();
@@ -1265,7 +1276,7 @@ void SkinMixerManager::on_operationApplyButton_clicked()
 {
     applyOperation();
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();
@@ -1321,7 +1332,7 @@ void SkinMixerManager::on_mixButton_clicked()
 {
     mix();
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();
@@ -1394,7 +1405,7 @@ void SkinMixerManager::on_animationBlendButton_clicked()
 {
     blendAnimations();
 
-    updateCanvasPreview();
+    updatePreview();
     updateView();
 
     vCanvas->updateGL();

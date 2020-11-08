@@ -96,6 +96,8 @@ private slots:
     void on_updateValuesWeightsButton_clicked();
     void on_updateValuesBirthButton_clicked();
 
+    void on_previewCheckBox_stateChanged(int arg1);
+
 private:
 
     ModelDrawer* getSelectedModelDrawer();
@@ -107,7 +109,7 @@ private:
     void applyOperation();
     void abortOperation();    
 
-    void updateCanvasPreview();
+    void updatePreview();
     void prepareModelForAttach();
     void updateView();
 

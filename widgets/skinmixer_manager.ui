@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>298</width>
-    <height>746</height>
+    <height>775</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -151,20 +151,13 @@
          <string/>
         </property>
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="generalParametersPage">
          <attribute name="title">
           <string>General</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_5">
-          <item row="0" column="0">
-           <widget class="QLabel" name="functionSmoothingLabel">
-            <property name="text">
-             <string>WF smooth</string>
-            </property>
-           </widget>
-          </item>
           <item row="1" column="1">
            <widget class="QSlider" name="rigiditySlider">
             <property name="maximum">
@@ -178,13 +171,6 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="rigidityLabel">
-            <property name="text">
-             <string>Rigidity</string>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="1">
            <widget class="QSlider" name="functionSmoothingSlider">
             <property name="value">
@@ -192,6 +178,27 @@
             </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="functionSmoothingLabel">
+            <property name="text">
+             <string>WF smooth</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="rigidityLabel">
+            <property name="text">
+             <string>Rigidity</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="previewCheckBox">
+            <property name="text">
+             <string>Preview</string>
             </property>
            </widget>
           </item>
