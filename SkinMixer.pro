@@ -78,6 +78,8 @@ macx{
 SOURCES += \
     main.cpp \
     skinmixer/skinmixer.cpp \
+    skinmixer/internal/skinmixer_attach_borders.cpp \
+    skinmixer/internal/skinmixer_openvdb_blending.cpp \
     skinmixer/skinmixer_blend_animations.cpp \
     skinmixer/skinmixer_blend_surfaces.cpp \
     skinmixer/skinmixer_data.cpp \
@@ -89,6 +91,8 @@ SOURCES += \
 
 HEADERS += \
     skinmixer/skinmixer.h \
+    skinmixer/internal/skinmixer_attach_borders.h \
+    skinmixer/internal/skinmixer_openvdb_blending.cpp \
     skinmixer/skinmixer_blend_animations.h \
     skinmixer/skinmixer_blend_surfaces.h \
     skinmixer/skinmixer_data.h \

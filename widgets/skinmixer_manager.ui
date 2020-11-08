@@ -151,7 +151,7 @@
          <string/>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="generalParametersPage">
          <attribute name="title">
@@ -209,6 +209,13 @@
           <string>Offset</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
+          <item row="7" column="0">
+           <widget class="QLabel" name="offset2Label">
+            <property name="text">
+             <string>Offset 2</string>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="0">
            <widget class="QLabel" name="offset1Label">
             <property name="text">
@@ -248,10 +255,17 @@
             </property>
            </widget>
           </item>
-          <item row="7" column="0">
-           <widget class="QLabel" name="offset2Label">
+          <item row="2" column="2">
+           <widget class="QLabel" name="offset1ValueLabel">
             <property name="text">
-             <string>Offset 2</string>
+             <string>0.5</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="2">
+           <widget class="QLabel" name="offset2ValueLabel">
+            <property name="text">
+             <string>0.5</string>
             </property>
            </widget>
           </item>

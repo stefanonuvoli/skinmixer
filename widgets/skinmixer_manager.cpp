@@ -15,6 +15,12 @@
 
 #include <nvl/models/mesh_normals.h>
 
+#define OFFSET_DEFAULT 50
+#define DETACHING_OFFSET_DEFAULT 40
+#define REMOVING_OFFSET_DEFAULT 30
+#define ATTACHING_OFFSET1_DEFAULT 40
+#define ATTACHING_OFFSET2_DEFAULT 50
+
 SkinMixerManager::SkinMixerManager(
         nvl::Canvas* canvas,
         nvl::DrawableListWidget* drawableListWidget,
@@ -449,8 +455,8 @@ void SkinMixerManager::abortOperation()
     }
 
     vCurrentOperation = OperationType::NONE;       
-    ui->offset1Slider->setValue(30);
-    ui->offset2Slider->setValue(40);
+    ui->offset1Slider->setValue(OFFSET_DEFAULT);
+    ui->offset2Slider->setValue(OFFSET_DEFAULT);
 
     if (vSelectedModelDrawer != nullptr) {
         colorizeByData(vSelectedModelDrawer);
@@ -689,7 +695,10 @@ void SkinMixerManager::updateView()
     ui->operationRemoveButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationAttachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationAbortButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
-    ui->operationApplyButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
+    ui->operationApplyButton->setEnabled(jointSelected && (
+        (vCurrentOperation == OperationType::DETACH || vCurrentOperation == OperationType::REMOVE) ||
+        (vCurrentOperation == OperationType::ATTACH && vAttachModelDrawer != vSelectedModelDrawer)
+    ));
 
     ui->offset1Slider->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
     ui->offset2Slider->setEnabled(jointSelected && vCurrentOperation == OperationType::ATTACH);
@@ -1209,7 +1218,7 @@ void SkinMixerManager::on_previewCheckBox_clicked()
 
 void SkinMixerManager::on_offset1Slider_valueChanged(int value)
 {
-    NVL_SUPPRESS_UNUSEDVARIABLE(value);
+    ui->offset1ValueLabel->setText(std::to_string(value / 100.0).c_str());
     updatePreview();
 
     vCanvas->updateGL();
@@ -1217,7 +1226,7 @@ void SkinMixerManager::on_offset1Slider_valueChanged(int value)
 
 void SkinMixerManager::on_offset2Slider_valueChanged(int value)
 {
-    NVL_SUPPRESS_UNUSEDVARIABLE(value);
+    ui->offset2ValueLabel->setText(std::to_string(value / 100.0).c_str());
     updatePreview();
 
     vCanvas->updateGL();
@@ -1227,7 +1236,7 @@ void SkinMixerManager::on_offset2Slider_valueChanged(int value)
 void SkinMixerManager::on_operationDetachButton_clicked()
 {
     vCurrentOperation = OperationType::DETACH;    
-    ui->offset1Slider->setValue(40);
+    ui->offset1Slider->setValue(DETACHING_OFFSET_DEFAULT);
 
     updatePreview();
     updateView();
@@ -1238,7 +1247,7 @@ void SkinMixerManager::on_operationDetachButton_clicked()
 void SkinMixerManager::on_operationRemoveButton_clicked()
 {
     vCurrentOperation = OperationType::REMOVE;    
-    ui->offset1Slider->setValue(30);
+    ui->offset1Slider->setValue(REMOVING_OFFSET_DEFAULT);
 
     updatePreview();
     updateView();
@@ -1249,8 +1258,8 @@ void SkinMixerManager::on_operationRemoveButton_clicked()
 void SkinMixerManager::on_operationAttachButton_clicked()
 {
     vCurrentOperation = OperationType::ATTACH;
-    ui->offset1Slider->setValue(40);
-    ui->offset2Slider->setValue(30);
+    ui->offset1Slider->setValue(ATTACHING_OFFSET1_DEFAULT);
+    ui->offset2Slider->setValue(ATTACHING_OFFSET2_DEFAULT);
 
     assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
     vAttachModelDrawer = vSelectedModelDrawer;
