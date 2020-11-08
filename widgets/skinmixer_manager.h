@@ -75,7 +75,7 @@ private slots:
 
     void on_functionSmoothingSlider_valueChanged(int value);
     void on_rigiditySlider_valueChanged(int value);
-    void on_previewCheckBox_stateChanged(int arg1);
+    void on_previewCheckBox_clicked();
 
     void on_offset1Slider_valueChanged(int value);
     void on_offset2Slider_valueChanged(int value);

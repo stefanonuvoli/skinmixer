@@ -1200,9 +1200,8 @@ void SkinMixerManager::on_rigiditySlider_valueChanged(int value)
     vCanvas->updateGL();
 }
 
-void SkinMixerManager::on_previewCheckBox_stateChanged(int arg1)
+void SkinMixerManager::on_previewCheckBox_clicked()
 {
-    NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
     updatePreview();
 
     vCanvas->updateGL();
