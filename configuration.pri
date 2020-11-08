@@ -1,9 +1,9 @@
 ############################ CONFIGURATION ############################
 
-DEFINES += SAVE_MESHES_FOR_DEBUG
+#DEFINES += SAVE_MESHES_FOR_DEBUG
 #DEFINES += ASSERT_FOR_NUMBER_SIDES
 #DEFINES += GUROBI_NON_VERBOSE
-DEFINES += NDEBUG
+#DEFINES += NDEBUG
 
 ############################ LIBRARY PATHS ############################
 
