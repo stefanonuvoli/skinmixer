@@ -1204,6 +1204,8 @@ void SkinMixerManager::on_previewCheckBox_stateChanged(int arg1)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
     updatePreview();
+
+    vCanvas->updateGL();
 }
 
 void SkinMixerManager::on_offset1Slider_valueChanged(int value)
