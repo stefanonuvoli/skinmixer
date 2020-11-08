@@ -72,11 +72,11 @@ void computeRemoveSelectValues(
         if (vertexSelectValue[vId] >= 0.01 && vertexSelectValue[vId] <= 0.99) {
             vertexSelectValue[vId] += offsetFactor;
         }
-        vertexSelectValue[vId] = std::max(std::min(vertexSelectValue[vId], 1.0), 0.0);
-        if (nvl::epsEqual(vertexSelectValue[vId], 0.0, 1e-3)) {
+
+        if (vertexSelectValue[vId] <= 0.02) {
             vertexSelectValue[vId] = 0.0;
         }
-        if (nvl::epsEqual(vertexSelectValue[vId], 1.0, 1e-3)) {
+        if (vertexSelectValue[vId] >= 0.98) {
             vertexSelectValue[vId] = 1.0;
         }
     }
@@ -174,11 +174,11 @@ void computeDetachSelectValues(
         if (vertexSelectValue[vId] >= 0.01 && vertexSelectValue[vId] <= 0.99) {
             vertexSelectValue[vId] += offsetFactor;
         }
-        vertexSelectValue[vId] = std::max(std::min(vertexSelectValue[vId], 1.0), 0.0);
-        if (nvl::epsEqual(vertexSelectValue[vId], 0.0, 1e-3)) {
+
+        if (vertexSelectValue[vId] <= 0.02) {
             vertexSelectValue[vId] = 0.0;
         }
-        if (nvl::epsEqual(vertexSelectValue[vId], 1.0, 1e-3)) {
+        if (vertexSelectValue[vId] >= 0.98) {
             vertexSelectValue[vId] = 1.0;
         }
     }

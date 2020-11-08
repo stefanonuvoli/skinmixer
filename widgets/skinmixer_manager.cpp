@@ -449,8 +449,8 @@ void SkinMixerManager::abortOperation()
     }
 
     vCurrentOperation = OperationType::NONE;       
-    ui->offset1Slider->setValue(40);
-    ui->offset2Slider->setValue(30);
+    ui->offset1Slider->setValue(30);
+    ui->offset2Slider->setValue(40);
 
     if (vSelectedModelDrawer != nullptr) {
         colorizeByData(vSelectedModelDrawer);
