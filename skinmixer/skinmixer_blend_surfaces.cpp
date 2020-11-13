@@ -229,17 +229,14 @@ void blendSurfaces(
             openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
             for (Index mId = 0; mId < models.size(); ++mId) {
-                internal::FloatGridPtr& currentGrid = signedGrids[mId];
-                internal::IntGridPtr& currentPolygonGrid = polygonGrids[mId];
+                internal::FloatGrid::ConstAccessor signedAccessor = signedGrids[mId]->getConstAccessor();
+                internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
 
-                internal::FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
-                internal::IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonGrid->getConstAccessor();
+                internal::FloatGrid::ValueType signedDistance = signedAccessor.getValue(coord);
+                internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                internal::FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
-                internal::IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
-
-                if (currentPolygonIndex >= 0 && currentValue <= MAX_DISTANCE_BLENDED_MESH) {
-                    FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
+                if (pId >= 0 && signedDistance <= MAX_DISTANCE_BLENDED_MESH) {
+                    FaceId originFaceId = gridBirthFace[mId][pId];
 
                     if (meshFacesToKeep[mId].find(originFaceId) != meshFacesToKeep[mId].end()) {
                         isNewSurface = false;
@@ -298,17 +295,14 @@ void blendSurfaces(
         for (Index mId = 0; mId < models.size() && !found; ++mId) {
             const Mesh& mesh = models[mId]->mesh;
 
-            internal::FloatGridPtr& currentGrid = signedGrids[mId];
-            internal::IntGridPtr& currentPolygonGrid = polygonGrids[mId];
+            internal::FloatGrid::ConstAccessor signedAccessor = signedGrids[mId]->getConstAccessor();
+            internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
 
-            internal::FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
-            internal::IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonGrid->getConstAccessor();
+            internal::FloatGrid::ValueType signedDistance = signedAccessor.getValue(coord);
+            internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-            internal::FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
-            internal::IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
-
-            if (currentPolygonIndex >= 0 && currentValue <= 2.0) {
-                FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
+            if (pId >= 0 && signedDistance <= 2.0) {
+                FaceId originFaceId = gridBirthFace[mId][pId];
 
                 double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
 
@@ -365,23 +359,20 @@ void blendSurfaces(
             for (Index mId = 0; mId < models.size(); ++mId) {
                 const Mesh& mesh = models[mId]->mesh;
 
-                internal::FloatGridPtr& currentGrid = signedGrids[mId];
-                internal::IntGridPtr& currentPolygonGrid = polygonGrids[mId];
+                internal::FloatGrid::ConstAccessor signedAccessor = signedGrids[mId]->getConstAccessor();
+                internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
 
-                internal::FloatGrid::ConstAccessor currentAccessor = currentGrid->getConstAccessor();
-                internal::IntGrid::ConstAccessor currentPolygonIndexAccessor = currentPolygonGrid->getConstAccessor();
+                internal::FloatGrid::ValueType signedDistance = signedAccessor.getValue(coord);
+                internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                internal::FloatGrid::ValueType currentValue = currentAccessor.getValue(coord);
-                internal::IntGrid::ValueType currentPolygonIndex = currentPolygonIndexAccessor.getValue(coord);
-
-                if (currentPolygonIndex >= 0 && currentValue < maxDistance && currentValue > -maxDistance) {
-                    FaceId originFaceId = gridBirthFace[mId][currentPolygonIndex];
+                if (pId >= 0 && signedDistance < maxDistance && signedDistance > -maxDistance) {
+                    FaceId originFaceId = gridBirthFace[mId][pId];
 
                     double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
 
                     selectValueSum += selectValue;
 
-                    involvedEntries.push_back(std::make_tuple(mId, selectValue, currentPolygonIndex, currentValue));
+                    involvedEntries.push_back(std::make_tuple(mId, selectValue, pId, signedDistance));
                     if (selectValue >= SELECT_VALUE_MAX_THRESHOLD) {
                         overThresholdValues.push_back(involvedEntries.size() - 1);
                     }

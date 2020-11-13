@@ -47,8 +47,8 @@ typename Model::Mesh getBlendedMesh(
         const std::vector<std::vector<double>>& vertexSelectValue,
         const nvl::Scaling3d& scaleTransform,
         const double maxDistance,
-        std::vector<FloatGridPtr>& unsignedGrids,
         std::vector<FloatGridPtr>& signedGrids,
+        std::vector<FloatGridPtr>& closedGrids,
         std::vector<IntGridPtr>& polygonGrids,
         std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
         std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace);
