@@ -71,6 +71,7 @@ void computeRemoveSelectValues(
         vertexSelectValue[vId] = 1.0 - jointFunction[vId];
         if (vertexSelectValue[vId] >= 0.01 && vertexSelectValue[vId] <= 0.99) {
             vertexSelectValue[vId] += offsetFactor;
+            vertexSelectValue[vId] = (vertexSelectValue[vId] - offsetFactor) / (1.0 - offsetFactor);
         }
 
         if (vertexSelectValue[vId] <= 0.02) {
@@ -173,6 +174,7 @@ void computeDetachSelectValues(
         vertexSelectValue[vId] = jointFunction[vId];
         if (vertexSelectValue[vId] >= 0.01 && vertexSelectValue[vId] <= 0.99) {
             vertexSelectValue[vId] += offsetFactor;
+            vertexSelectValue[vId] = (vertexSelectValue[vId] - offsetFactor) / (1.0 - offsetFactor);
         }
 
         if (vertexSelectValue[vId] <= 0.02) {

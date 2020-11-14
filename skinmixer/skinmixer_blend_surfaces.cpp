@@ -29,6 +29,7 @@
 #define FACE_KEEP_THRESHOLD 0.98
 #define SMOOTHING_THRESHOLD 0.94
 #define MAX_DISTANCE_BLENDED_MESH 2.0
+#define MAX_DISTANCE_SMOOTH_MESH 2.0
 
 namespace skinmixer {
 
@@ -44,12 +45,6 @@ Mesh quadrangulateMesh(
         const std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace,
         std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& birthVertex,
         std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace);
-
-template<class Mesh>
-double averageFaceVertexSelectValue(
-        const Mesh& mesh,
-        const typename Mesh::FaceId& faceId,
-        const std::vector<double>& vertexSelectValue);
 
 }
 
@@ -86,7 +81,7 @@ void blendSurfaces(
         vertexSelectValue[i] = select.vertex;
     }
 
-    //Calculate scale transform (minimum 1/4 of the average length)
+    //Calculate scale transform (minimum of the average length)
     for (Model* modelPtr : models) {
         Mesh& mesh = modelPtr->mesh;
         Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
@@ -120,7 +115,7 @@ void blendSurfaces(
                 continue;
             }
 
-            double selectValue = internal::averageFaceVertexSelectValue(mesh, fId, vertexSelectValue[mId]);
+            double selectValue = internal::averageFaceSelectValue(mesh, fId, vertexSelectValue[mId]);
 
             if (selectValue < FACE_KEEP_THRESHOLD) {
                 meshFacesToKeep[mId].erase(fId);
@@ -151,15 +146,37 @@ void blendSurfaces(
         }
     }
 
+    //Grid data
+    std::vector<internal::FloatGridPtr> unsignedGrids;
+    std::vector<internal::IntGridPtr> polygonGrids;
+    std::vector<internal::FloatGridPtr> signedGrids;
+    std::vector<internal::FloatGridPtr> closedGrids;
+    std::vector<openvdb::Vec3i> bbMin;
+    std::vector<openvdb::Vec3i> bbMax;
+
+    //Get grids
+    internal::getSignedGrids(
+        models,
+        scaleTransform,
+        maxDistance,
+        unsignedGrids,
+        polygonGrids,
+        signedGrids,
+        closedGrids,
+        bbMin,
+        bbMax);
 
     //Blend meshes
-    std::vector<internal::FloatGridPtr> unsignedGrids;
-    std::vector<internal::FloatGridPtr> signedGrids;
-    std::vector<internal::IntGridPtr> polygonGrids;
-    std::vector<std::vector<VertexId>> gridBirthVertex;
-    std::vector<std::vector<FaceId>> gridBirthFace;
+    Mesh blendedMesh = internal::getBlendedMesh(
+        models,
+        vertexSelectValue,
+        scaleTransform,
+        maxDistance,
+        closedGrids,
+        polygonGrids,
+        bbMin,
+        bbMax);
 
-    Mesh blendedMesh = internal::getBlendedMesh(models, vertexSelectValue, scaleTransform, maxDistance, unsignedGrids, signedGrids, polygonGrids, gridBirthVertex, gridBirthFace);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
@@ -229,16 +246,14 @@ void blendSurfaces(
             openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
             for (Index mId = 0; mId < models.size(); ++mId) {
-                internal::FloatGrid::ConstAccessor signedAccessor = signedGrids[mId]->getConstAccessor();
+                internal::FloatGrid::ConstAccessor closedAccessor = closedGrids[mId]->getConstAccessor();
                 internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
 
-                internal::FloatGrid::ValueType signedDistance = signedAccessor.getValue(coord);
+                internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
                 internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                if (pId >= 0 && signedDistance <= MAX_DISTANCE_BLENDED_MESH) {
-                    FaceId originFaceId = gridBirthFace[mId][pId];
-
-                    if (meshFacesToKeep[mId].find(originFaceId) != meshFacesToKeep[mId].end()) {
+                if (pId >= 0 && closedDistance <= MAX_DISTANCE_BLENDED_MESH && closedDistance >= -MAX_DISTANCE_BLENDED_MESH) {
+                    if (meshFacesToKeep[mId].find(pId) != meshFacesToKeep[mId].end()) {
                         isNewSurface = false;
                     }
                 }
@@ -295,16 +310,14 @@ void blendSurfaces(
         for (Index mId = 0; mId < models.size() && !found; ++mId) {
             const Mesh& mesh = models[mId]->mesh;
 
-            internal::FloatGrid::ConstAccessor signedAccessor = signedGrids[mId]->getConstAccessor();
+            internal::FloatGrid::ConstAccessor closedAccessor = closedGrids[mId]->getConstAccessor();
             internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
 
-            internal::FloatGrid::ValueType signedDistance = signedAccessor.getValue(coord);
+            internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
             internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-            if (pId >= 0 && signedDistance <= 2.0) {
-                FaceId originFaceId = gridBirthFace[mId][pId];
-
-                double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
+            if (pId >= 0 && closedDistance <= MAX_DISTANCE_SMOOTH_MESH && closedDistance >= -MAX_DISTANCE_SMOOTH_MESH) {
+                double selectValue = internal::interpolateFaceSelectValue(mesh, pId, point, vertexSelectValue[mId]);
 
                 if (selectValue >= SMOOTHING_THRESHOLD) {
                     verticesToSmooth.push_back(vId);
@@ -359,20 +372,18 @@ void blendSurfaces(
             for (Index mId = 0; mId < models.size(); ++mId) {
                 const Mesh& mesh = models[mId]->mesh;
 
-                internal::FloatGrid::ConstAccessor signedAccessor = signedGrids[mId]->getConstAccessor();
+                internal::FloatGrid::ConstAccessor closedAccessor = closedGrids[mId]->getConstAccessor();
                 internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
 
-                internal::FloatGrid::ValueType signedDistance = signedAccessor.getValue(coord);
+                internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
                 internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                if (pId >= 0 && signedDistance < maxDistance && signedDistance > -maxDistance) {
-                    FaceId originFaceId = gridBirthFace[mId][pId];
-
-                    double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
+                if (pId >= 0 && closedDistance < maxDistance && closedDistance > -maxDistance) {
+                    double selectValue = internal::interpolateFaceSelectValue(mesh, pId, point, vertexSelectValue[mId]);
 
                     selectValueSum += selectValue;
 
-                    involvedEntries.push_back(std::make_tuple(mId, selectValue, pId, signedDistance));
+                    involvedEntries.push_back(std::make_tuple(mId, selectValue, pId, closedDistance));
                     if (selectValue >= SELECT_VALUE_MAX_THRESHOLD) {
                         overThresholdValues.push_back(involvedEntries.size() - 1);
                     }
@@ -561,26 +572,6 @@ Mesh quadrangulateMesh(
     }
 
     return result;
-}
-
-template<class Mesh>
-double averageFaceVertexSelectValue(
-        const Mesh& mesh,
-        const typename Mesh::FaceId& faceId,
-        const std::vector<double>& vertexSelectValue)
-{
-    typedef typename Mesh::VertexId VertexId;
-    typedef typename Mesh::Face Face;
-
-    const Face& face = mesh.face(faceId);
-
-    double selectValue = 0.0;
-    for (VertexId j : face.vertexIds()) {
-        selectValue += vertexSelectValue[j];
-    }
-    selectValue /= face.vertexNumber();
-
-    return selectValue;
 }
 
 }

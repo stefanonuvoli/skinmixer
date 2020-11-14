@@ -92,7 +92,7 @@ SOURCES += \
 HEADERS += \
     skinmixer/skinmixer.h \
     skinmixer/internal/skinmixer_attach_borders.h \
-    skinmixer/internal/skinmixer_openvdb_blending.cpp \
+    skinmixer/internal/skinmixer_openvdb_blending.h \
     skinmixer/skinmixer_blend_animations.h \
     skinmixer/skinmixer_blend_surfaces.h \
     skinmixer/skinmixer_data.h \

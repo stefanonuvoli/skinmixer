@@ -16,7 +16,6 @@
 
 #include <nvl/models/mesh_eigen_convert.h>
 
-#define FACE_DISCARD_THRESHOLD 0.01
 #define SELECT_VALUE_MIN_THRESHOLD 0.02
 #define SELECT_VALUE_MAX_THRESHOLD 0.98
 
@@ -24,97 +23,63 @@ namespace skinmixer {
 namespace internal {
 
 template<class Mesh>
-double interpolateVertexSelectValue(
+double interpolateFaceSelectValue(
         const Mesh& mesh,
         const typename Mesh::FaceId& faceId,
         const typename Mesh::Point& point,
         const std::vector<double>& vertexSelectValue);
 
 template<class Model>
-typename Model::Mesh getBlendedMesh(
+void getSignedGrids(
         const std::vector<Model*>& models,
-        const std::vector<std::vector<double>>& vertexSelectValue,
-        const nvl::Scaling3d& scaleTransform,        
+        const nvl::Scaling3d& scaleTransform,
         const double maxDistance,
+        std::vector<FloatGridPtr>& unsignedGrids,
+        std::vector<IntGridPtr>& polygonGrids,
         std::vector<FloatGridPtr>& signedGrids,
         std::vector<FloatGridPtr>& closedGrids,
-        std::vector<IntGridPtr>& polygonGrids,
-        std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
-        std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace)
+        std::vector<openvdb::Vec3i>& bbMin,
+        std::vector<openvdb::Vec3i>& bbMax)
 {
-    typedef typename openvdb::FloatGrid FloatGrid;
-    typedef typename FloatGrid::Ptr FloatGridPtr;
-    typedef typename openvdb::Int32Grid IntGrid;
-    typedef typename IntGrid::Ptr IntGridPtr;
-    typedef typename openvdb::math::Transform::Ptr TransformPtr;
     typedef typename Model::Mesh Mesh;
-    typedef typename Mesh::VertexId VertexId;
-    typedef typename Mesh::FaceId FaceId;
-    typedef typename Mesh::Point Point;    typedef typename nvl::Index Index;
+    typedef typename nvl::Index Index;
+    typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
-    Mesh blendedMesh;
-
-    //Minimum and maximum coordinates in the scalar fields
-    openvdb::Vec3i
-            min(
-                std::numeric_limits<int>::max(),
-                std::numeric_limits<int>::max(),
-                std::numeric_limits<int>::max()),
-            max(
-                std::numeric_limits<int>::min(),
-                std::numeric_limits<int>::min(),
-                std::numeric_limits<int>::min());
-
-    //Grid of the distance fields
-    std::vector<internal::OpenVDBAdapter<Mesh>> adapters(models.size());
-
+    unsignedGrids.resize(models.size());
+    polygonGrids.resize(models.size());
     signedGrids.resize(models.size());
     closedGrids.resize(models.size());
-    polygonGrids.resize(models.size());
-    gridBirthVertex.resize(models.size());
-    gridBirthFace.resize(models.size());
+    bbMin.resize(models.size());
+    bbMax.resize(models.size());
 
     for (Index mId = 0; mId < models.size(); ++mId) {
         const Mesh& mesh = models[mId]->mesh;
 
-        //Get vertices
-        std::vector<VertexId> vertices;
-        for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
-            if (mesh.isVertexDeleted(vId))
-                continue;
-
-//            if (vertexSelectValue[mId][vId] > FACE_DISCARD_THRESHOLD) {
-//                vertices.push_back(vId);
-//            }
-
-            vertices.push_back(vId);
-        }
-
-        //Transfer vertices to keep in the current mesh
-        Mesh currentMesh;
-        nvl::meshTransferVerticesWithFaces(mesh, vertices, currentMesh, gridBirthVertex[mId], gridBirthFace[mId]);
+        //Scale mesh
+        Mesh scaledMesh = mesh;
+        nvl::meshApplyTransformation(scaledMesh, scaleTransform);
 
         //Initialize adapter and polygon grid
-        adapters[mId] = internal::OpenVDBAdapter<Mesh>(&currentMesh);
-        polygonGrids[mId] = IntGrid::create(nvl::maxLimitValue<int>());
+        internal::OpenVDBAdapter<Mesh> adapter(&scaledMesh);
+        polygonGrids[mId] = IntGrid::create(-1);
 
-        //Scale mesh
-        nvl::meshApplyTransformation(currentMesh, scaleTransform);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/input_ " + std::to_string(mId) + ".obj", currentMesh);
+        nvl::meshSaveToFile("results/input_ " + std::to_string(mId) + ".obj", scaledMesh);
 #endif
 
-        TransformPtr linearTransform =
-                openvdb::math::Transform::createLinearTransform(1.0);
+        //Create unsigned distance field
+        TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(1.0);
+        unsignedGrids[mId] = openvdb::tools::meshToVolume<FloatGrid>(
+                    adapter, *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrids[mId].get());
+
 
         //Create unsigned distance field
-        signedGrids[mId] = openvdb::tools::meshToVolume<FloatGrid>(
-                    adapters[mId], *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrids[mId].get());
+        signedGrids[mId] = unsignedGrids[mId]->deepCopy();
         FloatGrid::Accessor signedAccessor = signedGrids[mId]->getAccessor();
 
         //Eigen mesh conversion
-        Mesh triangulatedMesh = currentMesh;
+        Mesh triangulatedMesh = scaledMesh;
         nvl::meshTriangulateConvexFace(triangulatedMesh);
         Eigen::MatrixXd V;
         Eigen::MatrixXi F;
@@ -124,36 +89,29 @@ typename Model::Mesh getBlendedMesh(
         igl::FastWindingNumberBVH fwn;
         igl::fast_winding_number(V.cast<float>().eval(), F, 2, fwn);
 
-        //Min and max of the current configuration
-        openvdb::Vec3i
-                currentMin(
-                    std::numeric_limits<int>::max(),
-                    std::numeric_limits<int>::max(),
-                    std::numeric_limits<int>::max()),
-                currentMax(
-                    std::numeric_limits<int>::min(),
-                    std::numeric_limits<int>::min(),
-                    std::numeric_limits<int>::min());
+        //Minimum and maximum coordinates in the scalar fields
+        bbMin[mId] = openvdb::Vec3i(
+            std::numeric_limits<int>::max(),
+            std::numeric_limits<int>::max(),
+            std::numeric_limits<int>::max());
+        bbMax[mId] = openvdb::Vec3i(
+            std::numeric_limits<int>::min(),
+            std::numeric_limits<int>::min(),
+            std::numeric_limits<int>::min());
 
         //Min and max values
         for (FloatGrid::ValueOnIter iter = signedGrids[mId]->beginValueOn(); iter; ++iter) {
             GridCoord coord = iter.getCoord();
 
-            currentMin = openvdb::Vec3i(std::min(coord.x(), currentMin.x()),
-                                        std::min(coord.y(), currentMin.y()),
-                                        std::min(coord.z(), currentMin.z()));
+            bbMin[mId] = openvdb::Vec3i(
+                std::min(coord.x(), bbMin[mId].x()),
+                std::min(coord.y(), bbMin[mId].y()),
+                std::min(coord.z(), bbMin[mId].z()));
 
-            currentMax = openvdb::Vec3i(std::max(coord.x(), currentMax.x()),
-                                        std::max(coord.y(), currentMax.y()),
-                                        std::max(coord.z(), currentMax.z()));
-
-            min = openvdb::Vec3i(std::min(coord.x(), min.x()),
-                                 std::min(coord.y(), min.y()),
-                                 std::min(coord.z(), min.z()));
-
-            max = openvdb::Vec3i(std::max(coord.x(), max.x()),
-                                 std::max(coord.y(), max.y()),
-                                 std::max(coord.z(), max.z()));
+            bbMax[mId] = openvdb::Vec3i(
+                std::max(coord.x(), bbMax[mId].x()),
+                std::max(coord.y(), bbMax[mId].y()),
+                std::max(coord.z(), bbMax[mId].z()));
         }
 
         //Fast winding number input
@@ -161,14 +119,14 @@ typename Model::Mesh getBlendedMesh(
         Eigen::VectorXf W;
 
         //Resize by number of voxels
-        const unsigned int numberVoxels = (currentMax.x() - currentMin.x()) * (currentMax.y() - currentMin.y()) * (currentMax.z() - currentMin.z());
+        const unsigned int numberVoxels = (bbMax[mId].x() - bbMin[mId].x()) * (bbMax[mId].y() - bbMin[mId].y()) * (bbMax[mId].z() - bbMin[mId].z());
         Q.resize(numberVoxels, 3);
 
         //Fill fast winding number structure
         unsigned int currentVoxel = 0;
-        for (int i = currentMin.x(); i < currentMax.x(); i++) {
-            for (int j = currentMin.y(); j < currentMax.y(); j++) {
-                for (int k = currentMin.z(); k < currentMax.z(); k++) {
+        for (int i = bbMin[mId].x(); i < bbMax[mId].x(); i++) {
+            for (int j = bbMin[mId].y(); j < bbMax[mId].y(); j++) {
+                for (int k = bbMin[mId].z(); k < bbMax[mId].z(); k++) {
                     GridCoord coord(i,j,k);
                     openvdb::Vec3d p = signedGrids[mId]->indexToWorld(coord);
 
@@ -186,9 +144,9 @@ typename Model::Mesh getBlendedMesh(
 
         //Set the sign
         currentVoxel = 0;
-        for (int i = currentMin.x(); i < currentMax.x(); i++) {
-            for (int j = currentMin.y(); j < currentMax.y(); j++) {
-                for (int k = currentMin.z(); k < currentMax.z(); k++) {
+        for (int i = bbMin[mId].x(); i < bbMax[mId].x(); i++) {
+            for (int j = bbMin[mId].y(); j < bbMax[mId].y(); j++) {
+                for (int k = bbMin[mId].z(); k < bbMax[mId].z(); k++) {
                     GridCoord coord(i,j,k);
 
                     FloatGrid::ValueType dist = signedAccessor.getValue(coord);
@@ -208,24 +166,70 @@ typename Model::Mesh getBlendedMesh(
 
         //Create openvdb mesh
         Mesh closedMesh = convertGridToMesh<Mesh>(signedGrids[mId], true);
-
         internal::OpenVDBAdapter<Mesh> closedAdapter(&closedMesh);
+
+        closedGrids[mId] = openvdb::tools::meshToVolume<FloatGrid>(
+            closedAdapter, *linearTransform, maxDistance, maxDistance, 0);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
         nvl::meshSaveToFile("results/closed_ " + std::to_string(mId) + ".obj", closedMesh);
 #endif
+    }
+}
 
-        closedGrids[mId] = openvdb::tools::meshToVolume<FloatGrid>(
-            closedAdapter, *linearTransform, maxDistance, maxDistance, 0);
+template<class Model>
+typename Model::Mesh getBlendedMesh(
+        const std::vector<Model*>& models,
+        const std::vector<std::vector<double>>& vertexSelectValue,
+        const nvl::Scaling3d& scaleTransform,
+        const double maxDistance,
+        const std::vector<FloatGridPtr>& closedGrids,
+        const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<openvdb::Vec3i>& bbMin,
+        const std::vector<openvdb::Vec3i>& bbMax)
+{
+    typedef typename openvdb::FloatGrid FloatGrid;
+    typedef typename FloatGrid::Ptr FloatGridPtr;
+    typedef typename openvdb::Int32Grid IntGrid;
+    typedef typename IntGrid::Ptr IntGridPtr;
+    typedef typename Model::Mesh Mesh;
+    typedef typename Mesh::FaceId FaceId;
+    typedef typename Mesh::Point Point;
+    typedef typename nvl::Index Index;
+
+    Mesh blendedMesh;
+
+    closedGrids.resize(models.size());
+
+    //Minimum and maximum coordinates in the scalar fields
+    openvdb::Vec3i minCoord(
+        std::numeric_limits<int>::max(),
+        std::numeric_limits<int>::max(),
+        std::numeric_limits<int>::max());
+    openvdb::Vec3i maxCoord(
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::min());
+
+    for (Index mId = 0; mId < models.size(); ++mId) {
+        minCoord = openvdb::Vec3i(
+            std::min(minCoord.x(), bbMin[mId].x()),
+            std::min(minCoord.y(), bbMin[mId].y()),
+            std::min(minCoord.z(), bbMin[mId].z()));
+
+        maxCoord = openvdb::Vec3i(
+            std::max(maxCoord.x(), bbMax[mId].x()),
+            std::max(maxCoord.y(), bbMax[mId].y()),
+            std::max(maxCoord.z(), bbMax[mId].z()));
     }
 
     FloatGridPtr blendedGrid = FloatGrid::create(maxDistance);
     FloatGrid::Accessor resultAccessor = blendedGrid->getAccessor();
 
     //Blend grids
-    for (int i = min.x(); i < max.x(); i++) {
-        for (int j = min.y(); j < max.y(); j++) {
-            for (int k = min.z(); k < max.z(); k++) {
+    for (int i = minCoord.x(); i < maxCoord.x(); i++) {
+        for (int j = minCoord.y(); j < maxCoord.y(); j++) {
+            for (int k = minCoord.z(); k < maxCoord.z(); k++) {
                 GridCoord coord(i,j,k);
 
                 Point point(i, j, k);
@@ -243,10 +247,8 @@ typename Model::Mesh getBlendedMesh(
                     FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
                     IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                    if (pId >= 0 && pId < nvl::maxLimitValue<int>() && closedDistance < maxDistance && closedDistance > -maxDistance) {
-                        FaceId originFaceId = gridBirthFace[mId][pId];
-
-                        double selectValue = internal::interpolateVertexSelectValue(mesh, originFaceId, point, vertexSelectValue[mId]);
+                    if (pId >= 0 && closedDistance < maxDistance && closedDistance > -maxDistance) {
+                        double selectValue = internal::interpolateFaceSelectValue(mesh, pId, point, vertexSelectValue[mId]);
 
                         selectValueSum += selectValue;
 
@@ -340,7 +342,7 @@ Mesh convertGridToMesh(const openvdb::FloatGrid::Ptr& gridPtr, bool transformQua
 }
 
 template<class Mesh>
-double interpolateVertexSelectValue(
+double interpolateFaceSelectValue(
         const Mesh& mesh,
         const typename Mesh::FaceId& faceId,
         const typename Mesh::Point& point,
@@ -348,7 +350,6 @@ double interpolateVertexSelectValue(
 {
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::Face Face;
-    typedef typename Mesh::Scalar Scalar;
     typedef typename Mesh::Point Point;
 
     //Get polygon points and select values
@@ -371,6 +372,26 @@ double interpolateVertexSelectValue(
         true);
 
     return value;
+}
+
+template<class Mesh>
+double averageFaceSelectValue(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const std::vector<double>& vertexSelectValue)
+{
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::Face Face;
+
+    const Face& face = mesh.face(faceId);
+
+    double selectValue = 0.0;
+    for (VertexId j : face.vertexIds()) {
+        selectValue += vertexSelectValue[j];
+    }
+    selectValue /= face.vertexNumber();
+
+    return selectValue;
 }
 
 }

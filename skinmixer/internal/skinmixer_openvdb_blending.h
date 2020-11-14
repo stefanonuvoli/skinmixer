@@ -41,17 +41,42 @@ struct OpenVDBAdapter {
     }
 };
 
+
+template<class Model>
+void getSignedGrids(
+        const std::vector<Model*>& models,
+        const nvl::Scaling3d& scaleTransform,
+        const double maxDistance,
+        std::vector<FloatGridPtr>& unsignedGrids,
+        std::vector<IntGridPtr>& polygonGrids,
+        std::vector<FloatGridPtr>& signedGrids,
+        std::vector<FloatGridPtr>& closedGrids,
+        std::vector<openvdb::Vec3i>& bbMin,
+        std::vector<openvdb::Vec3i>& bbMax);
+
 template<class Model>
 typename Model::Mesh getBlendedMesh(
         const std::vector<Model*>& models,
         const std::vector<std::vector<double>>& vertexSelectValue,
         const nvl::Scaling3d& scaleTransform,
         const double maxDistance,
-        std::vector<FloatGridPtr>& signedGrids,
-        std::vector<FloatGridPtr>& closedGrids,
-        std::vector<IntGridPtr>& polygonGrids,
-        std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
-        std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace);
+        const std::vector<FloatGridPtr>& closedGrids,
+        const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<openvdb::Vec3i>& bbMin,
+        const std::vector<openvdb::Vec3i>& bbMax);
+
+template<class Mesh>
+double averageFaceSelectValue(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const std::vector<double>& vertexSelectValue);
+
+template<class Mesh>
+double interpolateFaceSelectValue(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const typename Mesh::Point& point,
+        const std::vector<double>& vertexSelectValue);
 
 template<class Mesh>
 Mesh convertGridToMesh(const FloatGridPtr& gridPtr, bool transformQuadsToTriangles);
