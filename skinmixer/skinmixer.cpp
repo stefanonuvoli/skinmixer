@@ -11,6 +11,9 @@
 #include <nvl/models/model_transformations.h>
 #include <nvl/models/mesh_normals.h>
 
+#define REMOVING_THRESHOLD 0.7
+#define DETACHING_THRESHOLD 0.5
+
 namespace skinmixer {
 
 template<class Model>
@@ -126,6 +129,14 @@ void remove(
     std::vector<double> vertexValues;
     std::vector<double> jointValues;
     computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, rigidity, offset, vertexValues, jointValues);
+    for (nvl::Index i = 0; i < vertexValues.size(); ++i) {
+        if (vertexValues[i] >= REMOVING_THRESHOLD) {
+            vertexValues[i] = 1.0;
+        }
+        else {
+            vertexValues[i] = 0.0;
+        }
+    }
 
     Action action;
     action.operation = OperationType::REMOVE;
@@ -158,6 +169,14 @@ void detach(
     std::vector<double> vertexValues;
     std::vector<double> jointValues;
     computeDetachSelectValues(*model, targetJoint, smoothingIterations, rigidity, offset, vertexValues, jointValues);
+    for (nvl::Index i = 0; i < vertexValues.size(); ++i) {
+        if (vertexValues[i] >= DETACHING_THRESHOLD) {
+            vertexValues[i] = 1.0;
+        }
+        else {
+            vertexValues[i] = 0.0;
+        }
+    }
 
     Action action;
     action.operation = OperationType::DETACH;

@@ -16,9 +16,9 @@
 #include <nvl/models/mesh_normals.h>
 
 #define OFFSET_DEFAULT 50
-#define DETACHING_OFFSET_DEFAULT 40
-#define REMOVING_OFFSET_DEFAULT 30
-#define ATTACHING_OFFSET1_DEFAULT 40
+#define DETACHING_OFFSET_DEFAULT 50
+#define REMOVING_OFFSET_DEFAULT 50
+#define ATTACHING_OFFSET1_DEFAULT 50
 #define ATTACHING_OFFSET2_DEFAULT 50
 
 SkinMixerManager::SkinMixerManager(
@@ -512,9 +512,25 @@ void SkinMixerManager::updatePreview()
 
         if (vCurrentOperation == OperationType::REMOVE) {
             skinmixer::computeRemoveSelectValues(currentModel, vSelectedJoint, smoothingIterations, rigidity, currentOffset, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            for (nvl::Index i = 0; i < currentPreviewVertexSelectValue.size(); ++i) {
+                if (currentPreviewVertexSelectValue[i] >= REMOVING_THRESHOLD) {
+                    currentPreviewVertexSelectValue[i] = 1.0;
+                }
+                else {
+                    currentPreviewVertexSelectValue[i] = 0.0;
+                }
+            }
         }
         else if (vCurrentOperation == OperationType::DETACH) {
             skinmixer::computeDetachSelectValues(currentModel, vSelectedJoint, smoothingIterations, rigidity, currentOffset, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            for (nvl::Index i = 0; i < currentPreviewVertexSelectValue.size(); ++i) {
+                if (currentPreviewVertexSelectValue[i] >= DETACHING_THRESHOLD) {
+                    currentPreviewVertexSelectValue[i] = 1.0;
+                }
+                else {
+                    currentPreviewVertexSelectValue[i] = 0.0;
+                }
+            }
         }
         else if (vCurrentOperation == OperationType::ATTACH && attachJointSelected && vSelectedModelDrawer != vAttachModelDrawer) {
             Model* attachModelPtr = vAttachModelDrawer->model();
