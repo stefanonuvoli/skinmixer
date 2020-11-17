@@ -233,47 +233,47 @@ void attachMeshesByBorders(
 
             //Parametrization functions on length
             std::vector<double>& mParametrization = mFinalParametrization[candidateId];
-            mParametrization.resize(mChain.size());
             std::vector<double>& dParametrization = dFinalParametrization[candidateId];
+            mParametrization.resize(mChain.size());
             dParametrization.resize(dChain.size());
 
             //Total distances
             Scalar dChainTotalDist = 0.0;
-            Scalar mChainTotalDist = 0.0;
-            Scalar mChainOriginalTotalDist = 0.0;
-            for (Index j = 0; j < dChain.size(); ++j) {
+            Scalar mChainSmoothedTotalDist = 0.0;
+            for (Index j = 0; j < dChain.size() - 1; ++j) {
                 Index nextJ = (j + 1) % dChain.size();
+
                 nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[j];
                 dChainTotalDist += vec.norm();
             }
-            for (Index i = 0; i < mChain.size(); ++i) {
+            for (Index i = 0; i < mChain.size() - 1; ++i) {
                 Index nextI = (i + 1) % mChain.size();
+
                 nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[i];
-                mChainTotalDist += vec.norm();
-                nvl::Vector3d originalVec = tmpMesh.vertex(nextI).point() - tmpMesh.vertex(i).point();
-                mChainOriginalTotalDist += originalVec.norm();
+                mChainSmoothedTotalDist += vec.norm();
             }
 
             //Compute parametrization for destination mesh
             Scalar dChainCurrentDist = 0.0;
             dParametrization[startJ] = 0.0;
-            for (Index j = 0; j < dChain.size() - 1; ++j) {
+            for (Index j = 0; j < dChain.size(); ++j) {
                 Index currentJ = (startJ + j) % dChain.size();
                 Index nextJ = (currentJ + 1) % dChain.size();
 
                 nvl::Vector3d vec = dSmoothPoint[nextJ] - dSmoothPoint[currentJ];
-                dChainCurrentDist += vec.norm();
 
                 double value = dChainCurrentDist / dChainTotalDist;
-                dParametrization[nextJ] = std::max(std::min(value, 1.0), 0.0);
+                dParametrization[currentJ] = std::max(std::min(value, 1.0), 0.0);
+
+                dChainCurrentDist += vec.norm();
             }
 
             //Compute offset of the parametrization
             const double offsetT = (
-                        dClosestIT[startJ] * (
-                            tmpMesh.vertex(mChain[(startI + 1) % mChain.size()]).point() - tmpMesh.vertex(mChain[startI]).point()
-                        ).norm()
-                    ) / mChainTotalDist;
+                    dClosestIT[startJ] * (
+                        mSmoothPoint[(startI + 1) % mChain.size()] - mSmoothPoint[startI]
+                    ).norm()
+                ) / mChainSmoothedTotalDist;
 
             //Compute parametrization for destination mesh
             Scalar mChainCurrentDist = 0.0;
@@ -282,13 +282,9 @@ void attachMeshesByBorders(
                 Index nextI = (currentI + 1) % mChain.size();
 
                 nvl::Vector3d vec = mSmoothPoint[nextI] - mSmoothPoint[currentI];
-                mChainCurrentDist += vec.norm();
+                mParametrization[currentI] = (mChainCurrentDist / mChainSmoothedTotalDist) - offsetT;
 
-                double value = (mChainCurrentDist / mChainTotalDist) - offsetT;
-                if (value <= 0.0) {
-                    value = std::min(0.999999, value + 1.0);
-                }
-                mParametrization[nextI] = std::max(std::min(value, 1.0), 0.0);
+                mChainCurrentDist += vec.norm();
             }
 
             //Optimization parameters
@@ -308,7 +304,7 @@ void attachMeshesByBorders(
                 //Variables
                 std::vector<GRBVar> vars(mChain.size());
                 for (size_t i = 0; i < mChain.size(); i++) {
-                    vars[i] = model.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "t" + std::to_string(i));
+                    vars[i] = model.addVar(-1.0, 2.0, 0.0, GRB_CONTINUOUS, "t" + std::to_string(i));
                 }
 
                 //Length parametrization cost
@@ -326,31 +322,27 @@ void attachMeshesByBorders(
                 //Distance cost
                 GRBQuadExpr distanceObj = 0;
                 int numDistanceTerms = 0;
+                double lastParam1 = nvl::minLimitValue<double>();
+                double lastParam2 = nvl::minLimitValue<double>();
                 for (size_t j = 0; j < dChain.size(); j++) {
                     Index currentJ = (j + startJ) % dChain.size();
-
-                    if (nvl::epsEqual(dParametrization[currentJ], 0.0) || nvl::epsEqual(dParametrization[currentJ], 1.0))
-                        continue;
 
                     Index currentI = dClosestIVertex[currentJ];
                     Index nextI = (currentI + 1) % mChain.size();
 
-                    const double& currentT = dClosestIT[currentJ];
-
-                    Scalar parametrizedDistance = (tmpMesh.vertex(nextI).point() - tmpMesh.vertex(currentI).point()).norm() / mChainOriginalTotalDist;
-
-                    double value1 = dParametrization[currentJ] - (currentT * parametrizedDistance);
-                    if (value1 <= 0.0) {
-                        value1 = std::min(0.999999, value1 + 1.0);
-                    }
-                    double value2 = dParametrization[currentJ] + ((1 - currentT) * parametrizedDistance);
-                    if (value2 >= 1.0) {
-                        value2 = std::max(0.000001, value2 - 1.0);
-                    }
-
-                    if (value1 - mParametrization[currentI] > 0.5 || value2 - mParametrization[nextI] > 0.5) {
+                    //Avoid if parametrization has decreased
+                    if (mParametrization[currentI] < lastParam1 || mParametrization[nextI] < lastParam2) {
                         continue;
                     }
+                    lastParam1 = mParametrization[currentI];
+                    lastParam2 = mParametrization[nextI];
+
+                    const double& currentT = dClosestIT[currentJ];
+
+                    Scalar parametrizedDistance = (mSmoothPoint[nextI] - mSmoothPoint[currentI]).norm() / mChainSmoothedTotalDist;
+
+                    double value1 = dParametrization[currentJ] - (currentT * parametrizedDistance);
+                    double value2 = dParametrization[currentJ] + ((1.0 - currentT) * parametrizedDistance);
 
                     distanceObj +=
                         0.5 * ((vars[currentI] - value1) * (vars[currentI] - value1)) +
@@ -365,11 +357,11 @@ void attachMeshesByBorders(
                 GRBQuadExpr obj = distanceCost * distanceObj + lengthCost * lengthObj;
 
                 //Add constraints
-                model.addConstr(vars[startI] == std::min(0.999999, mParametrization[startI]));
-                for (size_t i = 1; i < mChain.size(); i++) {
+                model.addConstr(vars[startI] == mParametrization[startI]);
+                for (size_t i = 0; i < mChain.size() - 1; i++) {
                     Index currentI = (startI + i) % mChain.size();
                     Index nextI = (currentI + 1) % mChain.size();
-                    model.addConstr(vars[nextI] >= vars[currentI] + 0.000001);
+                    model.addConstr(vars[nextI] >= vars[currentI] + 0.0001);
                 }
 
                 //Set objective function
@@ -528,12 +520,10 @@ void attachMeshesByBorders(
 }
 
 template<class Mesh>
-void cleanPreservedMeshAfterAttaching(
-        Mesh& preMesh,
+std::vector<typename Mesh::FaceId> getPreNotUsedFacesAfterAttaching(
+        const Mesh& preMesh,
         const std::unordered_set<typename Mesh::VertexId>& preNonSnappableVertices,
-        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices,
-        std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
-        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace)
+        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices)
 {
     typedef typename nvl::Index Index;
     typedef typename Mesh::VertexId VertexId;
@@ -574,45 +564,17 @@ void cleanPreservedMeshAfterAttaching(
         }
     }
 
-    //Clean mesh from components that are not used
-    std::vector<FaceId> preFacesToKeep;
-    for (const Index& cId : preUsedComponents) {
-        const std::vector<FaceId>& connectedComponent = preConnectedComponents[cId];
-        preFacesToKeep.insert(preFacesToKeep.end(), connectedComponent.begin(), connectedComponent.end());
+    //Get faces that are not used
+    std::vector<typename Mesh::FaceId> preErasedFaces;
+    for (Index cId = 0; cId < preConnectedComponents.size(); cId++) {
+        if (preUsedComponents.find(cId) == preUsedComponents.end()) {
+            for (const FaceId& fId : preConnectedComponents[cId]) {
+                preErasedFaces.push_back(fId);
+            }
+        }
     }
 
-    //Save in the final mesh data-structure
-    Mesh preMeshCopy = preMesh;
-    std::vector<VertexId> cleaningBirthVertex;
-    std::vector<FaceId> cleaningBirthFace;
-    preMesh.clear();
-    nvl::meshTransferFaces(preMeshCopy, preFacesToKeep, preMesh, cleaningBirthVertex, cleaningBirthFace);
-
-    std::vector<std::pair<Index, VertexId>> tmpPreBirthVertex(preMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));;
-    std::vector<std::pair<Index, FaceId>> tmpPreBirthFace(preMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-    for (VertexId vId = 0; vId < preMesh.nextVertexId(); ++vId) {
-        if (preMesh.isVertexDeleted(vId))
-            continue;
-
-        assert(cleaningBirthVertex[vId] != nvl::MAX_INDEX);
-        const std::pair<Index, VertexId>& pair = preBirthVertex[cleaningBirthVertex[vId]];
-        assert(pair.first != nvl::MAX_INDEX);
-        assert(pair.second != nvl::MAX_INDEX);
-        tmpPreBirthVertex[vId] = std::make_pair(pair.first, pair.second);
-    }
-    for (FaceId fId = 0; fId < preMesh.nextFaceId(); ++fId) {
-        if (preMesh.isFaceDeleted(fId))
-            continue;
-
-        assert(cleaningBirthFace[fId] != nvl::MAX_INDEX);
-        const std::pair<Index, FaceId>& pair = preBirthFace[cleaningBirthFace[fId]];
-        assert(pair.first != nvl::MAX_INDEX);
-        assert(pair.second != nvl::MAX_INDEX);
-        tmpPreBirthFace[fId] = std::make_pair(pair.first, pair.second);
-    }
-
-    preBirthVertex = tmpPreBirthVertex;
-    preBirthFace = tmpPreBirthFace;
+    return preErasedFaces;
 }
 
 }

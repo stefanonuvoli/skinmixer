@@ -1062,20 +1062,13 @@ void SkinMixerManager::updateValuesBirth()
                     nvl::Size n = 0;
 
                     for (auto info : entry.birth.vertex[vertex.id()]) {
-                        if (info.vId == nvl::MAX_INDEX) {
-                            if (info.eId == firstEntry) {
-                                currentValue += 1 - info.weight;
-                            }
-                            else {
-                                currentValue += info.weight;
-                            }
-                            n++;
+                        if (info.eId == firstEntry) {
+                            currentValue += 1 - info.weight;
                         }
                         else {
-                            currentValue = -1;
-                            n = 1;
-                            break;
+                            currentValue += info.weight;
                         }
+                        n++;
                     }
 
                     currentValue /= n;

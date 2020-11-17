@@ -7,9 +7,11 @@
 #include <nvl/models/mesh_transfer.h>
 #include <nvl/models/mesh_transformations.h>
 #include <nvl/models/mesh_triangulation.h>
+#include <nvl/models/mesh_geometric_information.h>
 
 #include <nvl/math/barycentric_interpolation.h>
 #include <nvl/math/numeric_limits.h>
+#include <nvl/math/comparisons.h>
 
 #include <igl/fast_winding_number.h>
 #include <igl/winding_number.h>
@@ -18,6 +20,7 @@
 
 #define SELECT_VALUE_MIN_THRESHOLD 0.02
 #define SELECT_VALUE_MAX_THRESHOLD 0.98
+#define EXPANSION_VOXELS 10.0
 
 namespace skinmixer {
 namespace internal {
@@ -30,18 +33,24 @@ double interpolateFaceSelectValue(
         const std::vector<double>& vertexSelectValue);
 
 template<class Model>
-void getSignedGrids(
-        const std::vector<Model*>& models,
-        const nvl::Scaling3d& scaleTransform,
-        const double maxDistance,
+void getBlendingGrids(
+        const std::vector<const Model*>& models,
+        const std::vector<const std::vector<double>*>& vertexSelectValue,
+        const double& scaleFactor,
+        const double& maxDistance,
         std::vector<FloatGridPtr>& unsignedGrids,
-        std::vector<IntGridPtr>& polygonGrids,
         std::vector<FloatGridPtr>& signedGrids,
-        std::vector<FloatGridPtr>& closedGrids,
+        std::vector<FloatGridPtr>& closedGrids,        
+        std::vector<IntGridPtr>& polygonGrids,
+        std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
+        std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
         std::vector<openvdb::Vec3i>& bbMin,
         std::vector<openvdb::Vec3i>& bbMax)
 {
     typedef typename Model::Mesh Mesh;
+    typedef typename Mesh::Point Point;
+    typedef typename Mesh::Scalar Scalar;
+    typedef typename Mesh::FaceId FaceId;
     typedef typename nvl::Index Index;
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
@@ -49,23 +58,153 @@ void getSignedGrids(
     polygonGrids.resize(models.size());
     signedGrids.resize(models.size());
     closedGrids.resize(models.size());
+    gridBirthVertex.resize(models.size());
+    gridBirthFace.resize(models.size());
     bbMin.resize(models.size());
     bbMax.resize(models.size());
+
+    nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
     for (Index mId = 0; mId < models.size(); ++mId) {
         const Mesh& mesh = models[mId]->mesh;
 
+        std::vector<std::vector<FaceId>> meshFFAdj = nvl::meshFaceFaceAdjacencies(mesh);
+        std::vector<std::vector<FaceId>> meshCC = nvl::meshConnectedComponents(mesh, meshFFAdj);
+
+        Scalar maxExpansionDistance = EXPANSION_VOXELS / scaleFactor;
+
+        //Enhance ffadj with closest borders in different components
+        std::unordered_set<Index> alreadyMatched;
+        for (Index c1 = 0; c1 < meshCC.size(); ++c1) {
+            for (const FaceId& f1 : meshCC[c1]) {
+                for (Index pos1 = 0; pos1 < meshFFAdj[f1].size(); ++pos1) {
+                    if (meshFFAdj[f1][pos1] == nvl::MAX_INDEX) {
+                        FaceId bestF2 = nvl::MAX_INDEX;
+                        Index bestPos2 = nvl::MAX_INDEX;
+                        Scalar bestDistance = nvl::maxLimitValue<Scalar>();
+                        double bestScore = nvl::maxLimitValue<double>();
+
+                        Point b1 = nvl::meshFaceBarycenter(mesh, f1);
+
+                        for (Index c2 = 0; c2 < meshCC.size(); ++c2) {
+                            if (c1 == c2)
+                                continue;
+
+                            for (const FaceId& f2 : meshCC[c2]) {
+                                for (Index pos2 = 0; pos2 < meshFFAdj[f2].size(); ++pos2) {
+                                    if (meshFFAdj[f2][pos2] == nvl::MAX_INDEX) {
+                                        Point b2 = nvl::meshFaceBarycenter(mesh, f2);
+
+                                        Scalar distance = (b1 - b2).norm();
+                                        double score = distance;
+
+                                        if (alreadyMatched.find(f2) != alreadyMatched.end()) {
+                                            score *= 2;
+                                        }
+
+                                        if (score < bestScore) {
+                                            bestF2 = f2;
+                                            bestPos2 = pos2;
+                                            bestDistance = distance;
+                                            bestScore = score;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bestF2 != nvl::MAX_INDEX) {
+                            meshFFAdj[f1][pos1] = bestF2;
+                            meshFFAdj[bestF2][bestPos2] = f1;
+
+                            alreadyMatched.insert(f1);
+                            alreadyMatched.insert(bestF2);
+                        }
+                    }
+                }
+            }
+        }
+
+        //Get vertices
+        std::vector<Point> points;
+        std::unordered_set<FaceId> facesToBlend;
+        for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+            if (mesh.isFaceDeleted(fId)) {
+                continue;
+            }
+
+            double selectValue = internal::averageFaceSelectValue(mesh, fId, *vertexSelectValue[mId]);
+
+            if (selectValue > 0.0 && selectValue < 1.0 && !nvl::epsEqual(selectValue, 0.0) && !nvl::epsEqual(selectValue, 1.0)) {
+                facesToBlend.insert(fId);
+
+                points.push_back(nvl::meshFaceBarycenter(mesh, fId));
+            }
+        }
+
+        if (facesToBlend.empty()) {
+            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+                if (mesh.isFaceDeleted(fId)) {
+                    continue;
+                }
+
+                double selectValue = internal::averageFaceSelectValue(mesh, fId, *vertexSelectValue[mId]);
+
+                if (selectValue > 0.0 && !nvl::epsEqual(selectValue, 0.0)) {
+                    facesToBlend.insert(fId);
+
+                    points.push_back(nvl::meshFaceBarycenter(mesh, fId));
+                }
+            }
+        }
+
+
+        //Expand selection
+        std::unordered_set<FaceId> newFacesToBlend;
+
+        bool expansion;
+        do {
+            expansion = false;
+
+            for (const FaceId& fId : facesToBlend) {
+                for (const FaceId& adj : meshFFAdj[fId]) {
+                    if (adj != nvl::MAX_INDEX) {
+                        if (facesToBlend.find(adj) == facesToBlend.end()) {
+                            const Point barycenter = nvl::meshFaceBarycenter(mesh, adj);
+
+                            for (const Point& point : points) {
+                                Scalar distance = (barycenter - point).norm();
+
+                                if (distance < maxExpansionDistance) {
+                                    expansion = true;
+
+                                    newFacesToBlend.insert(adj);
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            facesToBlend.insert(newFacesToBlend.begin(), newFacesToBlend.end());
+        } while (expansion);
+
+        //Transfer vertices to keep in the current mesh
+        Mesh currentMesh;
+        nvl::meshTransferFaces(mesh, std::vector<FaceId>(facesToBlend.begin(), facesToBlend.end()), currentMesh, gridBirthVertex[mId], gridBirthFace[mId]);
+
         //Scale mesh
-        Mesh scaledMesh = mesh;
-        nvl::meshApplyTransformation(scaledMesh, scaleTransform);
+        nvl::meshApplyTransformation(currentMesh, scaleTransform);
 
         //Initialize adapter and polygon grid
-        internal::OpenVDBAdapter<Mesh> adapter(&scaledMesh);
+        internal::OpenVDBAdapter<Mesh> adapter(&currentMesh);
         polygonGrids[mId] = IntGrid::create(-1);
 
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/input_ " + std::to_string(mId) + ".obj", scaledMesh);
+        nvl::meshSaveToFile("results/action_input_ " + std::to_string(mId) + ".obj", currentMesh);
 #endif
 
         //Create unsigned distance field
@@ -79,7 +218,7 @@ void getSignedGrids(
         FloatGrid::Accessor signedAccessor = signedGrids[mId]->getAccessor();
 
         //Eigen mesh conversion
-        Mesh triangulatedMesh = scaledMesh;
+        Mesh triangulatedMesh = currentMesh;
         nvl::meshTriangulateConvexFace(triangulatedMesh);
         Eigen::MatrixXd V;
         Eigen::MatrixXi F;
@@ -172,19 +311,20 @@ void getSignedGrids(
             closedAdapter, *linearTransform, maxDistance, maxDistance, 0);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/closed_ " + std::to_string(mId) + ".obj", closedMesh);
+        nvl::meshSaveToFile("results/action_closed_ " + std::to_string(mId) + ".obj", closedMesh);
 #endif
     }
 }
 
 template<class Model>
 typename Model::Mesh getBlendedMesh(
-        const std::vector<Model*>& models,
-        const std::vector<std::vector<double>>& vertexSelectValue,
-        const nvl::Scaling3d& scaleTransform,
-        const double maxDistance,
+        const std::vector<const Model*>& models,
+        const std::vector<const std::vector<double>*>& vertexSelectValue,
+        const double& scaleFactor,
+        const double& maxDistance,
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
         const std::vector<openvdb::Vec3i>& bbMin,
         const std::vector<openvdb::Vec3i>& bbMax)
 {
@@ -196,6 +336,8 @@ typename Model::Mesh getBlendedMesh(
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Point Point;
     typedef typename nvl::Index Index;
+
+    nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
     Mesh blendedMesh;
 
@@ -248,7 +390,9 @@ typename Model::Mesh getBlendedMesh(
                     IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
                     if (pId >= 0 && closedDistance < maxDistance && closedDistance > -maxDistance) {
-                        double selectValue = internal::interpolateFaceSelectValue(mesh, pId, point, vertexSelectValue[mId]);
+                        FaceId originFaceId = gridBirthFace[mId][pId];
+
+                        double selectValue = internal::interpolateFaceSelectValue(mesh, originFaceId, point, *vertexSelectValue[mId]);
 
                         selectValueSum += selectValue;
 
@@ -296,7 +440,7 @@ typename Model::Mesh getBlendedMesh(
     blendedMesh = convertGridToMesh<Mesh>(blendedGrid, true);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/blendedMesh_non_rescaled.obj", blendedMesh);
+    nvl::meshSaveToFile("results/action_blendedMesh_non_rescaled.obj", blendedMesh);
 #endif
 
     //Rescale back

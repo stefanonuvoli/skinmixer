@@ -20,12 +20,10 @@ void attachMeshesByBorders(
         std::unordered_set<typename Mesh::VertexId>& preSnappedVertices);
 
 template<class Mesh>
-void cleanPreservedMeshAfterAttaching(
-        Mesh& preMesh,
+std::vector<typename Mesh::FaceId> getPreUsedFacesAfterAttaching(
+        const Mesh& preMesh,
         const std::unordered_set<typename Mesh::VertexId>& preNonSnappableVertices,
-        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices,
-        std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
-        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace);
+        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices);
 
 }
 }

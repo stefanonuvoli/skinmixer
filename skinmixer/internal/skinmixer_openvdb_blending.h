@@ -4,6 +4,7 @@
 #include <nvl/nuvolib.h>
 
 #include <utility>
+#include <unordered_set>
 
 #ifdef foreach
   #undef foreach
@@ -43,25 +44,29 @@ struct OpenVDBAdapter {
 
 
 template<class Model>
-void getSignedGrids(
-        const std::vector<Model*>& models,
-        const nvl::Scaling3d& scaleTransform,
-        const double maxDistance,
+void getBlendingGrids(
+        const std::vector<const Model*>& models,
+        const std::vector<const std::vector<double>*>& vertexSelectValue,
+        const double& scaleFactor,
+        const double& maxDistance,
         std::vector<FloatGridPtr>& unsignedGrids,
-        std::vector<IntGridPtr>& polygonGrids,
         std::vector<FloatGridPtr>& signedGrids,
-        std::vector<FloatGridPtr>& closedGrids,
+        std::vector<FloatGridPtr>& closedGrids,        
+        std::vector<IntGridPtr>& polygonGrids,
+        std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
+        std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
         std::vector<openvdb::Vec3i>& bbMin,
         std::vector<openvdb::Vec3i>& bbMax);
 
 template<class Model>
 typename Model::Mesh getBlendedMesh(
-        const std::vector<Model*>& models,
-        const std::vector<std::vector<double>>& vertexSelectValue,
-        const nvl::Scaling3d& scaleTransform,
-        const double maxDistance,
+        const std::vector<const Model*>& models,
+        const std::vector<const std::vector<double>*>& vertexSelectValue,
+        const double& scaleFactor,
+        const double& maxDistance,
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
         const std::vector<openvdb::Vec3i>& bbMin,
         const std::vector<openvdb::Vec3i>& bbMax);
 
