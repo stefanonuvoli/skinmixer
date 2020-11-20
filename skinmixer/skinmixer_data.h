@@ -83,8 +83,8 @@ public:
 
         SelectInfo select1;
         SelectInfo select2;
-        double offset1;
-        double offset2;
+        double hardness1;
+        double hardness2;
 
         void clear();
     };

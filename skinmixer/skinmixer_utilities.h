@@ -8,20 +8,7 @@
 namespace skinmixer {
 
 template<class Model>
-std::vector<typename Model::SkinningWeights::Scalar> jointJunctionFunction(
-        const Model& model,
-        const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int smoothingIteration);
-template<class Model>
-std::vector<typename Model::SkinningWeights::Scalar> jointJunctionFunction(
-        const Model& model,
-        const typename Model::Skeleton::JointId& targetJoint,
-        const std::vector<typename Model::Skeleton::JointId>& descendandJoints,
-        const unsigned int smoothingIteration);
-
-
-template<class Model>
-nvl::Affine3d findAttachMoveTransformation(
+nvl::Affine3d findReplaceMoveTransformation(
         const Model* model1,
         const Model* model2,
         const typename Model::Skeleton::JointId& targetJoint1,

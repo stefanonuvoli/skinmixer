@@ -11,9 +11,6 @@
 #include <nvl/models/model_transformations.h>
 #include <nvl/models/mesh_normals.h>
 
-#define REMOVING_THRESHOLD 0.7
-#define DETACHING_THRESHOLD 0.5
-
 namespace skinmixer {
 
 template<class Model>
@@ -68,7 +65,7 @@ void mixAnimations(
 }
 
 template<class Model>
-void attach(
+void replace(
         SkinMixerData<Model>& data,
         Model* model1,
         Model* model2,
@@ -76,8 +73,8 @@ void attach(
         const typename Model::Skeleton::JointId& targetJoint2,
         const unsigned int functionSmoothingIterations,
         const double rigidity,
-        const double offset1,
-        const double offset2)
+        const double hardness1,
+        const double hardness2)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -92,16 +89,16 @@ void attach(
     std::vector<double> jointValues1;
     std::vector<double> vertexValues2;
     std::vector<double> jointValues2;
-    skinmixer::computeAttachSelectValues(*model1, *model2, targetJoint1, targetJoint2, functionSmoothingIterations, rigidity, offset1, offset2, vertexValues1, jointValues1, vertexValues2, jointValues2);
+    skinmixer::computeReplaceSelectValues(*model1, *model2, targetJoint1, targetJoint2, functionSmoothingIterations, rigidity, hardness1, hardness2, vertexValues1, jointValues1, vertexValues2, jointValues2);
 
     Action action;
-    action.operation = OperationType::ATTACH;
+    action.operation = OperationType::REPLACE;
     action.entry1 = entry1.id;
     action.entry2 = entry2.id;
     action.joint1 = targetJoint1;
     action.joint2 = targetJoint2;
-    action.offset1 = offset1;
-    action.offset2 = offset2;
+    action.hardness1 = hardness1;
+    action.hardness2 = hardness2;
     action.select1.vertex = vertexValues1;
     action.select1.joint = jointValues1;
     action.select2.vertex = vertexValues2;
@@ -119,7 +116,7 @@ void remove(
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int functionSmoothingIterations,
         const double rigidity,
-        const double offset)
+        const double hardness)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -128,15 +125,7 @@ void remove(
 
     std::vector<double> vertexValues;
     std::vector<double> jointValues;
-    computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, rigidity, offset, vertexValues, jointValues);
-    for (nvl::Index i = 0; i < vertexValues.size(); ++i) {
-        if (vertexValues[i] >= REMOVING_THRESHOLD) {
-            vertexValues[i] = 1.0;
-        }
-        else {
-            vertexValues[i] = 0.0;
-        }
-    }
+    computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, rigidity, hardness, vertexValues, jointValues);
 
     Action action;
     action.operation = OperationType::REMOVE;
@@ -144,7 +133,7 @@ void remove(
     action.entry2 = nvl::MAX_INDEX;
     action.joint1 = targetJoint;
     action.joint2 = nvl::MAX_INDEX;
-    action.offset1 = offset;
+    action.hardness1 = hardness;
     action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
 
@@ -159,7 +148,7 @@ void detach(
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIterations,
         const double rigidity,
-        const double offset)
+        const double hardness)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -168,15 +157,7 @@ void detach(
 
     std::vector<double> vertexValues;
     std::vector<double> jointValues;
-    computeDetachSelectValues(*model, targetJoint, smoothingIterations, rigidity, offset, vertexValues, jointValues);
-    for (nvl::Index i = 0; i < vertexValues.size(); ++i) {
-        if (vertexValues[i] >= DETACHING_THRESHOLD) {
-            vertexValues[i] = 1.0;
-        }
-        else {
-            vertexValues[i] = 0.0;
-        }
-    }
+    computeDetachSelectValues(*model, targetJoint, smoothingIterations, rigidity, hardness, vertexValues, jointValues);
 
     Action action;
     action.operation = OperationType::DETACH;
@@ -184,7 +165,7 @@ void detach(
     action.entry2 = nvl::MAX_INDEX;
     action.joint1 = targetJoint;
     action.joint2 = nvl::MAX_INDEX;
-    action.offset1 = offset;
+    action.hardness1 = hardness;
     action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
 

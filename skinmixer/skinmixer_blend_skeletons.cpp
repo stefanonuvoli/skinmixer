@@ -56,7 +56,7 @@ void blendSkeletons(
 
         //Get joints to be retrieved using the select values
         for (JointId jId = 0; jId < currentSkeleton.jointNumber(); jId++) {
-            if (select.joint[jId] > 0.5) {
+            if (select.joint[jId] > 0.0 && !nvl::epsEqual(select.joint[jId], 0.0)) {
                 keptJoints[eId].insert(jId);
             }
             else {
@@ -68,7 +68,7 @@ void blendSkeletons(
         for (const Index& aId : currentEntry.relatedActions) {
             const Action& action = data.action(aId);
 
-            if (action.operation == OperationType::ATTACH) {
+            if (action.operation == OperationType::REPLACE) {
                 if (action.entry1 == eId) {
                     jointToBeMerged[action.entry1].insert(action.joint1);
                 }
@@ -114,6 +114,7 @@ void blendSkeletons(
                     const Joint& joint = currentSkeleton.joint(jId);
                     newJId = targetSkeleton.addChild(jointMap[eId][parentId], joint);
                 }
+
                 if (newJId != nvl::MAX_INDEX) {
                     jointMap[eId][jId] = newJId;
                     matchedJoint[eId].insert(newJId);
@@ -135,7 +136,7 @@ void blendSkeletons(
                     for (const Index& aId : currentEntry.relatedActions) {
                         const Action& action = data.action(aId);
 
-                        if (action.operation == OperationType::ATTACH) {
+                        if (action.operation == OperationType::REPLACE) {
                             JointInfo actionJInfo;
                             actionJInfo.eId = nvl::MAX_INDEX;
                             actionJInfo.jId = nvl::MAX_INDEX;
@@ -149,9 +150,8 @@ void blendSkeletons(
                                 actionJInfo.eId = action.entry1;
                                 actionJInfo.jId = action.joint1;
                             }
-                            if (actionJInfo.jId != nvl::MAX_INDEX) {
-                                assert(actionJInfo.eId != nvl::MAX_INDEX);
 
+                            if (actionJInfo.jId != nvl::MAX_INDEX) {
                                 jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
                                 entry.birth.joint[newJId].push_back(actionJInfo);
 

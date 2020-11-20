@@ -20,7 +20,7 @@
 
 #define SELECT_VALUE_MIN_THRESHOLD 0.02
 #define SELECT_VALUE_MAX_THRESHOLD 0.98
-#define EXPANSION_VOXELS 5.0
+#define EXPANSION_VOXELS 10.0
 
 namespace skinmixer {
 namespace internal {
@@ -414,7 +414,6 @@ typename Model::Mesh getBlendedMesh(
                 }
                 else {
                     for (Index m = 0; m < involvedEntries.size(); ++m) {
-
                         FloatGrid::ValueType currentDistance = involvedEntries[m].first;
                         if (selectValueSum >= SELECT_VALUE_MIN_THRESHOLD) {
                             double selectValue = involvedEntries[m].second;

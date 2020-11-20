@@ -126,9 +126,9 @@
        </widget>
       </item>
       <item row="0" column="3">
-       <widget class="QPushButton" name="operationAttachButton">
+       <widget class="QPushButton" name="operationReplaceButton">
         <property name="text">
-         <string>Attach</string>
+         <string>Replace</string>
         </property>
        </widget>
       </item>
@@ -204,68 +204,68 @@
           </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="offsetParametersPage">
+        <widget class="QWidget" name="hardnessParametersPage">
          <attribute name="title">
-          <string>Offset</string>
+          <string>Select</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="7" column="0">
-           <widget class="QLabel" name="offset2Label">
+          <item row="6" column="0">
+           <widget class="QLabel" name="hardness2Label">
             <property name="text">
-             <string>Offset 2</string>
+             <string>Hardness 2</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="offset1Label">
-            <property name="text">
-             <string>Offset 1</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QSlider" name="offset1Slider">
+          <item row="6" column="1">
+           <widget class="QSlider" name="hardness2Slider">
             <property name="minimum">
-             <number>1</number>
+             <number>-99</number>
             </property>
             <property name="maximum">
              <number>99</number>
             </property>
             <property name="value">
-             <number>50</number>
+             <number>1</number>
             </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
-          <item row="7" column="1">
-           <widget class="QSlider" name="offset2Slider">
+          <item row="6" column="2">
+           <widget class="QLabel" name="hardness2ValueLabel">
+            <property name="text">
+             <string>+0.00</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSlider" name="hardness1Slider">
             <property name="minimum">
-             <number>10</number>
+             <number>-99</number>
             </property>
             <property name="maximum">
-             <number>90</number>
+             <number>99</number>
             </property>
             <property name="value">
-             <number>50</number>
+             <number>1</number>
             </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="hardness1Label">
+            <property name="text">
+             <string>Hardness 1</string>
             </property>
            </widget>
           </item>
           <item row="2" column="2">
-           <widget class="QLabel" name="offset1ValueLabel">
+           <widget class="QLabel" name="hardness1ValueLabel">
             <property name="text">
-             <string>0.5</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="2">
-           <widget class="QLabel" name="offset2ValueLabel">
-            <property name="text">
-             <string>0.5</string>
+             <string>+0.00</string>
             </property>
            </widget>
           </item>

@@ -18,7 +18,7 @@ void mixAnimations(
         nvl::Index& targetAnimationId);
 
 template<class Model>
-void attach(
+void replace(
         SkinMixerData<Model>& data,
         Model* model1,
         Model* model2,
@@ -26,8 +26,8 @@ void attach(
         const typename Model::Skeleton::JointId& targetJoint2,
         const unsigned int functionSmoothingIterations,
         const double rigidity,
-        const double offset1,
-        const double offset2);
+        const double hardness1,
+        const double hardness2);
 
 template<class Model>
 void remove(
@@ -36,7 +36,7 @@ void remove(
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIterations,
         const double rigidity,
-        const double offset);
+        const double hardness);
 
 template<class Model>
 void detach(
@@ -45,7 +45,7 @@ void detach(
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIteration,
         const double rigidity,
-        const double offset);
+        const double hardness);
 
 
 }

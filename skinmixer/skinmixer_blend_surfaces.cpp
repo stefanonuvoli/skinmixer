@@ -30,6 +30,7 @@
 #define SMOOTHING_THRESHOLD 0.8
 #define MAX_DISTANCE_BLENDED_MESH 2.0
 #define MAX_DISTANCE_SMOOTH_MESH 2.0
+#define VOXEL_SIZE 0.7
 
 namespace skinmixer {
 
@@ -86,7 +87,7 @@ void blendSurfaces(
         const Mesh& mesh = entry.model->mesh;
 
         Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
-        voxelSize = std::min(voxelSize, avgLength);
+        voxelSize = std::min(voxelSize, avgLength * VOXEL_SIZE);
     }
 
     //Remove duplicate actions
