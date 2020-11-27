@@ -85,7 +85,12 @@ void blendSkinningWeights(
 
             weight /= sumSelectValues;
             if (weight > nvl::EPSILON) {
-                targetSkinningWeights.setWeight(vId, jId, weight);
+                if (targetSkeleton.childNumber(jId) > 0) {
+                    targetSkinningWeights.setWeight(vId, jId, weight);
+                }
+                else {
+                    targetSkinningWeights.setWeight(vId, targetSkeleton.parentId(jId), weight);
+                }
             }
         }
     }

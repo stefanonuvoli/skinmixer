@@ -33,7 +33,8 @@ double interpolateFaceSelectValue(
         const std::vector<double>& vertexSelectValue);
 
 template<class Model>
-void getBlendingGrids(
+void getClosedGrids(
+        const OperationType operation,
         const std::vector<const Model*>& models,
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
@@ -125,6 +126,11 @@ void getBlendingGrids(
             }
         }
 
+        double selectValueLowerLimit = 0.0;
+        if (operation == OperationType::REMOVE || operation == OperationType::DETACH) {
+            selectValueLowerLimit = 0.5;
+        }
+
         //Get vertices
         std::vector<Point> points;
         std::unordered_set<FaceId> facesToBlend;
@@ -135,7 +141,7 @@ void getBlendingGrids(
 
             double selectValue = internal::averageFaceSelectValue(mesh, fId, *vertexSelectValue[mId]);
 
-            if (selectValue > 0.0 && selectValue < 1.0 && !nvl::epsEqual(selectValue, 0.0) && !nvl::epsEqual(selectValue, 1.0)) {
+            if (selectValue > selectValueLowerLimit && selectValue < 1.0 && !nvl::epsEqual(selectValue, selectValueLowerLimit) && !nvl::epsEqual(selectValue, 1.0)) {
                 facesToBlend.insert(fId);
 
                 points.push_back(nvl::meshFaceBarycenter(mesh, fId));
@@ -150,7 +156,7 @@ void getBlendingGrids(
 
                 double selectValue = internal::averageFaceSelectValue(mesh, fId, *vertexSelectValue[mId]);
 
-                if (selectValue > 0.0 && !nvl::epsEqual(selectValue, 0.0)) {
+                if (selectValue > selectValueLowerLimit && !nvl::epsEqual(selectValue, selectValueLowerLimit)) {
                     facesToBlend.insert(fId);
 
                     points.push_back(nvl::meshFaceBarycenter(mesh, fId));
@@ -170,17 +176,21 @@ void getBlendingGrids(
                 for (const FaceId& adj : meshFFAdj[fId]) {
                     if (adj != nvl::MAX_INDEX) {
                         if (facesToBlend.find(adj) == facesToBlend.end()) {
-                            const Point barycenter = nvl::meshFaceBarycenter(mesh, adj);
 
-                            for (const Point& point : points) {
-                                Scalar distance = (barycenter - point).norm();
+                            double selectValue = internal::averageFaceSelectValue(mesh, adj, *vertexSelectValue[mId]);
+                            if (selectValue > selectValueLowerLimit) {
+                                const Point barycenter = nvl::meshFaceBarycenter(mesh, adj);
 
-                                if (distance < maxExpansionDistance) {
-                                    expansion = true;
+                                for (const Point& point : points) {
+                                    Scalar distance = (barycenter - point).norm();
 
-                                    newFacesToBlend.insert(adj);
+                                    if (distance < maxExpansionDistance) {
+                                        expansion = true;
 
-                                    break;
+                                        newFacesToBlend.insert(adj);
+
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -318,6 +328,7 @@ void getBlendingGrids(
 
 template<class Model>
 typename Model::Mesh getBlendedMesh(
+        const OperationType operation,
         const std::vector<const Model*>& models,
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
@@ -325,8 +336,8 @@ typename Model::Mesh getBlendedMesh(
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
-        const std::vector<openvdb::Vec3i>& bbMin,
-        const std::vector<openvdb::Vec3i>& bbMax)
+        openvdb::Vec3i& minCoord,
+        const openvdb::Vec3i& maxCoord)
 {
     typedef typename openvdb::FloatGrid FloatGrid;
     typedef typename FloatGrid::Ptr FloatGridPtr;
@@ -335,35 +346,10 @@ typename Model::Mesh getBlendedMesh(
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Point Point;
-    typedef typename nvl::Index Index;
 
     nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
     Mesh blendedMesh;
-
-    closedGrids.resize(models.size());
-
-    //Minimum and maximum coordinates in the scalar fields
-    openvdb::Vec3i minCoord(
-        std::numeric_limits<int>::max(),
-        std::numeric_limits<int>::max(),
-        std::numeric_limits<int>::max());
-    openvdb::Vec3i maxCoord(
-        std::numeric_limits<int>::min(),
-        std::numeric_limits<int>::min(),
-        std::numeric_limits<int>::min());
-
-    for (Index mId = 0; mId < models.size(); ++mId) {
-        minCoord = openvdb::Vec3i(
-            std::min(minCoord.x(), bbMin[mId].x()),
-            std::min(minCoord.y(), bbMin[mId].y()),
-            std::min(minCoord.z(), bbMin[mId].z()));
-
-        maxCoord = openvdb::Vec3i(
-            std::max(maxCoord.x(), bbMax[mId].x()),
-            std::max(maxCoord.y(), bbMax[mId].y()),
-            std::max(maxCoord.z(), bbMax[mId].z()));
-    }
 
     FloatGridPtr blendedGrid = FloatGrid::create(maxDistance);
     FloatGrid::Accessor resultAccessor = blendedGrid->getAccessor();
@@ -376,57 +362,54 @@ typename Model::Mesh getBlendedMesh(
 
                 Point point(i, j, k);
 
-                std::vector<std::pair<FloatGrid::ValueType, double>> involvedEntries;
-                std::vector<Index> overThresholdValues;
-
-                double selectValueSum = 0.0;
-                for (Index mId = 0; mId < models.size(); ++mId) {
-                    const Mesh& mesh = models[mId]->mesh;
-
-                    FloatGrid::ConstAccessor closedAccessor = closedGrids[mId]->getConstAccessor();
-                    IntGrid::ConstAccessor polygonAccessor = polygonGrids[mId]->getConstAccessor();
-
-                    FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
-                    IntGrid::ValueType pId = polygonAccessor.getValue(coord);
-
-                    if (pId >= 0 && closedDistance < maxDistance && closedDistance > -maxDistance) {
-                        FaceId originFaceId = gridBirthFace[mId][pId];
-
-                        double selectValue = internal::interpolateFaceSelectValue(mesh, originFaceId, point, *vertexSelectValue[mId]);
-
-                        selectValueSum += selectValue;
-
-                        involvedEntries.push_back(std::make_pair(closedDistance, selectValue));
-                        if (selectValue >= SELECT_VALUE_MAX_THRESHOLD) {
-                            overThresholdValues.push_back(involvedEntries.size() - 1);
-                        }
-                    }
-                }
-
                 FloatGrid::ValueType resultValue = 0.0;
 
-                if (involvedEntries.size() == 0) {
-                    resultValue = maxDistance;
+                FloatGrid::ConstAccessor closedAccessor1 = closedGrids[0]->getConstAccessor();
+                IntGrid::ConstAccessor polygonAccessor1 = polygonGrids[0]->getConstAccessor();
+                FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
+                IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
+                const Mesh& mesh1 = models[0]->mesh;
+
+                if (operation == OperationType::REMOVE || operation == OperationType::DETACH) {
+                    resultValue = closedDistance1;
                 }
-                else if (overThresholdValues.size() == 1) {
-                    FloatGrid::ValueType currentDistance = involvedEntries[overThresholdValues[0]].first;
-                    resultValue = currentDistance;
-                }
-                else {
-                    for (Index m = 0; m < involvedEntries.size(); ++m) {
-                        FloatGrid::ValueType currentDistance = involvedEntries[m].first;
-                        if (selectValueSum >= SELECT_VALUE_MIN_THRESHOLD) {
-                            double selectValue = involvedEntries[m].second;
+                else if (operation == OperationType::REPLACE) {
+                    FloatGrid::ConstAccessor closedAccessor2 = closedGrids[1]->getConstAccessor();
+                    IntGrid::ConstAccessor polygonAccessor2 = polygonGrids[1]->getConstAccessor();
+                    FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
+                    IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                    const Mesh& mesh2 = models[1]->mesh;
 
-                            assert(currentDistance < maxDistance && currentDistance > -maxDistance);
+                    if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                        FaceId originFaceId1 = gridBirthFace[0][pId1];
+                        double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *vertexSelectValue[0]);
 
-                            selectValue /= selectValueSum;
+                        FaceId originFaceId2 = gridBirthFace[1][pId2];
+                        double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *vertexSelectValue[1]);
 
-                            resultValue += currentDistance * selectValue;
+                        if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < SELECT_VALUE_MAX_THRESHOLD) {
+                            resultValue = closedDistance1;
+                        }
+                        else if (selectValue1 < SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
+                            resultValue = closedDistance2;
+                        }
+                        else if (selectValue1 <= SELECT_VALUE_MIN_THRESHOLD && selectValue2 <= SELECT_VALUE_MIN_THRESHOLD) {
+                            resultValue = 0.5 * closedDistance1 + 0.5 * closedDistance2;
                         }
                         else {
-                            resultValue += (1.0 / involvedEntries.size()) * currentDistance;
+                            resultValue =
+                                    (selectValue1 * closedDistance1 + selectValue2 * closedDistance2) /
+                                    (selectValue1 + selectValue2);
                         }
+                    }
+                    else if (pId1 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance) {
+                        resultValue = closedDistance1;
+                    }
+                    else if (pId2 >= 0 && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                        resultValue = closedDistance2;
+                    }
+                    else {
+                        resultValue = closedDistance1 < 0 && closedDistance2 < 0 ? -maxDistance : maxDistance;
                     }
                 }
 

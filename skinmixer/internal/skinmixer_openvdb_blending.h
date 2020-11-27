@@ -16,6 +16,8 @@
 
 #include <nvl/math/scaling.h>
 
+#include "skinmixer/skinmixer_operation.h"
+
 namespace skinmixer {
 namespace internal {
 
@@ -44,7 +46,8 @@ struct OpenVDBAdapter {
 
 
 template<class Model>
-void getBlendingGrids(
+void getClosedGrids(
+        const OperationType operation,
         const std::vector<const Model*>& models,
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
@@ -60,6 +63,7 @@ void getBlendingGrids(
 
 template<class Model>
 typename Model::Mesh getBlendedMesh(
+        const OperationType operation,
         const std::vector<const Model*>& models,
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
@@ -67,8 +71,20 @@ typename Model::Mesh getBlendedMesh(
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
-        const std::vector<openvdb::Vec3i>& bbMin,
-        const std::vector<openvdb::Vec3i>& bbMax);
+        const openvdb::Vec3i& minCoord,
+        const openvdb::Vec3i& maxCoord);
+
+template<class Model>
+typename Model::Mesh getRemoveDetachMesh(
+        const std::vector<const Model*>& models,
+        const std::vector<const std::vector<double>*>& vertexSelectValue,
+        const double& scaleFactor,
+        const double& maxDistance,
+        const std::vector<FloatGridPtr>& closedGrids,
+        const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
+        const openvdb::Vec3i& minCoord,
+        const openvdb::Vec3i& maxCoord);
 
 template<class Mesh>
 double averageFaceSelectValue(

@@ -152,6 +152,8 @@ void blendSurfaces(
 
     //For each action get the blended and the new mesh, and determine faces to be preserved
     for (Index aId = 0; aId < actions.size(); ++aId) {
+        const Index& actionId = actions[aId];
+        const Action& action = data.action(actionId);
         const std::vector<const Model*>& actionModels = models[aId];
         const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValue[aId];
 
@@ -219,7 +221,8 @@ void blendSurfaces(
         std::vector<openvdb::Vec3i> bbMax;
 
         //Get grids
-        internal::getBlendingGrids(
+        internal::getClosedGrids(
+            action.operation,
             actionModels,
             actionVertexSelectValues,
             scaleFactor,
@@ -237,17 +240,40 @@ void blendSurfaces(
         actionUnsignedGrids.clear();
         actionSignedGrids.clear();
 
-        //Blend meshes
+        //Minimum and maximum coordinates in the scalar fields
+        openvdb::Vec3i minCoord(
+            std::numeric_limits<int>::max(),
+            std::numeric_limits<int>::max(),
+            std::numeric_limits<int>::max());
+        openvdb::Vec3i maxCoord(
+            std::numeric_limits<int>::min(),
+            std::numeric_limits<int>::min(),
+            std::numeric_limits<int>::min());
+
+        for (Index mId = 0; mId < models.size(); ++mId) {
+            minCoord = openvdb::Vec3i(
+                std::min(minCoord.x(), bbMin[mId].x()),
+                std::min(minCoord.y(), bbMin[mId].y()),
+                std::min(minCoord.z(), bbMin[mId].z()));
+
+            maxCoord = openvdb::Vec3i(
+                std::max(maxCoord.x(), bbMax[mId].x()),
+                std::max(maxCoord.y(), bbMax[mId].y()),
+                std::max(maxCoord.z(), bbMax[mId].z()));
+        }
+
+        //Blend mesh
         Mesh actionBlendedMesh = internal::getBlendedMesh(
-            actionModels,
-            actionVertexSelectValues,
-            scaleFactor,
-            maxDistance,
-            actionClosedGrids,
-            actionPolygonGrids,
-            actionGridBirthFace,
-            bbMin,
-            bbMax);
+                action.operation,
+                actionModels,
+                actionVertexSelectValues,
+                scaleFactor,
+                maxDistance,
+                actionClosedGrids,
+                actionPolygonGrids,
+                actionGridBirthFace,
+                minCoord,
+                maxCoord);
 
 
     #ifdef SAVE_MESHES_FOR_DEBUG
@@ -541,68 +567,118 @@ void blendSurfaces(
                 }
             }
 
-            std::vector<std::tuple<nvl::Index, double, FaceId, double>> involvedEntries;
-            std::vector<Index> overThresholdValues;
-            double selectValueSum = 0.0;
+            const Index& actionId = actions[bestActionId];
+            const Action& action = data.action(actionId);
 
             std::vector<const Model*>& actionModels = models[bestActionId];
             const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValue[bestActionId];
 
-            for (Index mId = 0; mId < actionModels.size(); ++mId) {
-                const Mesh& mesh = actionModels[mId]->mesh;
+            internal::FloatGrid::ConstAccessor closedAccessor1 = closedGrids[bestActionId][0]->getConstAccessor();
+            internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrids[bestActionId][0]->getConstAccessor();
+            internal::FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
+            internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
+            const Mesh& mesh1 = actionModels[0]->mesh;
+            Index eId1 = data.entryFromModel(actionModels[0]).id;
 
-                internal::FloatGrid::ConstAccessor closedAccessor = closedGrids[bestActionId][mId]->getConstAccessor();
-                internal::IntGrid::ConstAccessor polygonAccessor = polygonGrids[bestActionId][mId]->getConstAccessor();
-
-                internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
-                internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
-
-                if (pId >= 0 && closedDistance <= maxDistance && closedDistance >= -maxDistance) {
-                    FaceId originFaceId = gridBirthFace[bestActionId][mId][pId];
-
-                    double selectValue = internal::interpolateFaceSelectValue(mesh, originFaceId, point, *actionVertexSelectValues[mId]);
-
-                    selectValueSum += selectValue;
-
-                    Index eId = data.entryFromModel(actionModels[mId]).id;
-
-                    involvedEntries.push_back(std::make_tuple(eId, selectValue, originFaceId, closedDistance));
-
-                    if (selectValue >= SELECT_VALUE_MAX_THRESHOLD) {
-                        overThresholdValues.push_back(involvedEntries.size() - 1);
-                    }
+            if (action.operation == OperationType::REMOVE || action.operation == OperationType::DETACH) {
+                if (pId1 >= 0) {
+                    FaceId originFaceId = gridBirthFace[bestActionId][0][pId1];
+                    VertexInfo info;
+                    info.eId = eId1;
+                    info.vId = nvl::MAX_INDEX;
+                    info.weight = 1.0;
+                    info.closestFaceId = pId1;
+                    info.distance = closedDistance1;
+                    vertexInfo.push_back(info);
                 }
             }
+            else if (action.operation == OperationType::REPLACE) {
+                internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrids[bestActionId][1]->getConstAccessor();
+                internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrids[bestActionId][1]->getConstAccessor();
+                internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
+                internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                const Mesh& mesh2 = actionModels[1]->mesh;
+                Index eId2 = data.entryFromModel(actionModels[1]).id;
 
-            assert(involvedEntries.size() >= 0);
+                if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                    FaceId originFaceId1 = gridBirthFace[bestActionId][0][pId1];
+                    double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *actionVertexSelectValues[0]);
 
-            if (overThresholdValues.size() == 1) {
-                const std::tuple<nvl::Index, double, FaceId, double>& tuple = involvedEntries[overThresholdValues[0]];
-                VertexInfo info;
-                info.eId = std::get<0>(tuple);
-                info.vId = nvl::MAX_INDEX;
-                info.weight = std::get<1>(tuple);
-                info.closestFaceId = std::get<2>(tuple);
-                info.distance = std::get<3>(tuple);
+                    FaceId originFaceId2 = gridBirthFace[bestActionId][1][pId2];
+                    double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *actionVertexSelectValues[1]);
 
-                vertexInfo.push_back(info);
-            }
-            else {
-                for (Index invId = 0; invId < involvedEntries.size(); ++invId) {
-                    const std::tuple<nvl::Index, double, FaceId, double>& tuple = involvedEntries[invId];
-                    VertexInfo info;
-                    info.eId = std::get<0>(tuple);
-                    info.vId = nvl::MAX_INDEX;
-                    if (selectValueSum >= SELECT_VALUE_MIN_THRESHOLD) {
-                        info.weight = std::get<1>(tuple) / selectValueSum;
+                    if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < SELECT_VALUE_MAX_THRESHOLD) {
+                        VertexInfo info1;
+                        info1.eId = eId1;
+                        info1.vId = nvl::MAX_INDEX;
+                        info1.weight = 1.0;
+                        info1.closestFaceId = originFaceId1;
+                        info1.distance = closedDistance1;
+                        vertexInfo.push_back(info1);
+                    }
+                    else if (selectValue1 < SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
+                        VertexInfo info2;
+                        info2.eId = eId2;
+                        info2.vId = nvl::MAX_INDEX;
+                        info2.weight = 1.0;
+                        info2.closestFaceId = originFaceId2;
+                        info2.distance = closedDistance2;
+                        vertexInfo.push_back(info2);
+                    }
+                    else if (selectValue1 <= SELECT_VALUE_MIN_THRESHOLD && selectValue2 <= SELECT_VALUE_MIN_THRESHOLD) {
+                        VertexInfo info1;
+                        info1.eId = eId1;
+                        info1.vId = nvl::MAX_INDEX;
+                        info1.weight = 0.5;
+                        info1.closestFaceId = originFaceId1;
+                        info1.distance = closedDistance1;
+                        vertexInfo.push_back(info1);
+
+                        VertexInfo info2;
+                        info2.eId = eId2;
+                        info2.vId = nvl::MAX_INDEX;
+                        info2.weight = 0.5;
+                        info2.closestFaceId = originFaceId2;
+                        info2.distance = closedDistance2;
+                        vertexInfo.push_back(info2);
                     }
                     else {
-                        info.weight = 1.0 / involvedEntries.size();
-                    }
-                    info.closestFaceId = std::get<2>(tuple);
-                    info.distance = std::get<3>(tuple);
+                        VertexInfo info1;
+                        info1.eId = eId1;
+                        info1.vId = nvl::MAX_INDEX;
+                        info1.weight = selectValue1 / (selectValue1 + selectValue2);
+                        info1.closestFaceId = originFaceId1;
+                        info1.distance = closedDistance1;
+                        vertexInfo.push_back(info1);
 
-                    vertexInfo.push_back(info);
+                        VertexInfo info2;
+                        info2.eId = eId2;
+                        info2.vId = nvl::MAX_INDEX;
+                        info2.weight = selectValue2 / (selectValue1 + selectValue2);
+                        info2.closestFaceId = originFaceId2;
+                        info2.distance = closedDistance2;
+                        vertexInfo.push_back(info2);
+                    }
+                }
+                else if (pId1 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance) {
+                    FaceId originFaceId1 = gridBirthFace[bestActionId][0][pId1];
+                    VertexInfo info1;
+                    info1.eId = eId1;
+                    info1.vId = nvl::MAX_INDEX;
+                    info1.weight = 1.0;
+                    info1.closestFaceId = originFaceId1;
+                    info1.distance = closedDistance1;
+                    vertexInfo.push_back(info1);
+                }
+                else if (pId2 >= 0 && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                    FaceId originFaceId2 = gridBirthFace[bestActionId][0][pId1];
+                    VertexInfo info2;
+                    info2.eId = eId2;
+                    info2.vId = nvl::MAX_INDEX;
+                    info2.weight = 1.0;
+                    info2.closestFaceId = originFaceId2;
+                    info2.distance = closedDistance2;
+                    vertexInfo.push_back(info2);
                 }
             }
         }
