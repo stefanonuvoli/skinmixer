@@ -425,6 +425,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="updateValuesSelectButton">
+        <property name="text">
+         <string>Select</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QPushButton" name="updateValuesBirthButton">
         <property name="text">
          <string>Birth</string>

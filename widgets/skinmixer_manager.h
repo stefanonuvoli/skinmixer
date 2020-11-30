@@ -95,6 +95,7 @@ private slots:
 
     void on_updateValuesResetButton_clicked();
     void on_updateValuesWeightsButton_clicked();
+    void on_updateValuesSelectButton_clicked();
     void on_updateValuesBirthButton_clicked();
 
 private:
@@ -124,6 +125,7 @@ private:
 
     void updateValuesReset();
     void updateValuesSkinningWeights();
+    void updateValuesSelect();
     void updateValuesBirth();
 
     void initialize();

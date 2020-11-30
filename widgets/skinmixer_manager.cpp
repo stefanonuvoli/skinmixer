@@ -1034,6 +1034,29 @@ void SkinMixerManager::updateValuesSkinningWeights()
     }
 }
 
+void SkinMixerManager::updateValuesSelect()
+{
+    ModelDrawer* selectedModelDrawer = getSelectedModelDrawer();
+
+    if (selectedModelDrawer != nullptr) {
+        Model* modelPtr = vSelectedModelDrawer->model();
+        const SkinMixerEntry& currentEntry = vSkinMixerData.entryFromModel(modelPtr);
+        SelectInfo currentSelect = vSkinMixerData.computeGlobalSelectInfo(currentEntry);
+
+        std::vector<double> vertexValues;
+
+        vertexValues.resize(selectedModelDrawer->model()->mesh.nextVertexId(), 1.0);
+
+        for (auto vertex : selectedModelDrawer->model()->mesh.vertices()) {
+            vertexValues[vertex.id()] = currentSelect.vertex[vertex.id()];
+        }
+
+        selectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+
+        vCanvas->updateGL();
+    }
+}
+
 void SkinMixerManager::updateValuesBirth()
 {
     ModelDrawer* selectedModelDrawer = getSelectedModelDrawer();
@@ -1450,6 +1473,11 @@ void SkinMixerManager::on_updateValuesResetButton_clicked()
 void SkinMixerManager::on_updateValuesWeightsButton_clicked()
 {
     updateValuesSkinningWeights();
+}
+
+void SkinMixerManager::on_updateValuesSelectButton_clicked()
+{
+    updateValuesSelect();
 }
 
 void SkinMixerManager::on_updateValuesBirthButton_clicked()
