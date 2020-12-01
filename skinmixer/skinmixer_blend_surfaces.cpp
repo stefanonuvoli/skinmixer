@@ -27,9 +27,8 @@
 #include <vector>
 
 #define FACE_KEEP_THRESHOLD 0.999
-#define SMOOTHING_THRESHOLD 0.8
+#define SMOOTHING_THRESHOLD 0.85
 #define MAX_DISTANCE_BLENDED_MESH 2.0
-#define MAX_DISTANCE_SMOOTH_MESH 2.0
 #define VOXEL_SIZE 0.7
 
 namespace skinmixer {
@@ -413,13 +412,10 @@ void blendSurfaces(
             for (Index mId = 0; mId < actionModels.size() && !found; ++mId) {
                 const Mesh& mesh = actionModels[mId]->mesh;
 
-                internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
                 internal::IntGrid::ConstAccessor polygonAccessor = actionPolygonGrids[mId]->getConstAccessor();
-
-                internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
                 internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                if (pId >= 0 && closedDistance <= MAX_DISTANCE_SMOOTH_MESH && closedDistance >= -MAX_DISTANCE_SMOOTH_MESH) {
+                if (pId >= 0) {
                     FaceId originFaceId = actionGridBirthFace[mId][pId];
 
                     double selectValue = internal::interpolateFaceSelectValue(mesh, originFaceId, point, *actionVertexSelectValues[mId]);
@@ -427,7 +423,7 @@ void blendSurfaces(
                     if (selectValue >= SMOOTHING_THRESHOLD) {
                         verticesToSmooth.push_back(vId);
 
-                        const double smoothingAlpha = 0.5 + 0.5 * (selectValue - SMOOTHING_THRESHOLD) / (1.0 - SMOOTHING_THRESHOLD);
+                        const double smoothingAlpha = 1.0 - (selectValue - SMOOTHING_THRESHOLD) / (1.0 - SMOOTHING_THRESHOLD);
                         verticesToSmoothAlpha.push_back(smoothingAlpha);
 
                         found = true;
@@ -436,7 +432,7 @@ void blendSurfaces(
             }
         }
 
-        nvl::meshLaplacianSmoothing(actionNewMesh, verticesToSmooth, verticesToSmoothAlpha, 40);
+        nvl::meshLaplacianSmoothing(actionNewMesh, verticesToSmooth, verticesToSmoothAlpha, 5);
 
     #ifdef SAVE_MESHES_FOR_DEBUG
         nvl::meshSaveToFile("results/action_newmesh_2_smoothed.obj", actionNewMesh);
