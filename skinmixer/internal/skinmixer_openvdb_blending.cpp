@@ -20,7 +20,7 @@
 
 #define SELECT_VALUE_MIN_THRESHOLD 0.02
 #define SELECT_VALUE_MAX_THRESHOLD 0.98
-#define EXPANSION_VOXELS 10.0
+#define EXPANSION_VOXELS 15.0
 
 namespace skinmixer {
 namespace internal {
