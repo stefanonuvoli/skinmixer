@@ -14,6 +14,7 @@ template<class Mesh>
 void attachMeshesByBorders(
         Mesh& mesh,
         const Mesh& destMesh,
+        const double maxDistance,
         const std::unordered_set<typename Mesh::VertexId>& meshNonSnappableVertices,
         const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices,
         std::unordered_set<typename Mesh::VertexId>& newSnappedVertices,

@@ -27,9 +27,11 @@
 #include <vector>
 
 #define FACE_KEEP_THRESHOLD 0.999
-#define SMOOTHING_THRESHOLD 0.85
 #define MAX_DISTANCE_BLENDED_MESH 2.0
-#define VOXEL_SIZE 0.7
+#define VOXEL_SIZE_FACTOR 0.7
+#define ATTACH_DISTANCE 0.7
+
+#define SMOOTHING_THRESHOLD 0.9
 
 namespace skinmixer {
 
@@ -86,7 +88,7 @@ void blendSurfaces(
         const Mesh& mesh = entry.model->mesh;
 
         Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
-        voxelSize = std::min(voxelSize, avgLength * VOXEL_SIZE);
+        voxelSize = std::min(voxelSize, avgLength * VOXEL_SIZE_FACTOR);
     }
 
     //Remove duplicate actions
@@ -343,13 +345,11 @@ void blendSurfaces(
                 openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
                 for (Index mId = 0; mId < actionModels.size(); ++mId) {
-                    internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
                     internal::IntGrid::ConstAccessor polygonAccessor = actionPolygonGrids[mId]->getConstAccessor();
 
-                    internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
                     internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
-                    if (pId >= 0 && closedDistance <= MAX_DISTANCE_BLENDED_MESH && closedDistance >= -MAX_DISTANCE_BLENDED_MESH) {
+                    if (pId >= 0) {
                         FaceId originFaceId = actionGridBirthFace[mId][pId];
 
                         if (actionFacesToKeep[mId].find(originFaceId) != actionFacesToKeep[mId].end()) {
@@ -375,12 +375,13 @@ void blendSurfaces(
     #endif
 
         //Attach mesh borders to the preserved mesh
+        double attachingMaxDistance = voxelSize * 10;
         std::unordered_set<VertexId> newSnappedVertices;
         std::unordered_set<VertexId> preSnappedVertices;
-        internal::attachMeshesByBorders(actionNewMesh, actionPreMesh, std::unordered_set<VertexId>(), preNonSnappableVertices, newSnappedVertices, preSnappedVertices);
+        internal::attachMeshesByBorders(actionNewMesh, actionPreMesh, attachingMaxDistance, std::unordered_set<VertexId>(), preNonSnappableVertices, newSnappedVertices, preSnappedVertices);
 
     #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/action_newmesh.obj", actionNewMesh);
+        nvl::meshSaveToFile("results/action_newmesh_2_attached.obj", actionNewMesh);
     #endif
 
         std::vector<FaceId> preNotUsedFaces = internal::getPreNotUsedFacesAfterAttaching(actionPreMesh, preNonSnappableVertices, preSnappedVertices);
@@ -393,9 +394,13 @@ void blendSurfaces(
     #endif
 
         //Select vertices to smooth
-        std::vector<VertexId> verticesToSmooth;
-        std::vector<double> verticesToSmoothAlpha;
+        std::vector<VertexId> borderVerticesToSmooth;
+        std::vector<double> borderVerticesToSmoothAlpha;
+        std::vector<VertexId> innerVerticesToSmooth;
+        std::vector<double> innerVerticesToSmoothAlpha;
+
         std::vector<std::vector<FaceId>> newFFAdj = nvl::meshFaceFaceAdjacencies(actionNewMesh);
+
         for (VertexId vId = 0; vId < actionNewMesh.nextVertexId(); ++vId) {
             if (actionNewMesh.isVertexDeleted(vId))
                 continue;
@@ -408,8 +413,8 @@ void blendSurfaces(
             Point scaledPoint = scaleTransform * point;
             internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-            bool found = false;
-            for (Index mId = 0; mId < actionModels.size() && !found; ++mId) {
+            double maxSelectValue = 0.0;
+            for (Index mId = 0; mId < actionModels.size(); ++mId) {
                 const Mesh& mesh = actionModels[mId]->mesh;
 
                 internal::IntGrid::ConstAccessor polygonAccessor = actionPolygonGrids[mId]->getConstAccessor();
@@ -417,25 +422,32 @@ void blendSurfaces(
 
                 if (pId >= 0) {
                     FaceId originFaceId = actionGridBirthFace[mId][pId];
-
                     double selectValue = internal::interpolateFaceSelectValue(mesh, originFaceId, point, *actionVertexSelectValues[mId]);
-
-                    if (selectValue >= SMOOTHING_THRESHOLD) {
-                        verticesToSmooth.push_back(vId);
-
-                        const double smoothingAlpha = 1.0 - (selectValue - SMOOTHING_THRESHOLD) / (1.0 - SMOOTHING_THRESHOLD);
-                        verticesToSmoothAlpha.push_back(smoothingAlpha);
-
-                        found = true;
-                    }
+                    maxSelectValue = std::max(maxSelectValue, selectValue);
                 }
             }
+
+            if (maxSelectValue >= SMOOTHING_THRESHOLD) {
+                const double borderSmoothingAlpha = 1.0 - (maxSelectValue - SMOOTHING_THRESHOLD) / (1.0 - SMOOTHING_THRESHOLD);
+                borderVerticesToSmooth.push_back(vId);
+                borderVerticesToSmoothAlpha.push_back(borderSmoothingAlpha);
+            }
+
+            const double innerSmoothingAlpha = 1.0 - maxSelectValue;
+            innerVerticesToSmooth.push_back(vId);
+            innerVerticesToSmoothAlpha.push_back(innerSmoothingAlpha);
         }
 
-        nvl::meshLaplacianSmoothing(actionNewMesh, verticesToSmooth, verticesToSmoothAlpha, 5);
+        nvl::meshLaplacianSmoothing(actionNewMesh, borderVerticesToSmooth, 5, borderVerticesToSmoothAlpha);
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    nvl::meshSaveToFile("results/action_newmesh_3_smoothed_border.obj", actionNewMesh);
+#endif
+
+        nvl::meshLaplacianSmoothing(actionNewMesh, innerVerticesToSmooth, 5, 0.7);
 
     #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/action_newmesh_2_smoothed.obj", actionNewMesh);
+        nvl::meshSaveToFile("results/action_newmesh_4_smoothed.obj", actionNewMesh);
     #endif
 
         //Add new mesh and blended mesh to the global variables
