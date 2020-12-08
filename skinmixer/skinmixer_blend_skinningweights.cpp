@@ -85,12 +85,26 @@ void blendSkinningWeights(
 
             weight /= sumSelectValues;
             if (weight > nvl::EPSILON) {
-                if (targetSkeleton.childNumber(jId) > 0) {
-                    targetSkinningWeights.setWeight(vId, jId, weight);
+                if (targetSkeleton.childNumber(jId) == 0 && !targetSkeleton.isRoot(jId)) {
+                    targetSkinningWeights.setWeight(vId, targetSkeleton.parentId(jId), targetSkinningWeights.weight(vId, targetSkeleton.parentId(jId)) + weight);
                 }
                 else {
-                    targetSkinningWeights.setWeight(vId, targetSkeleton.parentId(jId), weight);
+                    targetSkinningWeights.setWeight(vId, jId, targetSkinningWeights.weight(vId, jId) + weight);
                 }
+            }
+        }
+    }
+
+    for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
+        if (targetMesh.isVertexDeleted(vId))
+            continue;
+
+        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+            if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 0.0)) {
+                targetSkinningWeights.setWeight(vId, jId, 0.0);
+            }
+            else if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 1.0)) {
+                targetSkinningWeights.setWeight(vId, jId, 1.0);
             }
         }
     }

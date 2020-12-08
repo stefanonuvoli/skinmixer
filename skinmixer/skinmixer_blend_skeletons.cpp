@@ -16,10 +16,9 @@ void blendSkeletons(
         const std::vector<nvl::Index>& cluster,
         typename SkinMixerData<Model>::Entry& entry)
 {
-    const double distanceWeight = 0.02;
     const double directionWeight = 0.05;
-    const double topologyWeight = 0.43;
-    const double matchedWeight = 1.0 - directionWeight - distanceWeight - topologyWeight;
+    const double topologyWeight = 0.45;
+    const double matchedWeight = 1.0 - directionWeight - topologyWeight;
 
     typedef typename nvl::Index Index;
 
@@ -186,17 +185,6 @@ void blendSkeletons(
 
         std::set<JointId> remainingJoints = nonKeptJoints[eId];
 
-        double maxDistance = 0.0;
-        for (JointId currentJId = 0; currentJId < currentSkeleton.jointNumber(); ++currentJId) {
-            const Joint& currentJoint = currentSkeleton.joint(currentJId);
-
-            for (JointId targetJId = 0; targetJId < targetSkeleton.jointNumber(); ++targetJId) {
-                const Joint& targetJoint = targetSkeleton.joint(targetJId);
-                double distance = ((targetJoint.restPose() * nvl::Point3d(0,0,0)) - (currentJoint.restPose() * nvl::Point3d(0,0,0))).norm();
-                maxDistance = std::max(maxDistance, distance);
-            }
-        }
-
         do {
             double bestScore = nvl::minLimitValue<double>();
             JointId bestCurrentJoint = nvl::MAX_INDEX;
@@ -214,9 +202,6 @@ void blendSkeletons(
                     JointId currentParentId = currentSkeleton.parentId(currentJId);
                     JointId targetParentId = targetSkeleton.parentId(targetJId);
 
-                    double distanceScore = 1 - (targetJoint.restPose() * nvl::Point3d(0,0,0) - currentJoint.restPose() * nvl::Point3d(0,0,0)).norm() / maxDistance;
-
-
 
                     double parentDirectionScore;
                     if (currentParentId == nvl::MAX_INDEX && targetParentId == nvl::MAX_INDEX) {
@@ -224,7 +209,9 @@ void blendSkeletons(
                     }
                     else if (currentParentId != nvl::MAX_INDEX && targetParentId != nvl::MAX_INDEX) {
                         nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentParentId).restPose() * nvl::Point3d(0,0,0) - currentJoint.restPose() * nvl::Point3d(0,0,0);
+                        currentParentDirection.normalize();
                         nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetParentId).restPose() * nvl::Point3d(0,0,0) - targetJoint.restPose() * nvl::Point3d(0,0,0);
+                        targetParentDirection.normalize();
                         parentDirectionScore = currentParentDirection.dot(targetParentDirection);
                     }
                     else {
@@ -241,12 +228,14 @@ void blendSkeletons(
                             currentChildrenDirection += (currentJoint.restPose() * nvl::Point3d(0,0,0) - currentSkeleton.joint(childId).restPose() * nvl::Point3d(0,0,0));
                         }
                         currentChildrenDirection /= currentSkeleton.children(currentJId).size();
+                        currentChildrenDirection.normalize();
 
                         nvl::Vector3d targetChildrenDirection(0.0, 0.0, 0.0);
                         for (JointId childId : targetSkeleton.children(targetJId)) {
                             targetChildrenDirection += (targetJoint.restPose() * nvl::Point3d(0,0,0) - targetSkeleton.joint(childId).restPose() * nvl::Point3d(0,0,0));
                         }
                         targetChildrenDirection /= targetSkeleton.children(targetJId).size();
+                        targetChildrenDirection.normalize();
 
                         childrenDirectionScore = currentChildrenDirection.dot(targetChildrenDirection);
                     }
@@ -302,12 +291,11 @@ void blendSkeletons(
 
 
 
-                    assert(distanceScore >= 0 - nvl::EPSILON && distanceScore <= 1 + nvl::EPSILON);
                     assert(directionScore >= 0 - nvl::EPSILON && directionScore <= 1 + nvl::EPSILON);
                     assert(topologyScore >= 0 - nvl::EPSILON && topologyScore <= 1 + nvl::EPSILON);
                     assert(matchedWeight >= 0 - nvl::EPSILON && matchedWeight <= 1 + nvl::EPSILON);
 
-                    double score = distanceWeight * distanceScore + directionWeight * directionScore + topologyWeight * topologyScore + matchedScore * matchedWeight;
+                    double score = directionWeight * directionScore + topologyWeight * topologyScore + matchedScore * matchedWeight;
                     assert(score >= 0 && score <= 1);
                     if (score >= bestScore) {
                         bestCurrentJoint = currentJId;

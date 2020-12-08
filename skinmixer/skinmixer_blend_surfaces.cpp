@@ -29,8 +29,8 @@
 #define FACE_KEEP_THRESHOLD 0.999
 #define MAX_DISTANCE_BLENDED_MESH 2.0
 #define VOXEL_SIZE_FACTOR 0.7
+#define MAX_VOXEL_DISTANCE 100.0
 #define ATTACH_DISTANCE 0.7
-
 #define SMOOTHING_THRESHOLD 0.9
 
 namespace skinmixer {
@@ -72,11 +72,6 @@ void blendSurfaces(
     Model* model = entry.model;
     Mesh& resultMesh = model->mesh;
 
-    //Max distance of the distance field
-    double maxDistance = 100.0;
-
-    //Calculate voxel size
-    double voxelSize = nvl::maxLimitValue<Scalar>();
 
     //Get actions
     std::vector<Index> actions;
@@ -86,9 +81,6 @@ void blendSurfaces(
         actions.insert(actions.end(), entry.relatedActions.begin(), entry.relatedActions.end());
 
         const Mesh& mesh = entry.model->mesh;
-
-        Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
-        voxelSize = std::min(voxelSize, avgLength * VOXEL_SIZE_FACTOR);
     }
 
     //Remove duplicate actions
@@ -115,10 +107,6 @@ void blendSurfaces(
             vertexSelectValue[aId].push_back(&action.select2.vertex);
         }
     }
-
-    //Scale transform
-    double scaleFactor = 1.0 / voxelSize;
-    nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
 
     //Grid data
@@ -158,10 +146,21 @@ void blendSurfaces(
         const std::vector<const Model*>& actionModels = models[aId];
         const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValue[aId];
 
+
+
+        //Max distance of the distance field
+        double maxDistance = MAX_VOXEL_DISTANCE;
+
+        //Calculate voxel size
+        double voxelSize = nvl::maxLimitValue<Scalar>();
+
         //Fill faces to keep with all faces
         std::vector<std::unordered_set<FaceId>> actionFacesToKeep(actionModels.size());
         for (Index mId = 0; mId < actionModels.size(); ++mId) {
-            const Mesh& mesh = actionModels[mId]->mesh;
+            const Mesh& mesh = actionModels[mId]->mesh;            
+
+            Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
+            voxelSize = std::min(voxelSize, avgLength * VOXEL_SIZE_FACTOR);
 
             for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
                 if (mesh.isFaceDeleted(fId)) {
@@ -171,6 +170,10 @@ void blendSurfaces(
                 actionFacesToKeep[mId].insert(fId);
             }
         }
+
+        //Scale transform
+        double scaleFactor = 1.0 / voxelSize;
+        nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
         //Erase faces to keep for the original meshes
         for (Index mId = 0; mId < actionModels.size(); ++mId) {
@@ -590,12 +593,12 @@ void blendSurfaces(
 
             if (action.operation == OperationType::REMOVE || action.operation == OperationType::DETACH) {
                 if (pId1 >= 0) {
-                    FaceId originFaceId = gridBirthFace[bestActionId][0][pId1];
+                    FaceId originFaceId1 = gridBirthFace[bestActionId][0][pId1];
                     VertexInfo info;
                     info.eId = eId1;
                     info.vId = nvl::MAX_INDEX;
                     info.weight = 1.0;
-                    info.closestFaceId = pId1;
+                    info.closestFaceId = originFaceId1;
                     info.distance = closedDistance1;
                     vertexInfo.push_back(info);
                 }

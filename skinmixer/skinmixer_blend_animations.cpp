@@ -4,6 +4,8 @@
 #include <nvl/math/normalization.h>
 #include <nvl/math/interpolation.h>
 
+#include <nvl/models/animation_algorithms.h>
+
 namespace skinmixer {
 
 template<class Model>
@@ -60,7 +62,7 @@ void initializeAnimationWeights(
                 for (JointInfo parentJointInfo : parentJointInfos) {
                     const Index& parentCId = clusterMap[parentJointInfo.eId];
 
-                    if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1 && parentCId == cId) {
+                    if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1 && parentCId != cId) {
                         animationWeights[jId][cId] = 0.0;
                     }
                 }
@@ -110,11 +112,13 @@ void blendAnimations(
 
     Animation targetAnimation;
 
+    std::vector<std::vector<Frame>> localFrames(cluster.size());
     std::vector<double> times;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
         Index eId = cluster[cId];
         const Entry& currentEntry = data.entry(eId);
         const Model* currentModel = currentEntry.model;
+        const Skeleton& currentSkeleton = currentModel->skeleton;
 
         Index aId = animationIds[cId];
 
@@ -123,7 +127,11 @@ void blendAnimations(
 
         const Animation& currentAnimation = currentModel->animation(aId);
         for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
-            const Frame& frame = currentAnimation.keyframe(fId);
+            Frame frame = currentAnimation.keyframe(fId);
+
+            nvl::animationComputeLocalFrame(currentSkeleton, frame);
+            localFrames[cId].push_back(frame);
+
             times.push_back(frame.time());
         }
     }
@@ -158,33 +166,34 @@ void blendAnimations(
                     weights[cId] = animationWeights[jId][cId];
                 }
                 if (aId != nvl::MAX_INDEX) {
-                    const Animation& currentAnimation = data.entry(jointInfo.eId).model->animation(aId);
-                    if (currentFrameId[cId] < currentAnimation.keyframeNumber() - 1 && currentAnimation.keyframe(currentFrameId[cId]).time() < currentTime) {
+                    const std::vector<Frame>& currentLocalFrames = localFrames[cId];
+                    const Skeleton& currentSkeleton = data.entry(jointInfo.eId).model->skeleton;
+
+                    if (currentFrameId[cId] < currentLocalFrames.size() - 1 && currentLocalFrames[currentFrameId[cId]].time() < currentTime) {
                         ++currentFrameId[cId];
-                        assert(currentAnimation.keyframe(currentFrameId[cId]).time() >= currentTime);
+                        assert(currentLocalFrames[currentFrameId[cId]].time() >= currentTime);
                     }
 
-                    if (currentFrameId[cId] < currentAnimation.keyframeNumber() - 1) {
-                        const Frame& frame1 = currentAnimation.keyframe(currentFrameId[cId]);
-                        const Frame& frame2 = currentAnimation.keyframe(currentFrameId[cId] + 1);
+                    if (currentFrameId[cId] < currentLocalFrames.size() - 1) {
+                        const Frame& frame1 = currentLocalFrames[currentFrameId[cId]];
+                        const Frame& frame2 = currentLocalFrames[currentFrameId[cId] + 1];
 
                         const double& time1 = frame1.time();
                         const double& time2 = frame2.time();
-                        const Transformation& transformation1 = frame1.transformation(jointInfo.jId);
-                        const Transformation& transformation2 = frame2.transformation(jointInfo.jId);
+                        const Transformation& transformation1 = frame1.transformation(jointInfo.jId) * currentSkeleton.joint(jointInfo.jId).restPose().inverse();
+                        const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * currentSkeleton.joint(jointInfo.jId).restPose().inverse();
 
                         double alpha = (currentTime - time1) / (time2 - time1);
 
                         transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
                     }
                     else {
-                        transformations[cId] = currentAnimation.keyframe(currentAnimation.keyframeNumber() - 1).transformation(jointInfo.jId);
+                        transformations[cId] = currentLocalFrames[currentLocalFrames.size() - 1].transformation(jointInfo.jId) * currentSkeleton.joint(jointInfo.jId).restPose().inverse();
                     }
                 }
             }
 
             nvl::normalize(weights);
-
 
             double sum = 0.0;
             for (const double& value : weights) {
@@ -195,10 +204,13 @@ void blendAnimations(
                     value = 1.0 / weights.size();
                 }
             }
-            blendedTransformations[jId] = nvl::interpolateAffine(transformations, weights);
+
+            blendedTransformations[jId] = nvl::interpolateAffine(transformations, weights) * targetSkeleton.joint(jId).restPose();
         }
 
-        targetAnimation.addKeyframe(currentTime, blendedTransformations);
+        Frame newFrame(currentTime, blendedTransformations);
+        nvl::animationComputeGlobalFrame(targetSkeleton, newFrame);
+        targetAnimation.addKeyframe(newFrame);
     }
 
     targetAnimation.setName("Blended");
