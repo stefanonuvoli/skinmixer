@@ -218,7 +218,7 @@ public:
 
 		RemoveDuplicateVert_Compare c_obj;
 
-                std::sort(perm.begin(),perm.end(),c_obj);
+		std::sort(perm.begin(),perm.end(),c_obj);
 
 		j = 0;
 		i = j;
@@ -685,6 +685,8 @@ public:
 		UpdateFlags<MeshType>::FaceClearS(m);
 
 		MeshType tmpMesh;
+		tmpMesh.vert.EnableVFAdjacency();
+		tmpMesh.face.EnableVFAdjacency();
 
 		size_t selCnt=0;
 
