@@ -18,8 +18,6 @@
 
 #include <nvl/models/mesh_eigen_convert.h>
 
-#include "skinmixer/internal/skinmixer_morphological_operations.h"
-
 #define SELECT_VALUE_MIN_THRESHOLD 0.01
 #define SELECT_VALUE_MAX_THRESHOLD 0.99
 #define EXPANSION_VOXELS 15.0
@@ -159,10 +157,6 @@ void getClosedGrids(
                     points.push_back(nvl::meshFaceBarycenter(mesh, fId));
                 }
             }
-        }
-
-        for (int i = 0; i < 3; ++i) {
-            skinmixer::meshDilateFaceSelectionNoBorders(mesh, facesInField[mId]);
         }
 
         //Expand selection
