@@ -18,6 +18,8 @@
 
 #include <nvl/models/mesh_eigen_convert.h>
 
+#include "skinmixer/internal/skinmixer_morphological_operations.h"
+
 #define SELECT_VALUE_MIN_THRESHOLD 0.01
 #define SELECT_VALUE_MAX_THRESHOLD 0.99
 #define EXPANSION_VOXELS 15.0
@@ -39,10 +41,10 @@ void getClosedGrids(
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
         const double& maxDistance,
-        std::vector<FloatGridPtr>& unsignedGrids,
-        std::vector<FloatGridPtr>& signedGrids,
-        std::vector<FloatGridPtr>& closedGrids,        
+        std::vector<typename Model::Mesh>& closedMeshes,
+        std::vector<FloatGridPtr>& closedGrids,
         std::vector<IntGridPtr>& polygonGrids,
+        std::vector<std::unordered_set<typename Model::Mesh::FaceId>>& facesInField,
         std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
         std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
         std::vector<openvdb::Vec3i>& bbMin,
@@ -55,10 +57,9 @@ void getClosedGrids(
     typedef typename nvl::Index Index;
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
-    unsignedGrids.resize(models.size());
     polygonGrids.resize(models.size());
-    signedGrids.resize(models.size());
     closedGrids.resize(models.size());
+    closedMeshes.resize(models.size());
     gridBirthVertex.resize(models.size());
     gridBirthFace.resize(models.size());
     bbMin.resize(models.size());
@@ -66,6 +67,8 @@ void getClosedGrids(
 
     nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
+
+    facesInField.resize(models.size());
     for (Index mId = 0; mId < models.size(); ++mId) {
         const Mesh& mesh = models[mId]->mesh;
 
@@ -126,14 +129,8 @@ void getClosedGrids(
             }
         }
 
-        double selectValueLowerLimit = 0.0;
-        if (operation == OperationType::REMOVE || operation == OperationType::DETACH) {
-            selectValueLowerLimit = 0.5;
-        }
-
         //Get vertices
         std::vector<Point> points;
-        std::unordered_set<FaceId> facesToBlend;
         for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
             if (mesh.isFaceDeleted(fId)) {
                 continue;
@@ -141,14 +138,14 @@ void getClosedGrids(
 
             double selectValue = internal::averageFaceSelectValue(mesh, fId, *vertexSelectValue[mId]);
 
-            if (selectValue > selectValueLowerLimit && selectValue < 1.0 && !nvl::epsEqual(selectValue, selectValueLowerLimit) && !nvl::epsEqual(selectValue, 1.0)) {
-                facesToBlend.insert(fId);
+            if (selectValue > 0.0 && selectValue < 1.0 && !nvl::epsEqual(selectValue, 0.0) && !nvl::epsEqual(selectValue, 1.0)) {
+                facesInField[mId].insert(fId);
 
                 points.push_back(nvl::meshFaceBarycenter(mesh, fId));
             }
         }
 
-        if (facesToBlend.empty()) {
+        if (facesInField[mId].empty()) {
             for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
                 if (mesh.isFaceDeleted(fId)) {
                     continue;
@@ -156,29 +153,32 @@ void getClosedGrids(
 
                 double selectValue = internal::averageFaceSelectValue(mesh, fId, *vertexSelectValue[mId]);
 
-                if (selectValue > selectValueLowerLimit && !nvl::epsEqual(selectValue, selectValueLowerLimit)) {
-                    facesToBlend.insert(fId);
+                if (selectValue > 0.0 && !nvl::epsEqual(selectValue, 0.0)) {
+                    facesInField[mId].insert(fId);
 
                     points.push_back(nvl::meshFaceBarycenter(mesh, fId));
                 }
             }
         }
 
+        for (int i = 0; i < 3; ++i) {
+            skinmixer::meshDilateFaceSelectionNoBorders(mesh, facesInField[mId]);
+        }
 
         //Expand selection
-        std::unordered_set<FaceId> newFacesToBlend;
+        std::unordered_set<FaceId> newFacesInField;
 
         bool expansion;
         do {
             expansion = false;
 
-            for (const FaceId& fId : facesToBlend) {
+            for (const FaceId& fId : facesInField[mId]) {
                 for (const FaceId& adj : meshFFAdj[fId]) {
                     if (adj != nvl::MAX_INDEX) {
-                        if (facesToBlend.find(adj) == facesToBlend.end()) {
+                        if (facesInField[mId].find(adj) == facesInField[mId].end()) {
 
                             double selectValue = internal::averageFaceSelectValue(mesh, adj, *vertexSelectValue[mId]);
-                            if (selectValue > selectValueLowerLimit) {
+                            if (selectValue > 0.0) {
                                 const Point barycenter = nvl::meshFaceBarycenter(mesh, adj);
 
                                 for (const Point& point : points) {
@@ -187,7 +187,7 @@ void getClosedGrids(
                                     if (distance < maxExpansionDistance) {
                                         expansion = true;
 
-                                        newFacesToBlend.insert(adj);
+                                        newFacesInField.insert(adj);
 
                                         break;
                                     }
@@ -198,12 +198,12 @@ void getClosedGrids(
                 }
             }
 
-            facesToBlend.insert(newFacesToBlend.begin(), newFacesToBlend.end());
+            facesInField[mId].insert(newFacesInField.begin(), newFacesInField.end());
         } while (expansion);
 
         //Transfer vertices to keep in the current mesh
         Mesh currentMesh;
-        nvl::meshTransferFaces(mesh, std::vector<FaceId>(facesToBlend.begin(), facesToBlend.end()), currentMesh, gridBirthVertex[mId], gridBirthFace[mId]);
+        nvl::meshTransferFaces(mesh, std::vector<FaceId>(facesInField[mId].begin(), facesInField[mId].end()), currentMesh, gridBirthVertex[mId], gridBirthFace[mId]);
 
         //Scale mesh
         nvl::meshApplyTransformation(currentMesh, scaleTransform);
@@ -219,13 +219,10 @@ void getClosedGrids(
 
         //Create unsigned distance field
         TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(1.0);
-        unsignedGrids[mId] = openvdb::tools::meshToVolume<FloatGrid>(
+        FloatGridPtr signedGrid = openvdb::tools::meshToVolume<FloatGrid>(
                     adapter, *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrids[mId].get());
 
-
-        //Create unsigned distance field
-        signedGrids[mId] = unsignedGrids[mId]->deepCopy();
-        FloatGrid::Accessor signedAccessor = signedGrids[mId]->getAccessor();
+        FloatGrid::Accessor signedAccessor = signedGrid->getAccessor();
 
         //Eigen mesh conversion
         Mesh triangulatedMesh = currentMesh;
@@ -249,7 +246,7 @@ void getClosedGrids(
             std::numeric_limits<int>::min());
 
         //Min and max values
-        for (FloatGrid::ValueOnIter iter = signedGrids[mId]->beginValueOn(); iter; ++iter) {
+        for (FloatGrid::ValueOnIter iter = signedGrid->beginValueOn(); iter; ++iter) {
             GridCoord coord = iter.getCoord();
 
             bbMin[mId] = openvdb::Vec3i(
@@ -277,7 +274,7 @@ void getClosedGrids(
             for (int j = bbMin[mId].y(); j < bbMax[mId].y(); j++) {
                 for (int k = bbMin[mId].z(); k < bbMax[mId].z(); k++) {
                     GridCoord coord(i,j,k);
-                    openvdb::Vec3d p = signedGrids[mId]->indexToWorld(coord);
+                    openvdb::Vec3d p = signedGrid->indexToWorld(coord);
 
                     Q(currentVoxel, 0) = p.x();
                     Q(currentVoxel, 1) = p.y();
@@ -314,20 +311,24 @@ void getClosedGrids(
 
 
         //Create openvdb mesh
-        Mesh closedMesh = convertGridToMesh<Mesh>(signedGrids[mId], true);
-        internal::OpenVDBAdapter<Mesh> closedAdapter(&closedMesh);
+        closedMeshes[mId] = convertGridToMesh<Mesh>(signedGrid, true);
+
+        signedGrid->clear();
+        signedGrid.reset();
+
+        internal::OpenVDBAdapter<Mesh> closedAdapter(&closedMeshes[mId]);
 
         closedGrids[mId] = openvdb::tools::meshToVolume<FloatGrid>(
             closedAdapter, *linearTransform, maxDistance, maxDistance, 0);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/action_closed_ " + std::to_string(mId) + ".obj", closedMesh);
+        nvl::meshSaveToFile("results/action_closed_ " + std::to_string(mId) + ".obj", closedMeshes[mId]);
 #endif
     }
 }
 
 template<class Model>
-typename Model::Mesh getBlendedMesh(
+FloatGridPtr getBlendedGrid(
         const OperationType operation,
         const std::vector<const Model*>& models,
         const std::vector<const std::vector<double>*>& vertexSelectValue,
@@ -336,8 +337,8 @@ typename Model::Mesh getBlendedMesh(
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
-        openvdb::Vec3i& minCoord,
-        const openvdb::Vec3i& maxCoord)
+        const std::vector<openvdb::Vec3i>& bbMin,
+        const std::vector<openvdb::Vec3i>& bbMax)
 {
     typedef typename openvdb::FloatGrid FloatGrid;
     typedef typename FloatGrid::Ptr FloatGridPtr;
@@ -346,6 +347,30 @@ typename Model::Mesh getBlendedMesh(
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Point Point;
+
+
+    //Minimum and maximum coordinates in the scalar fields
+    openvdb::Vec3i minCoord(
+        std::numeric_limits<int>::max(),
+        std::numeric_limits<int>::max(),
+        std::numeric_limits<int>::max());
+    openvdb::Vec3i maxCoord(
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::min());
+
+    for (nvl::Index mId = 0; mId < models.size(); ++mId) {
+        minCoord = openvdb::Vec3i(
+            std::min(minCoord.x(), bbMin[mId].x()),
+            std::min(minCoord.y(), bbMin[mId].y()),
+            std::min(minCoord.z(), bbMin[mId].z()));
+
+        maxCoord = openvdb::Vec3i(
+            std::max(maxCoord.x(), bbMax[mId].x()),
+            std::max(maxCoord.y(), bbMax[mId].y()),
+            std::max(maxCoord.z(), bbMax[mId].z()));
+    }
+
 
     nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
@@ -409,7 +434,40 @@ typename Model::Mesh getBlendedMesh(
                         resultValue = closedDistance2;
                     }
                     else {
-                        resultValue = closedDistance1 < 0 && closedDistance2 < 0 ? -maxDistance : maxDistance;
+                        resultValue = closedDistance1 < 0 || closedDistance2 < 0 ? -maxDistance : maxDistance;
+                    }
+                }
+                else if (operation == OperationType::ATTACH) {
+                    FloatGrid::ConstAccessor closedAccessor2 = closedGrids[1]->getConstAccessor();
+                    IntGrid::ConstAccessor polygonAccessor2 = polygonGrids[1]->getConstAccessor();
+                    FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
+                    IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                    const Mesh& mesh2 = models[1]->mesh;
+
+                    if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                        FaceId originFaceId1 = gridBirthFace[0][pId1];
+                        double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *vertexSelectValue[0]);
+
+                        FaceId originFaceId2 = gridBirthFace[1][pId2];
+                        double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *vertexSelectValue[1]);
+
+//                        if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < 0.5) {
+//                            resultValue = closedDistance1;
+//                        }
+//                        else {
+//                            resultValue = nvl::min(closedDistance1, closedDistance2);
+//                        }
+
+                        resultValue = nvl::min(closedDistance1, closedDistance2);
+                    }
+                    else if (pId1 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance) {
+                        resultValue = closedDistance1;
+                    }
+                    else if (pId2 >= 0 && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                        resultValue = closedDistance2;
+                    }
+                    else {
+                        resultValue = closedDistance1 < 0 || closedDistance2 < 0 ? -maxDistance : maxDistance;
                     }
                 }
 
@@ -418,17 +476,7 @@ typename Model::Mesh getBlendedMesh(
         }
     }
 
-    //Convert to mesh
-    blendedMesh = convertGridToMesh<Mesh>(blendedGrid, true);
-
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/action_blendedMesh_non_rescaled.obj", blendedMesh);
-#endif
-
-    //Rescale back
-    nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
-
-    return blendedMesh;
+    return blendedGrid;
 }
 
 template<class Mesh>

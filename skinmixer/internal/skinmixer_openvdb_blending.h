@@ -52,17 +52,17 @@ void getClosedGrids(
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
         const double& maxDistance,
-        std::vector<FloatGridPtr>& unsignedGrids,
-        std::vector<FloatGridPtr>& signedGrids,
+        std::vector<typename Model::Mesh>& closedMeshes,
         std::vector<FloatGridPtr>& closedGrids,        
         std::vector<IntGridPtr>& polygonGrids,
+        std::vector<std::unordered_set<typename Model::Mesh::FaceId>>& facesInField,
         std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
         std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
         std::vector<openvdb::Vec3i>& bbMin,
         std::vector<openvdb::Vec3i>& bbMax);
 
 template<class Model>
-typename Model::Mesh getBlendedMesh(
+FloatGridPtr getBlendedGrid(
         const OperationType operation,
         const std::vector<const Model*>& models,
         const std::vector<const std::vector<double>*>& vertexSelectValue,
@@ -70,9 +70,9 @@ typename Model::Mesh getBlendedMesh(
         const double& maxDistance,
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
-        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
-        const openvdb::Vec3i& minCoord,
-        const openvdb::Vec3i& maxCoord);
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,        
+        const std::vector<openvdb::Vec3i>& bbMin,
+        const std::vector<openvdb::Vec3i>& bbMax);
 
 template<class Model>
 typename Model::Mesh getRemoveDetachMesh(

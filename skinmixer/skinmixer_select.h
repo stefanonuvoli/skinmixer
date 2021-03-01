@@ -26,6 +26,23 @@ void computeReplaceSelectValues(
         const double rigidity,
         const double hardness1,
         const double hardness2,
+        const bool includeParent1,
+        const bool includeParent2,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue2,
+        std::vector<double>& jointSelectValue2);
+
+template<class Model>
+void computeAttachSelectValues(
+        const Model& model1,
+        const Model& model2,
+        const typename Model::Skeleton::JointId& targetJoint1,
+        const typename Model::Skeleton::JointId& targetJoint2,
+        const unsigned int smoothingIterations,
+        const double rigidity,
+        const double hardness2,
+        const bool includeParent2,
         std::vector<double>& vertexSelectValue1,
         std::vector<double>& jointSelectValue1,
         std::vector<double>& vertexSelectValue2,
@@ -38,6 +55,8 @@ void computeRemoveSelectValues(
         const unsigned int smoothingIterations,
         const double rigidity,
         const double hardness,
+        const bool includeParent,
+        const double minThreshold,
         std::vector<double>& vertexSelectValue,
         std::vector<double>& jointSelectValue);
 
@@ -48,6 +67,8 @@ void computeDetachSelectValues(
         const unsigned int smoothingIterations,
         const double rigidity,
         const double hardness,
+        const bool includeParent,
+        const double minThreshold,
         std::vector<double>& vertexSelectValue,
         std::vector<double>& jointSelectValue);
 

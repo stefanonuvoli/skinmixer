@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>298</width>
+    <width>382</width>
     <height>775</height>
    </rect>
   </property>
@@ -94,6 +94,20 @@
       <string>Operations</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="3">
+       <widget class="QPushButton" name="operationReplaceButton">
+        <property name="text">
+         <string>Replace</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="operationDetachButton">
+        <property name="text">
+         <string>Detach</string>
+        </property>
+       </widget>
+      </item>
       <item row="5" column="1">
        <widget class="QPushButton" name="operationApplyButton">
         <property name="text">
@@ -108,13 +122,6 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="operationDetachButton">
-        <property name="text">
-         <string>Detach</string>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="1">
        <widget class="QPushButton" name="operationRemoveButton">
         <property name="text">
@@ -125,21 +132,21 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="operationReplaceButton">
+      <item row="0" column="4">
+       <widget class="QPushButton" name="operationAttachButton">
         <property name="text">
-         <string>Replace</string>
+         <string>Attach</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1" colspan="3">
+      <item row="6" column="1" colspan="4">
        <widget class="QPushButton" name="mixButton">
         <property name="text">
          <string>Mix</string>
         </property>
        </widget>
       </item>
-      <item row="7" column="1" colspan="3">
+      <item row="7" column="1" colspan="4">
        <widget class="QTabWidget" name="parametersTabWidget">
         <property name="enabled">
          <bool>true</bool>
@@ -209,10 +216,40 @@
           <string>Select</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
+          <item row="2" column="2">
+           <widget class="QLabel" name="hardness1ValueLabel">
+            <property name="text">
+             <string>+0.00</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSlider" name="hardness1Slider">
+            <property name="minimum">
+             <number>-99</number>
+            </property>
+            <property name="maximum">
+             <number>99</number>
+            </property>
+            <property name="value">
+             <number>1</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
           <item row="6" column="0">
            <widget class="QLabel" name="hardness2Label">
             <property name="text">
              <string>Hardness 2</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="hardness1Label">
+            <property name="text">
+             <string>Hardness 1</string>
             </property>
            </widget>
           </item>
@@ -239,33 +276,17 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="QSlider" name="hardness1Slider">
-            <property name="minimum">
-             <number>-99</number>
-            </property>
-            <property name="maximum">
-             <number>99</number>
-            </property>
-            <property name="value">
-             <number>1</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+          <item row="2" column="3">
+           <widget class="QCheckBox" name="parent1CheckBox">
+            <property name="text">
+             <string>Parent</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="hardness1Label">
+          <item row="6" column="3">
+           <widget class="QCheckBox" name="parent2CheckBox">
             <property name="text">
-             <string>Hardness 1</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="2">
-           <widget class="QLabel" name="hardness1ValueLabel">
-            <property name="text">
-             <string>+0.00</string>
+             <string>Parent</string>
             </property>
            </widget>
           </item>

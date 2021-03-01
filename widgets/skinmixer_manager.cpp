@@ -20,6 +20,7 @@
 #define REMOVING_HARDNESS_DEFAULT 0
 #define REPLACING_HARDNESS1_DEFAULT 0
 #define REPLACING_HARDNESS2_DEFAULT 0
+#define ATTACHING_HARDNESS2_DEFAULT 0
 
 SkinMixerManager::SkinMixerManager(
         nvl::Canvas* canvas,
@@ -36,9 +37,9 @@ SkinMixerManager::SkinMixerManager(
     vCurrentOperation(OperationType::NONE),
     vSelectedModelDrawer(nullptr),
     vSelectedJoint(nvl::MAX_INDEX),
-    vReplaceModelDrawer(nullptr),
-    vReplaceJoint(nvl::MAX_INDEX),
-    vPreparedReplace(false),
+    vFirstSelectedModelDrawer(nullptr),
+    vFirstSelectedJoint(nvl::MAX_INDEX),
+    vPreparedOperation(false),
     vBackupFrame(nvl::Affine3d::Identity()),
     vBlendingAnimation(nvl::MAX_INDEX)
 {
@@ -201,16 +202,20 @@ void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::
     if (vSelectedModelDrawer != nullptr) {
         colorizeByData(vSelectedModelDrawer);
     }
-    if (vReplaceModelDrawer != nullptr) {
-        colorizeByData(vReplaceModelDrawer);
+    if (vFirstSelectedModelDrawer != nullptr) {
+        colorizeByData(vFirstSelectedModelDrawer);
     }
 
     vSelectedModelDrawer = getSelectedModelDrawer();
     vSelectedJoint = getSelectedJointId();
 
     if (vCurrentOperation == OperationType::REPLACE) {
-        assert(vReplaceModelDrawer != nullptr);
-        prepareModelForReplace();
+        assert(vFirstSelectedModelDrawer != nullptr);
+        prepareModelForReplaceOrAttach();
+    }
+    else if (vCurrentOperation == OperationType::ATTACH) {
+        assert(vFirstSelectedModelDrawer != nullptr);
+        prepareModelForReplaceOrAttach();
     }
     else {
         abortOperation();
@@ -236,16 +241,20 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
     if (vSelectedModelDrawer != nullptr) {
         colorizeByData(vSelectedModelDrawer);
     }
-    if (vReplaceModelDrawer != nullptr) {
-        colorizeByData(vReplaceModelDrawer);
+    if (vFirstSelectedModelDrawer != nullptr) {
+        colorizeByData(vFirstSelectedModelDrawer);
     }
 
     vSelectedModelDrawer = getSelectedModelDrawer();
     vSelectedJoint = getSelectedJointId();
 
     if (vCurrentOperation == OperationType::REPLACE) {
-        assert(vReplaceModelDrawer != nullptr);
-        prepareModelForReplace();
+        assert(vFirstSelectedModelDrawer != nullptr);
+        prepareModelForReplaceOrAttach();
+    }
+    else if (vCurrentOperation == OperationType::ATTACH) {
+        assert(vFirstSelectedModelDrawer != nullptr);
+        prepareModelForReplaceOrAttach();
     }
     else {
         abortOperation();
@@ -419,30 +428,47 @@ void SkinMixerManager::applyOperation()
     const double rigidity = ui->rigiditySlider->value() / 100.0;
 
     const double hardness1 = ui->hardness1Slider->value() / 100.0;
+    const double includeParent1 = ui->parent1CheckBox->isChecked();
 
     if (vCurrentOperation == OperationType::REMOVE || vCurrentOperation == OperationType::DETACH) {
-
         if (vCurrentOperation == OperationType::REMOVE) {
-            skinmixer::remove(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1);
+            skinmixer::remove(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
         }
         else if (vCurrentOperation == OperationType::DETACH) {
-            skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1);
+            skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
         }
     }
     else if (vCurrentOperation == OperationType::REPLACE) {
         const double hardness2 = ui->hardness2Slider->value() / 100.0;
+        const double includeParent2 = ui->parent2CheckBox->isChecked();
 
-        assert(vReplaceModelDrawer != nullptr && vReplaceJoint != nvl::MAX_INDEX);
-        assert(vSelectedModelDrawer != vReplaceModelDrawer);
+        assert(vFirstSelectedModelDrawer != nullptr && vFirstSelectedJoint != nvl::MAX_INDEX);
+        assert(vSelectedModelDrawer != vFirstSelectedModelDrawer);
 
-        skinmixer::replace(vSkinMixerData, vReplaceModelDrawer->model(), vSelectedModelDrawer->model(), vReplaceJoint, vSelectedJoint, smoothingIterations, rigidity, hardness1, hardness2);
+        skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2);
 
-        colorizeByData(vReplaceModelDrawer);
+        colorizeByData(vFirstSelectedModelDrawer);
 
-        vReplaceModelDrawer = nullptr;
-        vReplaceJoint = nvl::MAX_INDEX;
+        vFirstSelectedModelDrawer = nullptr;
+        vFirstSelectedJoint = nvl::MAX_INDEX;
         vBackupFrame = nvl::Affine3d::Identity();
-        vPreparedReplace = false;
+        vPreparedOperation = false;
+    }
+    else if (vCurrentOperation == OperationType::ATTACH) {
+        const double hardness2 = ui->hardness2Slider->value() / 100.0;
+        const double includeParent2 = ui->parent2CheckBox->isChecked();
+
+        assert(vFirstSelectedModelDrawer != nullptr && vFirstSelectedJoint != nvl::MAX_INDEX);
+        assert(vSelectedModelDrawer != vFirstSelectedModelDrawer);
+
+        skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2);
+
+        colorizeByData(vFirstSelectedModelDrawer);
+
+        vFirstSelectedModelDrawer = nullptr;
+        vFirstSelectedJoint = nvl::MAX_INDEX;
+        vBackupFrame = nvl::Affine3d::Identity();
+        vPreparedOperation = false;
     }
 
     colorizeByData(vSelectedModelDrawer);
@@ -451,7 +477,7 @@ void SkinMixerManager::applyOperation()
 
 void SkinMixerManager::abortOperation()
 {
-    if (vCurrentOperation == OperationType::REPLACE && vSelectedModelDrawer != vReplaceModelDrawer && vSelectedModelDrawer != nullptr) {
+    if ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && vSelectedModelDrawer != vFirstSelectedModelDrawer && vSelectedModelDrawer != nullptr) {
         vSelectedModelDrawer->setFrame(vBackupFrame);
     }
 
@@ -462,14 +488,14 @@ void SkinMixerManager::abortOperation()
     if (vSelectedModelDrawer != nullptr) {
         colorizeByData(vSelectedModelDrawer);
     }
-    if (vReplaceModelDrawer != nullptr) {
-        colorizeByData(vReplaceModelDrawer);
+    if (vFirstSelectedModelDrawer != nullptr) {
+        colorizeByData(vFirstSelectedModelDrawer);
     }
 
-    vReplaceModelDrawer = nullptr;
-    vReplaceJoint = nvl::MAX_INDEX;
+    vFirstSelectedModelDrawer = nullptr;
+    vFirstSelectedJoint = nvl::MAX_INDEX;
     vBackupFrame = nvl::Affine3d::Identity();
-    vPreparedReplace = false;
+    vPreparedOperation = false;
 }
 
 void SkinMixerManager::updatePreview()
@@ -489,8 +515,8 @@ void SkinMixerManager::updatePreview()
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
     bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
 
-    bool replaceDrawableSelected = vReplaceModelDrawer != nullptr;
-    bool replaceJointSelected = replaceDrawableSelected && vReplaceJoint != nvl::MAX_INDEX;
+    bool firstDrawableSelected = vFirstSelectedModelDrawer != nullptr;
+    bool firstJointSelected = firstDrawableSelected && vFirstSelectedJoint != nvl::MAX_INDEX;
 
     if (vCurrentOperation != OperationType::NONE && jointSelected) {
         Model* modelPtr = vSelectedModelDrawer->model();
@@ -502,8 +528,6 @@ void SkinMixerManager::updatePreview()
         const unsigned int smoothingIterations = ui->functionSmoothingSlider->value();
         const double rigidity = ui->rigiditySlider->value() / 100.0;
 
-        const double currentHardness = ui->hardness1Slider->value() / 100.0;
-
         const SkinMixerEntry& currentEntry = vSkinMixerData.entryFromModel(modelPtr);
 
         SelectInfo currentSelect = vSkinMixerData.computeGlobalSelectInfo(currentEntry);
@@ -512,71 +536,85 @@ void SkinMixerManager::updatePreview()
         std::vector<double> currentPreviewJointSelectValue;
 
         if (vCurrentOperation == OperationType::REMOVE) {
-            skinmixer::computeRemoveSelectValues(currentModel, vSelectedJoint, smoothingIterations, rigidity, currentHardness, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            const double currentHardness = ui->hardness1Slider->value() / 100.0;
+            const bool currentParent = ui->parent1CheckBox->isChecked();
+            skinmixer::computeRemoveSelectValues(currentModel, vSelectedJoint, smoothingIterations, rigidity, currentHardness, currentParent, 0.5, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
         }
         else if (vCurrentOperation == OperationType::DETACH) {
-            skinmixer::computeDetachSelectValues(currentModel, vSelectedJoint, smoothingIterations, rigidity, currentHardness, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            const double currentHardness = ui->hardness1Slider->value() / 100.0;
+            const bool currentParent = ui->parent1CheckBox->isChecked();
+            skinmixer::computeDetachSelectValues(currentModel, vSelectedJoint, smoothingIterations, rigidity, currentHardness, currentParent, 0.5, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
         }
-        else if (vCurrentOperation == OperationType::REPLACE && replaceJointSelected && vSelectedModelDrawer != vReplaceModelDrawer) {
-            Model* replaceModelPtr = vReplaceModelDrawer->model();
-            const Model& replaceModel = *replaceModelPtr;
-            const Mesh& replaceMesh = replaceModel.mesh;
-            const Skeleton& replaceSkeleton = replaceModel.skeleton;
+        else if ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && firstJointSelected && vSelectedModelDrawer != vFirstSelectedModelDrawer) {
+            Model* firstModelPtr = vFirstSelectedModelDrawer->model();
+            const Model& firstModel = *firstModelPtr;
+            const Mesh& firstMesh = firstModel.mesh;
+            const Skeleton& firstSkeleton = firstModel.skeleton;            
 
-            const double replaceHardness = ui->hardness2Slider->value() / 100.0;
+            const double firstHardness = ui->hardness1Slider->value() / 100.0;
+            const bool firstParent = ui->parent1CheckBox->isChecked();
+            const double currentHardness = ui->hardness2Slider->value() / 100.0;
+            const bool currentParent = ui->parent2CheckBox->isChecked();
 
-            std::vector<double> replacePreviewVertexSelectValue;
-            std::vector<double> replacePreviewJointSelectValue;
+            std::vector<double> firstPreviewVertexSelectValue;
+            std::vector<double> firstPreviewJointSelectValue;
 
-            skinmixer::computeReplaceSelectValues(replaceModel, currentModel, vReplaceJoint, vSelectedJoint, smoothingIterations, rigidity, currentHardness, replaceHardness, replacePreviewVertexSelectValue, replacePreviewJointSelectValue, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            if (vCurrentOperation == OperationType::REPLACE) {
+                skinmixer::computeReplaceSelectValues(firstModel, currentModel, vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, firstHardness, currentHardness, firstParent, currentParent, firstPreviewVertexSelectValue, firstPreviewJointSelectValue, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            }
+            else {
+                assert(vCurrentOperation == OperationType::ATTACH);
 
-            const SkinMixerEntry& replaceEntry = vSkinMixerData.entryFromModel(replaceModelPtr);
-            SelectInfo replaceSelect = vSkinMixerData.computeGlobalSelectInfo(replaceEntry);
+                skinmixer::computeAttachSelectValues(firstModel, currentModel, vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, currentHardness, currentParent, firstPreviewVertexSelectValue, firstPreviewJointSelectValue, currentPreviewVertexSelectValue, currentPreviewJointSelectValue);
+            }
 
-            for (VertexId vId = 0; vId < replaceMesh.nextVertexId(); vId++) {
-                if (replaceMesh.isVertexDeleted(vId))
+            const SkinMixerEntry& firstEntry = vSkinMixerData.entryFromModel(firstModelPtr);
+            SelectInfo firstSelect = vSkinMixerData.computeGlobalSelectInfo(firstEntry);
+
+            for (VertexId vId = 0; vId < firstMesh.nextVertexId(); vId++) {
+                if (firstMesh.isVertexDeleted(vId))
                     continue;
 
-                replacePreviewVertexSelectValue[vId] = std::max(replacePreviewVertexSelectValue[vId], minAlpha);
-                if (replaceSelect.vertex[vId] < replacePreviewVertexSelectValue[vId]) {
-                    replacePreviewVertexSelectValue[vId] = replaceSelect.vertex[vId];
+                firstPreviewVertexSelectValue[vId] = std::max(firstPreviewVertexSelectValue[vId], minAlpha);
+                if (firstSelect.vertex[vId] < firstPreviewVertexSelectValue[vId]) {
+                    firstPreviewVertexSelectValue[vId] = firstSelect.vertex[vId];
                 }
             }
 
-            for (JointId jId = 0; jId < replaceSkeleton.jointNumber(); jId++) {
-                replacePreviewJointSelectValue[jId] = std::max(replacePreviewJointSelectValue[jId], minAlpha);
-                if (replaceSelect.joint[jId] < replacePreviewJointSelectValue[jId]) {
-                    replacePreviewJointSelectValue[jId] = replaceSelect.joint[jId];
+            for (JointId jId = 0; jId < firstSkeleton.jointNumber(); jId++) {
+                firstPreviewJointSelectValue[jId] = std::max(firstPreviewJointSelectValue[jId], minAlpha);
+                if (firstSelect.joint[jId] < firstPreviewJointSelectValue[jId]) {
+                    firstPreviewJointSelectValue[jId] = firstSelect.joint[jId];
                 }
             }
 
-            colorizeBySelectValues(vReplaceModelDrawer, replacePreviewVertexSelectValue, replacePreviewJointSelectValue);
+            colorizeBySelectValues(vFirstSelectedModelDrawer, firstPreviewVertexSelectValue, firstPreviewJointSelectValue);
 
-            for (FaceId fId = 0; fId < replaceMesh.nextFaceId(); fId++) {
-                if (replaceMesh.isFaceDeleted(fId))
+            for (FaceId fId = 0; fId < firstMesh.nextFaceId(); fId++) {
+                if (firstMesh.isFaceDeleted(fId))
                     continue;
 
                 double avgValue = 0.0;
 
-                const Face& face = replaceMesh.face(fId);
+                const Face& face = firstMesh.face(fId);
 
                 bool faceAffected = false;
                 for (VertexId j = 0; j < face.vertexNumber(); j++) {
                     VertexId vId = face.vertexId(j);
 
-                    if (replacePreviewVertexSelectValue[vId] < replaceSelect.vertex[vId]) {
+                    if (firstPreviewVertexSelectValue[vId] < firstSelect.vertex[vId]) {
                         faceAffected = true;
                     }
 
-                    double alphaValue = std::max(std::min(replacePreviewVertexSelectValue[vId], 1.0), minAlpha);
+                    double alphaValue = std::max(std::min(firstPreviewVertexSelectValue[vId], 1.0), minAlpha);
                     avgValue += alphaValue;
                 }
                 avgValue /= face.vertexNumber();
 
                 if (faceAffected) {
-                    nvl::Color wireframeC = vReplaceModelDrawer->meshDrawer().renderingFaceWireframeColor(fId);
+                    nvl::Color wireframeC = vFirstSelectedModelDrawer->meshDrawer().renderingFaceWireframeColor(fId);
                     wireframeC.setAlphaF(avgValue);
-                    vReplaceModelDrawer->meshDrawer().setRenderingFaceWireframeColor(fId, wireframeC);
+                    vFirstSelectedModelDrawer->meshDrawer().setRenderingFaceWireframeColor(fId, wireframeC);
                 }
             }
         }
@@ -634,33 +672,42 @@ void SkinMixerManager::updatePreview()
     if (jointSelected) {
         vSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(vSelectedJoint, nvl::Color(1.0, 1.0, 0.0));
     }
-    if (replaceJointSelected) {
-        vReplaceModelDrawer->skeletonDrawer().setRenderingJointColor(vReplaceJoint, nvl::Color(0.0, 1.0, 1.0));
+    if (firstJointSelected) {
+        vFirstSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(vFirstSelectedJoint, nvl::Color(0.0, 1.0, 1.0));
     }
 }
 
-void SkinMixerManager::prepareModelForReplace()
+void SkinMixerManager::prepareModelForReplaceOrAttach()
 {
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
     bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
 
     if (jointSelected) {
-        if (!vPreparedReplace && vSelectedModelDrawer != vReplaceModelDrawer) {
+        if (!vPreparedOperation && vSelectedModelDrawer != vFirstSelectedModelDrawer) {
             typedef typename Model::Mesh::Point Point;
             typedef typename Model::Skeleton Skeleton;
             typedef typename Skeleton::JointId JointId;
 
-            const Model* model1 = vReplaceModelDrawer->model();
+            const Model* model1 = vFirstSelectedModelDrawer->model();
             const Skeleton& skeleton1 = model1->skeleton;
-            const JointId targetJoint1 = vReplaceJoint;
+            JointId targetJoint1 = vFirstSelectedJoint;
 
             const Model* model2 = vSelectedModelDrawer->model();
             const Skeleton& skeleton2 = model2->skeleton;
-            const JointId targetJoint2 = vSelectedJoint;
+            JointId targetJoint2 = vSelectedJoint;
+
+            const double includeParent1 = ui->parent1CheckBox->isChecked();
+            const double includeParent2 = ui->parent2CheckBox->isChecked();
+            if (includeParent1) {
+                targetJoint1 = skeleton1.parentId(targetJoint1);
+            }
+            if (includeParent2) {
+                targetJoint2 = skeleton2.parentId(targetJoint2);
+            }
 
             vBackupFrame = vSelectedModelDrawer->frame();
 
-            Point v1 = vReplaceModelDrawer->frame() * (skeleton1.joint(targetJoint1).restPose() * Point(0,0,0));
+            Point v1 = vFirstSelectedModelDrawer->frame() * (skeleton1.joint(targetJoint1).restPose() * Point(0,0,0));
             Point v2 = vSelectedModelDrawer->frame() * (skeleton2.joint(targetJoint2).restPose() * Point(0,0,0));
             Point translateVector = v1 - v2;
 
@@ -669,7 +716,7 @@ void SkinMixerManager::prepareModelForReplace()
 
             vSelectedModelDrawer->setFrame(transform * vSelectedModelDrawer->frame());
 
-            vPreparedReplace = true;
+            vPreparedOperation = true;
         }
         else {
             abortOperation();
@@ -695,14 +742,15 @@ void SkinMixerManager::updateView()
     ui->operationDetachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationRemoveButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationReplaceButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
+    ui->operationAttachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationAbortButton->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
     ui->operationApplyButton->setEnabled(jointSelected && (
         (vCurrentOperation == OperationType::DETACH || vCurrentOperation == OperationType::REMOVE) ||
-        (vCurrentOperation == OperationType::REPLACE && vReplaceModelDrawer != vSelectedModelDrawer)
+        ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && vFirstSelectedModelDrawer != vSelectedModelDrawer)
     ));
 
-    ui->hardness1Slider->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE);
-    ui->hardness2Slider->setEnabled(jointSelected && vCurrentOperation == OperationType::REPLACE);
+    ui->hardness1Slider->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE && vCurrentOperation != OperationType::ATTACH);
+    ui->hardness2Slider->setEnabled(jointSelected && (vCurrentOperation == OperationType::REPLACE || vCurrentOperation != OperationType::ATTACH));
 
     ui->mixButton->setEnabled(vCurrentOperation == OperationType::NONE && !vSkinMixerData.actions().empty());
 
@@ -1257,6 +1305,30 @@ void SkinMixerManager::on_hardness2Slider_valueChanged(int value)
     vCanvas->updateGL();
 }
 
+void SkinMixerManager::on_parent1CheckBox_stateChanged(int arg1)
+{
+    NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
+
+    abortOperation();
+
+    updateView();
+    updatePreview();
+
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_parent2CheckBox_stateChanged(int arg1)
+{
+    NVL_SUPPRESS_UNUSEDVARIABLE(arg1);
+
+    abortOperation();
+
+    updateView();
+    updatePreview();
+
+    vCanvas->updateGL();
+}
+
 void SkinMixerManager::on_operationDetachButton_clicked()
 {
     vCurrentOperation = OperationType::DETACH;
@@ -1286,8 +1358,24 @@ void SkinMixerManager::on_operationReplaceButton_clicked()
     ui->hardness2Slider->setValue(REPLACING_HARDNESS2_DEFAULT);
 
     assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
-    vReplaceModelDrawer = vSelectedModelDrawer;
-    vReplaceJoint = vSelectedJoint;
+    vFirstSelectedModelDrawer = vSelectedModelDrawer;
+    vFirstSelectedJoint = vSelectedJoint;
+    vBackupFrame = nvl::Affine3d::Identity();
+
+    updatePreview();
+    updateView();
+
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_operationAttachButton_clicked()
+{
+    vCurrentOperation = OperationType::ATTACH;
+    ui->hardness2Slider->setValue(ATTACHING_HARDNESS2_DEFAULT);
+
+    assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX);
+    vFirstSelectedModelDrawer = vSelectedModelDrawer;
+    vFirstSelectedJoint = vSelectedJoint;
     vBackupFrame = nvl::Affine3d::Identity();
 
     updatePreview();

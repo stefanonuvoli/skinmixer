@@ -67,7 +67,7 @@ void blendSkeletons(
         for (const Index& aId : currentEntry.relatedActions) {
             const Action& action = data.action(aId);
 
-            if (action.operation == OperationType::REPLACE) {
+            if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
                 if (action.entry1 == eId) {
                     jointToBeMerged[action.entry1].insert(action.joint1);
                 }
@@ -127,15 +127,16 @@ void blendSkeletons(
                     jInfo.confidence = 1.0;
                     entry.birth.joint[newJId].push_back(jInfo);
 
-                    std::vector<Transformation> transformations;
-                    std::vector<double> transformationWeights;
-                    transformations.push_back(joint.restPose());
-                    transformationWeights.push_back(1.0);
+                    Transformation transformation = joint.restPose();
+//                    std::vector<Transformation> transformations;
+//                    std::vector<double> transformationWeights;
+//                    transformations.push_back(joint.restPose());
+//                    transformationWeights.push_back(1.0);
 
                     for (const Index& aId : currentEntry.relatedActions) {
-                        const Action& action = data.action(aId);
+                        const Action& action = data.action(aId);                        
 
-                        if (action.operation == OperationType::REPLACE) {
+                        if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
                             JointInfo actionJInfo;
                             actionJInfo.eId = nvl::MAX_INDEX;
                             actionJInfo.jId = nvl::MAX_INDEX;
@@ -154,8 +155,9 @@ void blendSkeletons(
                                 jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
                                 entry.birth.joint[newJId].push_back(actionJInfo);
 
-                                transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restPose());
-                                transformationWeights.push_back(1.0);
+//                                transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restPose());
+//                                transformationWeights.push_back(1.0);
+                                transformation = data.entry(action.entry1).model->skeleton.joint(action.joint1).restPose();
 
                                 remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
                                 matchedJoint[actionJInfo.eId].insert(newJId);
@@ -163,10 +165,12 @@ void blendSkeletons(
                         }
                     }
 
-                    if (transformations.size() > 1) {
-                        nvl::normalize(transformationWeights);
-                        targetSkeleton.joint(newJId).setRestPose(nvl::interpolateAffine(transformations, transformationWeights));
-                    }
+//                    if (transformations.size() > 1) {
+//                        nvl::normalize(transformationWeights);
+//                        targetSkeleton.joint(newJId).setRestPose(nvl::interpolateAffine(transformations, transformationWeights));
+//                    }
+
+                    targetSkeleton.joint(newJId).setRestPose(transformation);
 
                     remainingAssignedJoints[eId].erase(it++);
                 }
@@ -185,7 +189,7 @@ void blendSkeletons(
 
         std::set<JointId> remainingJoints = nonKeptJoints[eId];
 
-        do {
+        while (!remainingJoints.empty()) {
             double bestScore = nvl::minLimitValue<double>();
             JointId bestCurrentJoint = nvl::MAX_INDEX;
             JointId bestTargetJoint = nvl::MAX_INDEX;
@@ -318,7 +322,6 @@ void blendSkeletons(
 
             remainingJoints.erase(bestCurrentJoint);
         }
-        while (!remainingJoints.empty());
     }
 }
 

@@ -27,7 +27,22 @@ void replace(
         const unsigned int functionSmoothingIterations,
         const double rigidity,
         const double hardness1,
-        const double hardness2);
+        const double hardness2,
+        const bool includeParent1,
+        const bool includeParent2);
+
+template<class Model>
+void attach(
+        SkinMixerData<Model>& data,
+        Model* model1,
+        Model* model2,
+        const typename Model::Skeleton::JointId& targetJoint1,
+        const typename Model::Skeleton::JointId& targetJoint2,
+        const unsigned int functionSmoothingIterations,
+        const double rigidity,
+        const double hardness2,
+        const bool includeParent1,
+        const bool includeParent2);
 
 template<class Model>
 void remove(
@@ -36,7 +51,8 @@ void remove(
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIterations,
         const double rigidity,
-        const double hardness);
+        const double hardness,
+        const bool includeParent);
 
 template<class Model>
 void detach(
@@ -45,7 +61,8 @@ void detach(
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIteration,
         const double rigidity,
-        const double hardness);
+        const double hardness,
+        const bool includeParent);
 
 
 }

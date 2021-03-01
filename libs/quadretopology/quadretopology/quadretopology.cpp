@@ -126,7 +126,7 @@ ChartData computeChartData(
 
 #ifndef NDEBUG
         if (cornerSet.size() < 3 || cornerSet.size() > 6) {
-            std::cout << "Warning 3: Given as input for " << pId << ": " << chart.chartSides.size() << " sides." << std::endl;
+            std::cout << "Warning 3: Given as input for " << pId << ": " << cornerSet.size() << " sides." << std::endl;
         }
 #endif
 
@@ -448,16 +448,23 @@ ChartData computeChartData(
 
 inline std::vector<double> computeChartEdgeLength(
         const ChartData& chartData,
-        const std::vector<size_t> fixedSubsides,
         const size_t& iterations,
+        const std::vector<int>& ilpResults,
         const double& weight)
 {
-    vector<bool> isFixed(chartData.subsides.size(), false);
-    for (int sId : fixedSubsides) {
-        isFixed[sId] = true;
-    }
-
     std::vector<double> avgLengths(chartData.charts.size() , -1);
+
+
+    vector<bool> isFixed(chartData.subsides.size(), false);
+    vector<bool> isComputable(chartData.subsides.size(), true);
+    for (size_t subsideId = 0; subsideId < chartData.subsides.size(); ++subsideId) {
+        if (ilpResults[subsideId] == ILP_IGNORE) {
+            isComputable[subsideId] = false;
+        }
+        else if (ilpResults[subsideId] >= 0) {
+            isFixed[subsideId] = true;
+        }
+    }
 
     //Fill charts with a border
     for (size_t i = 0; i < chartData.charts.size(); i++) {
@@ -468,7 +475,7 @@ inline std::vector<double> computeChartEdgeLength(
 
             for (size_t sId : chart.chartSubsides) {
                 const ChartSubside& subside = chartData.subsides[sId];
-                if (isFixed[sId]) {
+                if (isComputable[sId] && isFixed[sId]) {
                     currentQuadLength += subside.length / subside.size;
                     numSides++;
                 }
@@ -537,16 +544,15 @@ inline std::vector<double> computeChartEdgeLength(
     return avgLengths;
 }
 
-inline std::vector<int> findSubdivisions(
+inline void findSubdivisions(
         const ChartData& chartData,
-        const std::vector<size_t> fixedSubsides,
         const std::vector<double>& chartEdgeLength,
         const Parameters& parameters,
-        double& gap)
+        double& gap,
+        std::vector<int>& ilpResults)
 {
     return findSubdivisions(
         chartData,
-        fixedSubsides,
         chartEdgeLength,
         parameters.ilpMethod,
         parameters.alpha,
@@ -567,12 +573,12 @@ inline std::vector<int> findSubdivisions(
         parameters.callbackTimeLimit,
         parameters.callbackGapLimit,
         parameters.minimumGap,
-        gap);
+        gap,
+        ilpResults);
 }
 
-inline std::vector<int> findSubdivisions(
+inline void findSubdivisions(
         const ChartData& chartData,
-        const std::vector<size_t> fixedSubsides,
         const std::vector<double>& chartEdgeLength,
         const ILPMethod& method,
         const double alpha,
@@ -593,17 +599,18 @@ inline std::vector<int> findSubdivisions(
         const std::vector<float>& callbackTimeLimit,
         const std::vector<float>& callbackGapLimit,
         const double minimumGap,
-        double& gap)
+        double& gap,
+        std::vector<int>& ilpResults)
 {
     if (chartData.charts.size() <= 0)
-        return std::vector<int>();
+        return;
 
     ILPStatus status;
 
     //Solve ILP to find the best patches
-    std::vector<int> ilpResult = internal::solveILP(
+    std::vector<int> result = ilpResults;
+    internal::solveILP(
         chartData,
-        fixedSubsides,
         chartEdgeLength,
         method,
         alpha,
@@ -624,169 +631,82 @@ inline std::vector<int> findSubdivisions(
         callbackTimeLimit,
         callbackGapLimit,
         gap,
-        status);
+        status,
+        result);
 
     if (status == ILPStatus::SOLUTIONFOUND && gap < minimumGap) {
         std::cout << "Solution found! Gap: " << gap << std::endl;
+        ilpResults = result;
     }
-    else {
-        if (status == ILPStatus::INFEASIBLE) {
-            if (method == ILPMethod::LEASTSQUARES) {
-                std::cout << "Model was infeasible or time limit exceeded. Trying with ABS to reduce time." << gap << std::endl;
+    else if (status == ILPStatus::SOLUTIONWRONG && !hardParityConstraint) {
+        std::cout << std::endl << " >>>>>> Solution wrong! Trying with hard constraints for parity. It should not happen..." << std::endl << std::endl;
 
-                return findSubdivisions(
-                    chartData,
-                    fixedSubsides,
-                    chartEdgeLength,
-                    ILPMethod::ABS,
-                    alpha,
-                    isometry,
-                    regularityQuadrilaterals,
-                    regularityNonQuadrilaterals,
-                    regularityNonQuadrilateralsWeight,
-                    alignSingularities,
-                    alignSingularitiesWeight,
-                    repeatLosingConstraintsIterations,
-                    repeatLosingConstraintsQuads,
-                    repeatLosingConstraintsNonQuads,
-                    repeatLosingConstraintsAlign,
-                    feasibilityFix,
-                    hardParityConstraint,
-                    timeLimit,
-                    gapLimit,
-                    callbackTimeLimit,
-                    callbackGapLimit,
-                    minimumGap,
-                    gap);
-            }
-            else {
-                std::cout << "Error! Model was infeasible or time limit exceeded!" << std::endl;
-            }
-        }
-        else if (status == ILPStatus::SOLUTIONWRONG && !hardParityConstraint) {
-            std::cout << "Solution wrong! It have been used soft constraints for parity, so trying with hard constraints." << std::endl;
-
-            return findSubdivisions(
-                chartData,
-                fixedSubsides,
-                chartEdgeLength,
-                method,
-                alpha,
-                isometry,
-                regularityQuadrilaterals,
-                regularityNonQuadrilaterals,
-                regularityNonQuadrilateralsWeight,
-                alignSingularities,
-                alignSingularitiesWeight,
-                repeatLosingConstraintsIterations,
-                repeatLosingConstraintsQuads,
-                repeatLosingConstraintsNonQuads,
-                repeatLosingConstraintsAlign,
-                feasibilityFix,
-                true,
-                timeLimit,
-                gapLimit,
-                callbackTimeLimit,
-                callbackGapLimit,
-                minimumGap,
-                gap);
-        }
-        else {
-            if (method == ILPMethod::LEASTSQUARES) {
-                std::cout << "Minimum gap has been not reached. Trying with ABS (linear optimization method)." << gap << std::endl;
-
-                return findSubdivisions(
-                    chartData,
-                    fixedSubsides,
-                    chartEdgeLength,
-                    ILPMethod::ABS,
-                    alpha,
-                    isometry,
-                    regularityQuadrilaterals,
-                    regularityNonQuadrilaterals,
-                    regularityNonQuadrilateralsWeight,
-                    alignSingularities,
-                    alignSingularitiesWeight,
-                    repeatLosingConstraintsIterations,
-                    repeatLosingConstraintsQuads,
-                    repeatLosingConstraintsNonQuads,
-                    repeatLosingConstraintsAlign,
-                    feasibilityFix,
-                    true,
-                    timeLimit,
-                    gapLimit,
-                    callbackTimeLimit,
-                    callbackGapLimit,
-                    minimumGap,
-                    gap);
-            }
-            else if (regularityNonQuadrilaterals) {
-                std::cout << "Minimum gap has been not reached. Trying without regularity for non-quadrilaterals." << gap << std::endl;
-
-                return findSubdivisions(
-                    chartData,
-                    fixedSubsides,
-                    chartEdgeLength,
-                    method,
-                    alpha,
-                    isometry,
-                    regularityQuadrilaterals,
-                    false,
-                    regularityNonQuadrilateralsWeight,
-                    false,
-                    alignSingularitiesWeight,                            
-                    repeatLosingConstraintsIterations,
-                    repeatLosingConstraintsQuads,
-                    repeatLosingConstraintsNonQuads,
-                    repeatLosingConstraintsAlign,
-                    feasibilityFix,
-                    true,
-                    timeLimit,
-                    gapLimit,                            
-                    callbackTimeLimit,
-                    callbackGapLimit,
-                    minimumGap,
-                    gap);
-            }
-            else if (regularityQuadrilaterals) {
-                std::cout << "Minimum gap has been not reached. Trying without any regularity terms." << gap << std::endl;
-
-                return findSubdivisions(
-                    chartData,
-                    fixedSubsides,
-                    chartEdgeLength,
-                    method,
-                    alpha,
-                    true,
-                    false,
-                    false,
-                    regularityNonQuadrilateralsWeight,
-                    false,
-                    alignSingularitiesWeight,                    
-                    repeatLosingConstraintsIterations,
-                    repeatLosingConstraintsQuads,
-                    repeatLosingConstraintsNonQuads,
-                    repeatLosingConstraintsAlign,
-                    feasibilityFix,
-                    true,
-                    timeLimit,
-                    gapLimit,
-                    callbackTimeLimit,
-                    callbackGapLimit,
-                    minimumGap,
-                    gap);
-            }
-        }
+        return findSubdivisions(
+            chartData,
+            chartEdgeLength,
+            method,
+            alpha,
+            isometry,
+            regularityQuadrilaterals,
+            regularityNonQuadrilaterals,
+            regularityNonQuadrilateralsWeight,
+            alignSingularities,
+            alignSingularitiesWeight,
+            repeatLosingConstraintsIterations,
+            repeatLosingConstraintsQuads,
+            repeatLosingConstraintsNonQuads,
+            repeatLosingConstraintsAlign,
+            feasibilityFix,
+            true,
+            timeLimit,
+            gapLimit,
+            callbackTimeLimit,
+            callbackGapLimit,
+            minimumGap,
+            gap,
+            ilpResults);
     }
+    else if (method != ILPMethod::ABS ||
+             alignSingularities ||
+             repeatLosingConstraintsIterations > 0 ||
+             repeatLosingConstraintsQuads ||
+             repeatLosingConstraintsNonQuads ||
+             repeatLosingConstraintsAlign)
+    {
+        std::cout << std::endl << " >>>>>> Minimum gap has been not reached. Trying with ABS (linear optimization method), singularity align disabled, minimum gap 1.0 and timeLimit x10. Gap was: " << gap << std::endl << std::endl;
 
-    return ilpResult;
+        return findSubdivisions(
+            chartData,
+            chartEdgeLength,
+            ILPMethod::ABS,
+            alpha,
+            isometry,
+            regularityQuadrilaterals,
+            regularityNonQuadrilaterals,
+            regularityNonQuadrilateralsWeight,
+            false,
+            alignSingularitiesWeight,
+            0,
+            false,
+            false,
+            false,
+            feasibilityFix,
+            hardParityConstraint,
+            timeLimit*10,
+            gapLimit,
+            callbackTimeLimit,
+            callbackGapLimit,
+            1.0,
+            gap,
+            ilpResults);
+    }
 }
 
 template<class TriangleMeshType, class PolyMeshType>
 void quadrangulate(
         TriangleMeshType& newSurface,
         const ChartData& chartData,
-        const std::vector<size_t> fixedSubsides,
+        const std::vector<size_t> fixedPositionSubsides,
         const std::vector<int>& ilpResult,
         const Parameters& parameters,
         PolyMeshType& quadrangulation,
@@ -797,7 +717,7 @@ void quadrangulate(
     return QuadRetopology::quadrangulate(
             newSurface,
             chartData,
-            fixedSubsides,
+            fixedPositionSubsides,
             ilpResult,
             parameters.chartSmoothingIterations,
             parameters.quadrangulationFixedSmoothingIterations,
@@ -813,7 +733,7 @@ template<class TriangleMeshType, class PolyMeshType>
 void quadrangulate(
         TriangleMeshType& newSurface,
         const ChartData& chartData,
-        const std::vector<size_t> fixedSubsides,
+        const std::vector<size_t> fixedPositionSubsides,
         const std::vector<int>& ilpResult,
         const int chartSmoothingIterations,
         const int quadrangulationFixedSmoothingIterations,
@@ -836,7 +756,7 @@ void quadrangulate(
     quadrangulationCorners.resize(chartData.charts.size());
 
     vector<bool> isFixed(chartData.subsides.size(), false);
-    for (int sId : fixedSubsides) {
+    for (int sId : fixedPositionSubsides) {
         isFixed[sId] = true;
     }
 

@@ -2,12 +2,12 @@
 
 #include "internal/skinmixer_attach_borders.h"
 #include "internal/skinmixer_openvdb_blending.h"
+#include "internal/skinmixer_morphological_operations.h"
 
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/transformations.h>
 
 #include <nvl/models/mesh_geometric_information.h>
-#include <nvl/models/mesh_morphological_operations.h>
 #include <nvl/models/mesh_transformations.h>
 #include <nvl/models/mesh_adjacencies.h>
 #include <nvl/models/mesh_borders.h>
@@ -32,6 +32,9 @@
 #define ATTACH_DISTANCE 0.7
 #define MAX_VOXEL_DISTANCE 100.0
 #define SMOOTHING_THRESHOLD 0.9
+#define REINSERT_DISTANCE_THRESHOLD 1.0
+#define REINSERT_GAP_THRESHOLD 0.5
+#define NEWSURFACE_DISTANCE_THRESHOLD 1.0
 
 namespace skinmixer {
 
@@ -54,7 +57,7 @@ template<class Model>
 void blendSurfaces(
         const SkinMixerData<Model>& data,
         const std::vector<nvl::Index>& cluster,
-        typename SkinMixerData<Model>::Entry& entry)
+        typename SkinMixerData<Model>::Entry& resultEntry)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
@@ -69,8 +72,8 @@ void blendSurfaces(
     typedef typename SkinMixerData<Model>::Entry Entry;
 
     //New model
-    Model* model = entry.model;
-    Mesh& resultMesh = model->mesh;
+    Model* resultModel = resultEntry.model;
+    Mesh& resultMesh = resultModel->mesh;
 
     //Max distance of the distance field
     double maxDistance = MAX_VOXEL_DISTANCE;
@@ -147,9 +150,10 @@ void blendSurfaces(
         preFacesToKeepMap.insert(std::make_pair(model, facesToKeep));
     }
 
-    //Blended and new mesh
+    //Blended, preserved and new mesh
     Mesh blendedMesh;
     Mesh newMesh;
+    Mesh preMesh;
 
     //For each action get the blended and the new mesh, and determine faces to be preserved
     for (Index aId = 0; aId < actions.size(); ++aId) {
@@ -158,68 +162,19 @@ void blendSurfaces(
         const std::vector<const Model*>& actionModels = models[aId];
         const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValue[aId];
 
-        //Fill faces to keep with all faces
+        //Fill faces to keep
         std::vector<std::unordered_set<FaceId>> actionFacesToKeep(actionModels.size());
-        for (Index mId = 0; mId < actionModels.size(); ++mId) {
-            const Mesh& mesh = actionModels[mId]->mesh;
-
-            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
-                if (mesh.isFaceDeleted(fId)) {
-                    continue;
-                }
-
-                actionFacesToKeep[mId].insert(fId);
-            }
-        }
-
-        //Erase faces to keep for the original meshes
-        for (Index mId = 0; mId < actionModels.size(); ++mId) {
-            const Mesh& mesh = actionModels[mId]->mesh;
-            //Erase face under the threshold
-            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
-                if (mesh.isFaceDeleted(fId)) {
-                    continue;
-                }
-
-                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
-
-                if (selectValue < FACE_KEEP_THRESHOLD) {
-                    actionFacesToKeep[mId].erase(fId);
-                }
-            }
-
-            nvl::meshOpenFaceSelection(mesh, actionFacesToKeep[mId]);
-            nvl::meshCloseFaceSelection(mesh, actionFacesToKeep[mId]);
-
-            //Reinsert deleted face due to open/close
-            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
-                if (mesh.isFaceDeleted(fId)) {
-                    continue;
-                }
-
-                const Face& face = mesh.face(fId);
-
-                bool toKeep = true;
-                for (Index j = 0; j < face.vertexNumber(); j++) {
-                    double selectValue = actionVertexSelectValues[mId]->at(face.vertexId(j));
-                    if (!nvl::epsEqual(selectValue, 1.0)) {
-                        toKeep = false;
-                    }
-                }
-                if (toKeep) {
-                    actionFacesToKeep[mId].insert(fId);
-                }
-            }
-        }
 
         std::vector<internal::FloatGridPtr>& actionClosedGrids = closedGrids[aId];
         std::vector<internal::IntGridPtr>& actionPolygonGrids = polygonGrids[aId];
         std::vector<std::vector<VertexId>>& actionGridBirthVertex = gridBirthVertex[aId];
         std::vector<std::vector<FaceId>>& actionGridBirthFace = gridBirthFace[aId];
-        std::vector<internal::FloatGridPtr> actionUnsignedGrids;
-        std::vector<internal::FloatGridPtr> actionSignedGrids;
         std::vector<openvdb::Vec3i> bbMin;
         std::vector<openvdb::Vec3i> bbMax;
+        std::vector<std::unordered_set<FaceId>> actionFacesInField;
+        std::vector<Mesh> actionClosedMeshes;
+
+        Mesh actionBlendedMesh;
 
         //Get grids
         internal::getClosedGrids(
@@ -228,58 +183,111 @@ void blendSurfaces(
             actionVertexSelectValues,
             scaleFactor,
             maxDistance,
-            actionUnsignedGrids,
-            actionSignedGrids,
+            actionClosedMeshes,
             actionClosedGrids,
             actionPolygonGrids,
+            actionFacesInField,
             actionGridBirthVertex,
             actionGridBirthFace,
             bbMin,
             bbMax);
 
-        //Destroy the not used grids
-        actionUnsignedGrids.clear();
-        actionSignedGrids.clear();
+        //Blend mesh
+        internal::FloatGridPtr actionBlendedGrid = internal::getBlendedGrid(
+            action.operation,
+            actionModels,
+            actionVertexSelectValues,
+            scaleFactor,
+            maxDistance,
+            actionClosedGrids,
+            actionPolygonGrids,
+            actionGridBirthFace,
+            bbMin,
+            bbMax);
 
-        //Minimum and maximum coordinates in the scalar fields
-        openvdb::Vec3i minCoord(
-            std::numeric_limits<int>::max(),
-            std::numeric_limits<int>::max(),
-            std::numeric_limits<int>::max());
-        openvdb::Vec3i maxCoord(
-            std::numeric_limits<int>::min(),
-            std::numeric_limits<int>::min(),
-            std::numeric_limits<int>::min());
+        //Extract iso surface mesh
+        actionBlendedMesh = internal::convertGridToMesh<Mesh>(actionBlendedGrid, true);
 
-        for (Index mId = 0; mId < models.size(); ++mId) {
-            minCoord = openvdb::Vec3i(
-                std::min(minCoord.x(), bbMin[mId].x()),
-                std::min(minCoord.y(), bbMin[mId].y()),
-                std::min(minCoord.z(), bbMin[mId].z()));
+#ifdef SAVE_MESHES_FOR_DEBUG
+        nvl::meshSaveToFile("results/action_blendedMesh_non_rescaled.obj", actionBlendedMesh);
+#endif
 
-            maxCoord = openvdb::Vec3i(
-                std::max(maxCoord.x(), bbMax[mId].x()),
-                std::max(maxCoord.y(), bbMax[mId].y()),
-                std::max(maxCoord.z(), bbMax[mId].z()));
+        //Rescale back
+        nvl::meshApplyTransformation(actionBlendedMesh, scaleTransform.inverse());
+
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+        nvl::meshSaveToFile("results/action_blendedMesh.obj", actionBlendedMesh);
+#endif
+
+        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+            const Mesh& mesh = actionModels[mId]->mesh;
+
+            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+                if (mesh.isFaceDeleted(fId)) {
+                    continue;
+                }
+
+                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+                if (selectValue >= FACE_KEEP_THRESHOLD) {
+                    actionFacesToKeep[mId].insert(fId);
+                }
+            }
+
+            skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+            skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
         }
 
-        //Blend mesh
-        Mesh actionBlendedMesh = internal::getBlendedMesh(
-                action.operation,
-                actionModels,
-                actionVertexSelectValues,
-                scaleFactor,
-                maxDistance,
-                actionClosedGrids,
-                actionPolygonGrids,
-                actionGridBirthFace,
-                minCoord,
-                maxCoord);
+        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+            const Mesh& mesh = actionModels[mId]->mesh;
+
+            //Add
+            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+                if (mesh.isFaceDeleted(fId)) {
+                    continue;
+                }
+
+                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+                if (actionFacesToKeep[mId].find(fId) != actionFacesToKeep[mId].end() || selectValue <= 0.5) {
+                    continue;
+                }
+
+                const Face& face = mesh.face(fId);
+
+                bool toKeep = true;
+                for (Index j = 0; j < face.vertexNumber(); ++j) {
+                    const Point& point = mesh.vertex(face.vertexId(j)).point();
+
+                    Point scaledPoint = scaleTransform * point;
+                    internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+                    internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+                    internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+
+                    internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+                    internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+                    if (std::fabs(closedDistance - blendedDistance) > REINSERT_GAP_THRESHOLD || std::fabs(blendedDistance) > REINSERT_DISTANCE_THRESHOLD) {
+                        toKeep = false;
+                    }
+                }
+                if (toKeep) {
+                    actionFacesToKeep[mId].insert(fId);
+                }
+            }
+
+            for (int i = 0; i < 3; ++i) {
+                skinmixer::meshErodeFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+                skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+                skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+            }
+        }
+
+        actionBlendedGrid->clear();
+        actionBlendedGrid.reset();
 
 
-    #ifdef SAVE_MESHES_FOR_DEBUG
-        nvl::meshSaveToFile("results/action_blendedMesh.obj", actionBlendedMesh);
-    #endif
 
         //Create meshes
         Mesh actionNewMesh;
@@ -346,13 +354,15 @@ void blendSurfaces(
 
                 for (Index mId = 0; mId < actionModels.size(); ++mId) {
                     internal::IntGrid::ConstAccessor polygonAccessor = actionPolygonGrids[mId]->getConstAccessor();
-
                     internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
 
                     if (pId >= 0) {
                         FaceId originFaceId = actionGridBirthFace[mId][pId];
 
-                        if (actionFacesToKeep[mId].find(originFaceId) != actionFacesToKeep[mId].end()) {
+                        internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+                        internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+                        if (actionFacesToKeep[mId].find(originFaceId) != actionFacesToKeep[mId].end() && std::fabs(closedDistance) < NEWSURFACE_DISTANCE_THRESHOLD) {
                             isNewSurface = false;
                         }
                     }
@@ -365,7 +375,7 @@ void blendSurfaces(
         }
 
         //Regularization
-        nvl::meshOpenFaceSelection(actionBlendedMesh, actionBlendedFacesToKeep);
+        skinmixer::meshOpenFaceSelectionNoBorders(actionBlendedMesh, actionBlendedFacesToKeep);
 
         //Transfer in the new surface the faces to be kept
         nvl::meshTransferFaces(actionBlendedMesh, std::vector<VertexId>(actionBlendedFacesToKeep.begin(), actionBlendedFacesToKeep.end()), actionNewMesh);
@@ -397,7 +407,6 @@ void blendSurfaces(
         std::vector<VertexId> borderVerticesToSmooth;
         std::vector<double> borderVerticesToSmoothAlpha;
         std::vector<VertexId> innerVerticesToSmooth;
-        std::vector<double> innerVerticesToSmoothAlpha;
 
         std::vector<std::vector<FaceId>> newFFAdj = nvl::meshFaceFaceAdjacencies(actionNewMesh);
 
@@ -433,16 +442,14 @@ void blendSurfaces(
                 borderVerticesToSmoothAlpha.push_back(borderSmoothingAlpha);
             }
 
-            const double innerSmoothingAlpha = 1.0 - maxSelectValue;
             innerVerticesToSmooth.push_back(vId);
-            innerVerticesToSmoothAlpha.push_back(innerSmoothingAlpha);
         }
 
         nvl::meshLaplacianSmoothing(actionNewMesh, borderVerticesToSmooth, 5, borderVerticesToSmoothAlpha);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/action_newmesh_3_smoothed_border.obj", actionNewMesh);
-#endif
+    #ifdef SAVE_MESHES_FOR_DEBUG
+        nvl::meshSaveToFile("results/action_newmesh_3_smoothed_border.obj", actionNewMesh);
+    #endif
 
         nvl::meshLaplacianSmoothing(actionNewMesh, innerVerticesToSmooth, 5, 0.7);
 
@@ -472,8 +479,6 @@ void blendSurfaces(
             }
         }
     }
-
-    Mesh preMesh;
 
     //Create preserved
     std::vector<std::pair<nvl::Index, VertexId>> preBirthVertex;
@@ -528,12 +533,12 @@ void blendSurfaces(
     std::vector<std::pair<nvl::Index, FaceId>> resultPreBirthFace;
     resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
 
-    entry.birth.vertex.resize(resultMesh.nextVertexId());
+    resultEntry.birth.vertex.resize(resultMesh.nextVertexId());
     for (VertexId vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
         if (resultMesh.isVertexDeleted(vId))
             continue;
 
-        std::vector<VertexInfo>& vertexInfo = entry.birth.vertex[vId];
+        std::vector<VertexInfo>& vertexInfo = resultEntry.birth.vertex[vId];
 
         if (resultPreBirthVertex[vId].first != nvl::MAX_INDEX) {
             VertexInfo info;
@@ -689,6 +694,61 @@ void blendSurfaces(
                     vertexInfo.push_back(info2);
                 }
             }
+            else if (action.operation == OperationType::ATTACH) {
+                internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrids[bestActionId][1]->getConstAccessor();
+                internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrids[bestActionId][1]->getConstAccessor();
+                internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
+                internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                const Mesh& mesh2 = actionModels[1]->mesh;
+                Index eId2 = data.entryFromModel(actionModels[1]).id;
+
+                if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                    FaceId originFaceId1 = gridBirthFace[bestActionId][0][pId1];
+                    double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *actionVertexSelectValues[0]);
+
+                    FaceId originFaceId2 = gridBirthFace[bestActionId][1][pId2];
+                    double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *actionVertexSelectValues[1]);
+
+                    if (closedDistance1 <= closedDistance2) {
+                        VertexInfo info1;
+                        info1.eId = eId1;
+                        info1.vId = nvl::MAX_INDEX;
+                        info1.weight = 1.0;
+                        info1.closestFaceId = originFaceId1;
+                        info1.distance = closedDistance1;
+                        vertexInfo.push_back(info1);
+                    }
+                    else {
+                        VertexInfo info2;
+                        info2.eId = eId2;
+                        info2.vId = nvl::MAX_INDEX;
+                        info2.weight = 1.0;
+                        info2.closestFaceId = originFaceId2;
+                        info2.distance = closedDistance2;
+                        vertexInfo.push_back(info2);
+                    }
+                }
+                else if (pId1 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance) {
+                    FaceId originFaceId1 = gridBirthFace[bestActionId][0][pId1];
+                    VertexInfo info1;
+                    info1.eId = eId1;
+                    info1.vId = nvl::MAX_INDEX;
+                    info1.weight = 1.0;
+                    info1.closestFaceId = originFaceId1;
+                    info1.distance = closedDistance1;
+                    vertexInfo.push_back(info1);
+                }
+                else if (pId2 >= 0 && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
+                    FaceId originFaceId2 = gridBirthFace[bestActionId][0][pId1];
+                    VertexInfo info2;
+                    info2.eId = eId2;
+                    info2.vId = nvl::MAX_INDEX;
+                    info2.weight = 1.0;
+                    info2.closestFaceId = originFaceId2;
+                    info2.distance = closedDistance2;
+                    vertexInfo.push_back(info2);
+                }
+            }
         }
     }
 
@@ -734,7 +794,7 @@ Mesh quadrangulateMesh(
     par.alpha = 0.5;
     par.isometry = true;
     par.regularityQuadrilaterals = true;
-    par.regularityNonQuadrilaterals = false;
+    par.regularityNonQuadrilaterals = true;
     par.regularityNonQuadrilateralsWeight = 0.9;
     par.alignSingularities = false;
     par.alignSingularitiesWeight = 0.1;
@@ -767,25 +827,27 @@ Mesh quadrangulateMesh(
     QuadRetopology::ChartData chartData = QuadRetopology::computeChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);
 
     //Select the subsides to fix
-    std::vector<size_t> fixedSubsides;
+    std::vector<int> ilpResults(chartData.subsides.size(), ILP_FIND_SUBDIVISION);
+    std::vector<size_t> fixedPositionSubsides;
     for (size_t subsideId = 0; subsideId < chartData.subsides.size(); ++subsideId) {
         QuadRetopology::ChartSubside& subside = chartData.subsides[subsideId];
         if (subside.isOnBorder) {
-            fixedSubsides.push_back(subsideId);
+            fixedPositionSubsides.push_back(subsideId);
+            ilpResults[subsideId] = subside.size;
         }
     }
 
     //Get chart length
-    std::vector<double> chartEdgeLength = QuadRetopology::computeChartEdgeLength(chartData, fixedSubsides, 5, 0.7);
+    std::vector<double> chartEdgeLength = QuadRetopology::computeChartEdgeLength(chartData, 5, ilpResults, 0.7);
 
     //Solve ILP to find best side size
     double gap;
-    std::vector<int> ilpResult = QuadRetopology::findSubdivisions(
+    QuadRetopology::findSubdivisions(
             chartData,
-            fixedSubsides,
             chartEdgeLength,
             par,
-            gap);
+            gap,
+            ilpResults);
 
     //Quadrangulate,
     std::vector<int> quadrangulationLabel;
@@ -794,8 +856,8 @@ Mesh quadrangulateMesh(
     QuadRetopology::quadrangulate(
                 vcgNewMesh,
                 chartData,
-                fixedSubsides,
-                ilpResult,
+                fixedPositionSubsides,
+                ilpResults,
                 par,
                 vcgQuadrangulation,
                 quadrangulationLabel,

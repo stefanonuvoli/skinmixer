@@ -117,19 +117,19 @@ void attachMeshesByBorders(
             std::vector<VertexId> minDClosestVertex(dChain.size(), nvl::MAX_INDEX);
             std::vector<double> minDClosestT(dChain.size(), nvl::maxLimitValue<double>());
             for (Index j = 0; j < dChain.size(); ++j) {
-                const Point& pPoint = destMesh.vertex(dChain[j]).point();
+                const Point& dPoint = destMesh.vertex(dChain[j]).point();
 
                 Scalar minDist = nvl::maxLimitValue<Scalar>();
 
                 for (Index i = 0; i < mChain.size(); ++i) {
                     Index nextI = (i + 1) % mChain.size();
 
-                    const Point& nPoint = tmpMesh.vertex(mChain[i]).point();
-                    const Point& nNextPoint = tmpMesh.vertex(mChain[nextI]).point();
+                    const Point& mPoint = tmpMesh.vertex(mChain[i]).point();
+                    const Point& mNextPoint = tmpMesh.vertex(mChain[nextI]).point();
 
                     double t;
-                    Point projectionPoint = nvl::closestPointOnSegment(nPoint, nNextPoint, pPoint, t);
-                    Scalar dist = (projectionPoint - pPoint).norm();
+                    Point projectionPoint = nvl::closestPointOnSegment(mPoint, mNextPoint, dPoint, t);
+                    Scalar dist = (projectionPoint - dPoint).norm();
 
                     if (dist <= minDist) {
                         minDist = dist;
@@ -143,26 +143,66 @@ void attachMeshesByBorders(
                         }
                     }
                 }
+            }            
+
+            std::vector<VertexId> minMClosestVertex(mChain.size(), nvl::MAX_INDEX);
+            std::vector<double> minMClosestT(mChain.size(), nvl::maxLimitValue<double>());
+            for (Index i = 0; i < mChain.size(); ++i) {
+                const Point& mPoint = tmpMesh.vertex(mChain[i]).point();
+
+                Scalar minDist = nvl::maxLimitValue<Scalar>();
+
+                for (Index j = 0; j < dChain.size(); ++j) {
+                    Index nextJ = (j + 1) % dChain.size();
+
+                    const Point& dPoint = destMesh.vertex(dChain[j]).point();
+                    const Point& dNextPoint = destMesh.vertex(dChain[nextJ]).point();
+
+                    double t;
+                    Point projectionPoint = nvl::closestPointOnSegment(dPoint, dNextPoint, mPoint, t);
+                    Scalar dist = (projectionPoint - mPoint).norm();
+
+                    if (dist <= minDist) {
+                        minDist = dist;
+                        minMClosestVertex[i] = j;
+                        minMClosestT[i] = t;
+                    }
+                }
             }
 
             //Compute score by computing the total distortion
-            Scalar score = 0.0;
+            Scalar dScore = 0.0;
             for (Index j = 0; j < dChain.size(); ++j) {
                 Index currentI = minDClosestVertex[j];
                 Index nextI = (currentI + 1) % mChain.size();
 
-                const Point& pPoint = destMesh.vertex(dChain[j]).point();
+                const Point& dPoint = destMesh.vertex(dChain[j]).point();
                 const Scalar& targetT = minDClosestT[j];
 
                 Point currentIPoint = tmpMesh.vertex(mChain[currentI]).point();
                 Point nextIPoint = tmpMesh.vertex(mChain[nextI]).point();
 
-                Point nPoint = currentIPoint + (nextIPoint - currentIPoint) * targetT;
+                Point mPoint = currentIPoint + (nextIPoint - currentIPoint) * targetT;
 
-                score += (nPoint - pPoint).norm();
+                dScore += (mPoint - dPoint).norm();
+            }
+            Scalar mScore = 0.0;
+            for (Index i = 0; i < mChain.size(); ++i) {
+                Index currentJ = minMClosestVertex[i];
+                Index nextJ = (currentJ + 1) % dChain.size();
+
+                const Point& mPoint = tmpMesh.vertex(mChain[i]).point();
+                const Scalar& targetT = minMClosestT[i];
+
+                Point currentJPoint = destMesh.vertex(dChain[currentJ]).point();
+                Point nextJPoint = destMesh.vertex(dChain[nextJ]).point();
+
+                Point dPoint = currentJPoint + (nextJPoint - currentJPoint) * targetT;
+
+                mScore += (dPoint - mPoint).norm();
             }
 
-            score /= dChain.size();
+            Scalar score = ((mScore / mChain.size()) + (dScore / dChain.size())) / 2.0;
 
             if (score > maxDistance) {
                 continue;
@@ -562,8 +602,11 @@ std::vector<typename Mesh::FaceId> getPreNotUsedFacesAfterAttaching(
     //Add components snapped or that have already border vertices
     for (Index preChainId = 0; preChainId < preChains.size(); ++preChainId) {
         const std::vector<VertexId>& pChain = preChains[preChainId];
-        for (const VertexId& vId : pChain) {
-            if (preNonSnappableVertices.find(vId) != preNonSnappableVertices.end() || preSnappedVertices.find(vId) != preSnappedVertices.end()) {
+        for (Index i = 0; i < pChain.size(); ++i) {
+            const VertexId& vId = pChain[i];
+            const VertexId& nextVId = pChain[(i + 1) % pChain.size()];
+            if ((preNonSnappableVertices.find(vId) != preNonSnappableVertices.end() && preNonSnappableVertices.find(nextVId) != preNonSnappableVertices.end()) ||
+                (preSnappedVertices.find(vId) != preSnappedVertices.end() && preSnappedVertices.find(nextVId) != preSnappedVertices.end())) {
                 preUsedComponents.insert(preChainsComponent[preChainId]);
             }
         }

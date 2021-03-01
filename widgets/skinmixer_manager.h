@@ -79,10 +79,14 @@ private slots:
 
     void on_hardness1Slider_valueChanged(int value);
     void on_hardness2Slider_valueChanged(int value);
+    void on_parent1CheckBox_stateChanged(int arg1);
+    void on_parent2CheckBox_stateChanged(int arg1);
+
 
     void on_operationDetachButton_clicked();
     void on_operationRemoveButton_clicked();
     void on_operationReplaceButton_clicked();
+    void on_operationAttachButton_clicked();
     void on_operationAbortButton_clicked();
     void on_operationApplyButton_clicked();
 
@@ -110,7 +114,7 @@ private:
     void abortOperation();    
 
     void updatePreview();
-    void prepareModelForReplace();
+    void prepareModelForReplaceOrAttach();
     void updateView();
 
     void colorizeByData(
@@ -154,9 +158,9 @@ private:
 
     ModelDrawer* vSelectedModelDrawer;
     JointId vSelectedJoint;
-    ModelDrawer* vReplaceModelDrawer;
-    JointId vReplaceJoint;
-    bool vPreparedReplace;
+    ModelDrawer* vFirstSelectedModelDrawer;
+    JointId vFirstSelectedJoint;
+    bool vPreparedOperation;
     nvl::Affine3d vBackupFrame;
 
     Index vBlendingAnimation;

@@ -7,7 +7,8 @@
 
 namespace skinmixer {
 
-    enum OperationType { NONE, REMOVE, DETACH, REPLACE };
+enum OperationType { NONE, REMOVE, DETACH, REPLACE, ATTACH };
+enum MergeMode { FIELD, BOOLEAN };
 
 }
 

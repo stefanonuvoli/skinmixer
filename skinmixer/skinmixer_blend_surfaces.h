@@ -13,7 +13,7 @@ template<class Model>
 void blendSurfaces(
         const SkinMixerData<Model>& data,
         const std::vector<nvl::Index>& cluster,
-        typename SkinMixerData<Model>::Entry& entry);
+        typename SkinMixerData<Model>::Entry& resultEntry);
 
 }
 
