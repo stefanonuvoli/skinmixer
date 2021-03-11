@@ -32,9 +32,16 @@
 #define ATTACH_DISTANCE 0.7
 #define MAX_VOXEL_DISTANCE 100.0
 #define SMOOTHING_THRESHOLD 0.9
-#define REINSERT_DISTANCE_THRESHOLD 1.0
-#define REINSERT_GAP_THRESHOLD 0.5
 #define NEWSURFACE_DISTANCE_THRESHOLD 1.0
+#define DELETE_DISTANCE_THRESHOLD 1.0
+#define DELETE_GAP_THRESHOLD 0.5
+//#define PRESERVE_MAX_DISTANCE 2.0
+//#define PRESERVE_DISTANCE_THRESHOLD 0.5
+//#define PRESERVE_SELECT_THRESHOLD 0.5
+//#define PRESERVE_FLAG_UNKNOWN -1
+//#define PRESERVE_FLAG_NOT_FOUND -2
+//#define PRESERVE_FLAG_DISPUTED -3
+//#define PRESERVE_EXPANSION 5
 
 namespace skinmixer {
 
@@ -169,12 +176,18 @@ void blendSurfaces(
         std::vector<internal::IntGridPtr>& actionPolygonGrids = polygonGrids[aId];
         std::vector<std::vector<VertexId>>& actionGridBirthVertex = gridBirthVertex[aId];
         std::vector<std::vector<FaceId>>& actionGridBirthFace = gridBirthFace[aId];
+
+        //Utilities
         std::vector<openvdb::Vec3i> bbMin;
         std::vector<openvdb::Vec3i> bbMax;
         std::vector<std::unordered_set<FaceId>> actionFacesInField;
         std::vector<Mesh> actionClosedMeshes;
 
+        //Create meshes for the action
+        Mesh actionNewMesh;
+        Mesh actionPreMesh;
         Mesh actionBlendedMesh;
+        std::unordered_set<FaceId> actionBlendedFacesToKeep;
 
         //Get grids
         internal::getClosedGrids(
@@ -205,6 +218,8 @@ void blendSurfaces(
             bbMin,
             bbMax);
 
+
+
         //Extract iso surface mesh
         actionBlendedMesh = internal::convertGridToMesh<Mesh>(actionBlendedGrid, true);
 
@@ -214,7 +229,6 @@ void blendSurfaces(
 
         //Rescale back
         nvl::meshApplyTransformation(actionBlendedMesh, scaleTransform.inverse());
-
 
 #ifdef SAVE_MESHES_FOR_DEBUG
         nvl::meshSaveToFile("results/action_blendedMesh.obj", actionBlendedMesh);
@@ -234,9 +248,6 @@ void blendSurfaces(
                     actionFacesToKeep[mId].insert(fId);
                 }
             }
-
-            skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
-            skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
         }
 
         for (Index mId = 0; mId < actionModels.size(); ++mId) {
@@ -249,55 +260,450 @@ void blendSurfaces(
                 }
 
                 double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
-                if (actionFacesToKeep[mId].find(fId) != actionFacesToKeep[mId].end() || selectValue <= 0.5) {
-                    continue;
-                }
 
                 const Face& face = mesh.face(fId);
 
-                bool toKeep = true;
-                for (Index j = 0; j < face.vertexNumber(); ++j) {
-                    const Point& point = mesh.vertex(face.vertexId(j)).point();
+                bool toKeep;
 
-                    Point scaledPoint = scaleTransform * point;
-                    internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+                if (actionFacesInField[mId].find(fId) != actionFacesInField[mId].end()) {
+                    toKeep = true;
+                    for (Index j = 0; j < face.vertexNumber(); ++j) {
+                        const Point& point = mesh.vertex(face.vertexId(j)).point();
 
-                    internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
-                    internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+                        Point scaledPoint = scaleTransform * point;
+                        internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-                    internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
-                    internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+                        internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+                        internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
 
-                    if (std::fabs(closedDistance - blendedDistance) > REINSERT_GAP_THRESHOLD || std::fabs(blendedDistance) > REINSERT_DISTANCE_THRESHOLD) {
-                        toKeep = false;
+                        internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+                        internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+                        if (std::fabs(closedDistance - blendedDistance) > DELETE_GAP_THRESHOLD || std::fabs(blendedDistance) > DELETE_DISTANCE_THRESHOLD) {
+                            toKeep = false;
+                        }
                     }
                 }
+                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue > 0.5) {
+                    toKeep = true;
+                }
+                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue < 0.5) {
+                    toKeep = false;
+                }
+
                 if (toKeep) {
                     actionFacesToKeep[mId].insert(fId);
                 }
             }
 
-            for (int i = 0; i < 3; ++i) {
+            if (action.operation == OperationType::ATTACH) {
+                for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+                    if (mesh.isFaceDeleted(fId)) {
+                        continue;
+                    }
+
+                    double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+                    bool toDelete;
+                    if (actionFacesInField[mId].find(fId) != actionFacesInField[mId].end()) {
+                        const Face& face = mesh.face(fId);
+
+                        toDelete = false;
+                        for (Index j = 0; j < face.vertexNumber(); ++j) {
+                            const Point& point = mesh.vertex(face.vertexId(j)).point();
+
+                            Point scaledPoint = scaleTransform * point;
+                            internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+                            internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+                            internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+
+                            internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+                            internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+                            if (std::fabs(closedDistance) <= 0.5 && std::fabs(closedDistance - blendedDistance) > 0.5) {
+                                toDelete = true;
+                            }
+                        }
+                    }
+                    else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue > 0.5) {
+                        toDelete = false;
+                    }
+                    else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue < 0.5) {
+                        toDelete = true;
+                    }
+                    if (toDelete) {
+                        actionFacesToKeep[mId].erase(fId);
+                    }
+                }
+            }
+
+            for (int i = 0; i < 1; ++i) {
                 skinmixer::meshErodeFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
                 skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
                 skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
             }
         }
 
+//        //For each action get the blended and the new mesh, and determine faces to be preserved
+//        for (Index aId = 0; aId < actions.size(); ++aId) {
+//            const Index& actionId = actions[aId];
+//            const Action& action = data.action(actionId);
+//            const std::vector<const Model*>& actionModels = models[aId];
+//            const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValue[aId];
+
+//            //Fill faces to keep with all faces
+//            std::vector<std::unordered_set<FaceId>> actionFacesToKeep(actionModels.size());
+//            for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//                const Mesh& mesh = actionModels[mId]->mesh;
+
+//                for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                    if (mesh.isFaceDeleted(fId)) {
+//                        continue;
+//                    }
+
+//                    actionFacesToKeep[mId].insert(fId);
+//                }
+//            }
+
+//            //Erase faces to keep for the original meshes
+//            for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//                const Mesh& mesh = actionModels[mId]->mesh;
+
+//                //Erase face under the threshold
+//                for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                    if (mesh.isFaceDeleted(fId)) {
+//                        continue;
+//                    }
+
+//                    double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+//                    bool toKeep;
+//                    if (actionFacesInField[mId].find(fId) != actionFacesInField[mId].end()) {
+//                        toKeep = true;
+
+//                        if (selectValue < FACE_KEEP_THRESHOLD) {
+//                            toKeep = false;
+//                        }
+
+//                    }
+//                    else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue < 0.5) {
+//                        toKeep = false;
+//                    }
+//                    else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue > 0.5) {
+//                        toKeep = true;
+//                    }
+
+//                    if (!toKeep) {
+//                        actionFacesToKeep[mId].erase(fId);
+//                    }
+//                }
+
+//                skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//                skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            }
+//        }
+
+//        //Minimum and maximum coordinates in the scalar fields
+//        openvdb::Vec3i minCoord(
+//            std::numeric_limits<int>::max(),
+//            std::numeric_limits<int>::max(),
+//            std::numeric_limits<int>::max());
+//        openvdb::Vec3i maxCoord(
+//            std::numeric_limits<int>::min(),
+//            std::numeric_limits<int>::min(),
+//            std::numeric_limits<int>::min());
+
+//        for (nvl::Index mId = 0; mId < models.size(); ++mId) {
+//            minCoord = openvdb::Vec3i(
+//                std::min(minCoord.x(), bbMin[mId].x()),
+//                std::min(minCoord.y(), bbMin[mId].y()),
+//                std::min(minCoord.z(), bbMin[mId].z()));
+
+//            maxCoord = openvdb::Vec3i(
+//                std::max(maxCoord.x(), bbMax[mId].x()),
+//                std::max(maxCoord.y(), bbMax[mId].y()),
+//                std::max(maxCoord.z(), bbMax[mId].z()));
+//        }
+
+//        internal::IntGridPtr preservedGrid = internal::IntGrid::create(PRESERVE_FLAG_UNKNOWN);
+//        internal::IntGrid::Accessor preservedAccessor = preservedGrid->getAccessor();
+//        for (int i = minCoord.x(); i < maxCoord.x(); i++) {
+//            for (int j = minCoord.y(); j < maxCoord.y(); j++) {
+//                for (int k = minCoord.z(); k < maxCoord.z(); k++) {
+//                    internal::GridCoord coord(i,j,k);
+
+//                    internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+//                    internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+
+//                    if (std::fabs(blendedDistance) < PRESERVE_MAX_DISTANCE) {
+//                        std::vector<bool> preservedCandidate(actionModels.size(), false);
+
+//                        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//                            const Mesh& mesh = actionModels[mId]->mesh;
+
+//                            internal::IntGrid::ConstAccessor polygonAccessor = actionPolygonGrids[mId]->getConstAccessor();
+//                            internal::IntGrid::ValueType pId = polygonAccessor.getValue(coord);
+//                            double selectValue = 0.0;
+
+//                            if (pId >= 0) {
+//                                FaceId originFaceId = actionGridBirthFace[mId][pId];
+//                                selectValue = internal::averageFaceSelectValue(mesh, originFaceId, *actionVertexSelectValues[mId]);
+//                            }
+
+//                            internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+//                            internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+//                            if (selectValue >= PRESERVE_SELECT_THRESHOLD && std::fabs(blendedDistance - closedDistance) <= PRESERVE_DISTANCE_THRESHOLD) {
+//                                preservedCandidate[mId] = true;
+//                            }
+//                        }
+
+//                        int value = PRESERVE_FLAG_NOT_FOUND;
+
+//                        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//                            if (preservedCandidate[mId]) {
+//                                if (value == PRESERVE_FLAG_NOT_FOUND) {
+//                                    value = mId;
+//                                }
+//                                else {
+//                                    value = PRESERVE_FLAG_DISPUTED;
+//                                }
+//                            }
+//                        }
+
+//                        preservedAccessor.setValue(coord, value);
+//                    }
+//                }
+//            }
+//        }
+////        for (int i = minCoord.x(); i < maxCoord.x(); i++) {
+////            for (int j = minCoord.y(); j < maxCoord.y(); j++) {
+////                for (int k = minCoord.z(); k < maxCoord.z(); k++) {
+////                    internal::GridCoord coord(i,j,k);
+
+////                    for (int iE = -PRESERVE_EXPANSION; iE < PRESERVE_EXPANSION; iE++) {
+////                        for (int jE = PRESERVE_EXPANSION; jE < PRESERVE_EXPANSION; jE++) {
+////                            for (int kE = PRESERVE_EXPANSION; kE < PRESERVE_EXPANSION; kE++) {
+
+////                            }
+////                        }
+////                    }
+////                }
+////            }
+////        }
+
+//        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//            const Mesh& mesh = actionModels[mId]->mesh;
+
+//            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                if (mesh.isFaceDeleted(fId)) {
+//                    continue;
+//                }
+
+//                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+//                if (selectValue > 0.0) {
+//                    actionFacesToKeep[mId].insert(fId);
+//                }
+//            }
+
+//            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                if (mesh.isFaceDeleted(fId)) {
+//                    continue;
+//                }
+
+//                const Face& face = mesh.face(fId);
+
+//                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+//                bool toKeep;
+//                if (actionFacesInField[mId].find(fId) != actionFacesInField[mId].end()) {
+//                    toKeep = true;
+//                    for (Index j = 0; j < face.vertexNumber(); ++j) {
+//                        const Point& point = mesh.vertex(face.vertexId(j)).point();
+
+//                        Point scaledPoint = scaleTransform * point;
+//                        internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+//                        internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+//                        internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+
+//                        internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+//                        internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+//                        if (preservedAccessor.getValue(coord) != static_cast<int>(mId) && std::fabs(closedDistance) <= 0.5 && std::fabs(closedDistance - blendedDistance) > 0.5) {
+//                            toKeep = false;
+//                        }
+//                    }
+//                }
+//                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue < 0.5) {
+//                    toKeep = false;
+//                }
+//                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue > 0.5) {
+//                    toKeep = true;
+//                }
+
+//                if (!toKeep) {
+//                    actionFacesToKeep[mId].erase(fId);
+//                }
+//            }
+
+//            skinmixer::meshErodeFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//        }
+
+
+
+
+//        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//            const Mesh& mesh = actionModels[mId]->mesh;
+
+//            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                if (mesh.isFaceDeleted(fId)) {
+//                    continue;
+//                }
+
+//                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+//                bool toInsert;
+//                if (actionFacesInField[mId].find(fId) != actionFacesInField[mId].end()) {
+//                    const Face& face = mesh.face(fId);
+
+//                    toInsert = true;
+//                    for (Index j = 0; j < face.vertexNumber(); ++j) {
+//                        const Point& point = mesh.vertex(face.vertexId(j)).point();
+
+//                        Point scaledPoint = scaleTransform * point;
+//                        internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+//                        internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+//                        internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+
+//                        internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+//                        internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+//                        if (std::fabs(closedDistance) <= 0.5 && std::fabs(closedDistance - blendedDistance) > 0.5) {
+//                            toInsert = false;
+//                        }
+//                    }
+//                }
+//                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue > 0.5) {
+//                    toInsert = true;
+//                }
+//                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue < 0.5) {
+//                    toInsert = false;
+//                }
+//                if (toInsert) {
+//                    actionFacesToKeep[mId].insert(fId);
+//                }
+//            }
+
+//            skinmixer::meshErodeFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+
+
+
+
+//            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                if (mesh.isFaceDeleted(fId)) {
+//                    continue;
+//                }
+
+//                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+//                bool toInsert;
+//                if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue > 0.5) {
+//                    toInsert = true;
+//                }
+//                else if (actionFacesInField[mId].find(fId) == actionFacesInField[mId].end() && selectValue < 0.5) {
+//                    toInsert = false;
+//                }
+//                if (toInsert) {
+//                    actionFacesToKeep[mId].insert(fId);
+//                }
+//                else {
+//                    actionFacesToKeep[mId].erase(fId);
+//                }
+//            }
+//        }
+
+
+
+//        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//            const Mesh& mesh = actionModels[mId]->mesh;
+
+//            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                if (mesh.isFaceDeleted(fId)) {
+//                    continue;
+//                }
+
+//                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+
+//                if (selectValue >= FACE_KEEP_THRESHOLD) {
+//                    actionFacesToKeep[mId].insert(fId);
+//                }
+//            }
+
+//            skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//        }
+
+//        for (Index mId = 0; mId < actionModels.size(); ++mId) {
+//            const Mesh& mesh = actionModels[mId]->mesh;
+
+//            //Add
+//            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+//                if (mesh.isFaceDeleted(fId)) {
+//                    continue;
+//                }
+
+//                double selectValue = internal::averageFaceSelectValue(mesh, fId, *actionVertexSelectValues[mId]);
+//                if (actionFacesToKeep[mId].find(fId) != actionFacesToKeep[mId].end() || selectValue <= 0.5) {
+//                    continue;
+//                }
+
+//                const Face& face = mesh.face(fId);
+
+//                bool toKeep = true;
+//                for (Index j = 0; j < face.vertexNumber(); ++j) {
+//                    const Point& point = mesh.vertex(face.vertexId(j)).point();
+
+//                    Point scaledPoint = scaleTransform * point;
+//                    internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+//                    internal::FloatGrid::ConstAccessor blendedAccessor = actionBlendedGrid->getConstAccessor();
+//                    internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+
+//                    internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
+//                    internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+
+//                    if (std::fabs(closedDistance - blendedDistance) > DELETE_GAP_THRESHOLD || std::fabs(blendedDistance) > DELETE_DISTANCE_THRESHOLD) {
+//                        toKeep = false;
+//                    }
+//                }
+//                if (toKeep) {
+//                    actionFacesToKeep[mId].insert(fId);
+//                }
+//            }
+
+//            for (int i = 0; i < 3; ++i) {
+//                skinmixer::meshErodeFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//                skinmixer::meshOpenFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//                skinmixer::meshCloseFaceSelectionNoBorders(mesh, actionFacesToKeep[mId]);
+//            }
+//        }
+
         actionBlendedGrid->clear();
         actionBlendedGrid.reset();
-
-
-
-        //Create meshes
-        Mesh actionNewMesh;
-        Mesh actionPreMesh;
-
-        std::unordered_set<VertexId> preNonSnappableVertices;
 
         //Create preserved
         std::vector<std::pair<nvl::Index, VertexId>> actionPreBirthVertex;
         std::vector<std::pair<nvl::Index, FaceId>> actionPreBirthFace;
+
+        std::unordered_set<VertexId> preNonSnappableVertices;
+
         for (Index mId = 0; mId < actionModels.size(); ++mId) {
             const Mesh& mesh = actionModels[mId]->mesh;
 
@@ -339,7 +745,6 @@ void blendSurfaces(
     #endif
 
         //Fill vertices to keep in the blended mesh
-        std::unordered_set<FaceId> actionBlendedFacesToKeep;
         for (FaceId fId = 0; fId < actionBlendedMesh.nextFaceId(); ++fId) {
             if (actionBlendedMesh.isFaceDeleted(fId))
                 continue;
@@ -704,10 +1109,10 @@ void blendSurfaces(
 
                 if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
                     FaceId originFaceId1 = gridBirthFace[bestActionId][0][pId1];
-                    double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *actionVertexSelectValues[0]);
+//                    double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *actionVertexSelectValues[0]);
 
                     FaceId originFaceId2 = gridBirthFace[bestActionId][1][pId2];
-                    double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *actionVertexSelectValues[1]);
+//                    double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *actionVertexSelectValues[1]);
 
                     if (closedDistance1 <= closedDistance2) {
                         VertexInfo info1;
