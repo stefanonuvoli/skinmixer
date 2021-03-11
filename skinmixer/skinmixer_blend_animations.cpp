@@ -164,31 +164,40 @@ void blendAnimations(
                 //Avoid numerical errors
                 if (!nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
                     weights[cId] = animationWeights[jId][cId];
-                }
-                if (aId != nvl::MAX_INDEX) {
-                    const std::vector<Frame>& currentLocalFrames = localFrames[cId];
-                    const Skeleton& currentSkeleton = data.entry(jointInfo.eId).model->skeleton;
+                    if (aId != nvl::MAX_INDEX) {
+                        const std::vector<Frame>& currentLocalFrames = localFrames[cId];
+                        const Skeleton& currentSkeleton = data.entry(jointInfo.eId).model->skeleton;
 
-                    if (currentFrameId[cId] < currentLocalFrames.size() - 1 && currentLocalFrames[currentFrameId[cId]].time() < currentTime) {
-                        ++currentFrameId[cId];
-                        assert(currentLocalFrames[currentFrameId[cId]].time() >= currentTime);
-                    }
+                        if (currentFrameId[cId] < currentLocalFrames.size() - 1 && currentLocalFrames[currentFrameId[cId]].time() < currentTime) {
+                            ++currentFrameId[cId];
+                            assert(currentLocalFrames[currentFrameId[cId]].time() >= currentTime);
+                        }
 
-                    if (currentFrameId[cId] < currentLocalFrames.size() - 1) {
-                        const Frame& frame1 = currentLocalFrames[currentFrameId[cId]];
-                        const Frame& frame2 = currentLocalFrames[currentFrameId[cId] + 1];
+                        if (currentFrameId[cId] < currentLocalFrames.size() - 1) {
+                            const Frame& frame1 = currentLocalFrames[currentFrameId[cId]];
+                            const Frame& frame2 = currentLocalFrames[currentFrameId[cId] + 1];
 
-                        const double& time1 = frame1.time();
-                        const double& time2 = frame2.time();
-                        const Transformation& transformation1 = frame1.transformation(jointInfo.jId) * currentSkeleton.joint(jointInfo.jId).restPose().inverse();
-                        const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * currentSkeleton.joint(jointInfo.jId).restPose().inverse();
+                            const double& time1 = frame1.time();
+                            const double& time2 = frame2.time();
+                            const Transformation& transformation1 = frame1.transformation(jointInfo.jId) * targetSkeleton.joint(jId).restPose().inverse();
+                            const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * targetSkeleton.joint(jId).restPose().inverse();
 
-                        double alpha = (currentTime - time1) / (time2 - time1);
+                            double alpha = (currentTime - time1) / (time2 - time1);
 
-                        transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
+                            transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
+                        }
+                        else {
+                            transformations[cId] = currentLocalFrames[currentLocalFrames.size() - 1].transformation(jointInfo.jId) * targetSkeleton.joint(jId).restPose().inverse();
+                        }
                     }
                     else {
-                        transformations[cId] = currentLocalFrames[currentLocalFrames.size() - 1].transformation(jointInfo.jId) * currentSkeleton.joint(jointInfo.jId).restPose().inverse();
+                        const Skeleton& currentSkeleton = data.entry(jointInfo.eId).model->skeleton;
+                        if (!currentSkeleton.isRoot(jointInfo.jId)) {
+                            transformations[cId] = targetSkeleton.parent(jId).restPose().inverse();
+                        }
+                        else {
+                            transformations[cId] = Transformation::Identity();
+                        }
                     }
                 }
             }
