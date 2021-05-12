@@ -65,6 +65,15 @@ void mixAnimations(
 }
 
 template<class Model>
+nvl::Index chooseAnimation(
+        SkinMixerData<Model>& data,
+        typename SkinMixerData<Model>::Entry& entry,
+        const nvl::Index& index)
+{
+    return findBestAnimation(data, entry, index);
+}
+
+template<class Model>
 void replace(
         SkinMixerData<Model>& data,
         Model* model1,

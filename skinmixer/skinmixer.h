@@ -18,6 +18,12 @@ void mixAnimations(
         nvl::Index& targetAnimationId);
 
 template<class Model>
+nvl::Index chooseAnimation(
+        SkinMixerData<Model>& data,
+        typename SkinMixerData<Model>::Entry& entry,
+        const nvl::Index& index);
+
+template<class Model>
 void replace(
         SkinMixerData<Model>& data,
         Model* model1,

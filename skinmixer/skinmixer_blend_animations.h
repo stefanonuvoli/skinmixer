@@ -20,6 +20,11 @@ void blendAnimations(
         typename SkinMixerData<Model>::Entry& entry,
         nvl::Index& targetAnimationId);
 
+//template<class Model>
+//nvl::Index findBestAnimation(
+//        SkinMixerData<Model>& data,
+//        typename SkinMixerData<Model>::Entry& entry,
+//        const nvl::Index& index);
 }
 
 #include "skinmixer_blend_animations.cpp"

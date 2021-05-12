@@ -83,15 +83,15 @@ void blendSkinningWeights(
                 }
             }
 
-            weight /= sumSelectValues;
-            if (weight > nvl::EPSILON) {
-                if (targetSkeleton.childNumber(jId) == 0 && !targetSkeleton.isRoot(jId)) {
-                    targetSkinningWeights.setWeight(vId, targetSkeleton.parentId(jId), targetSkinningWeights.weight(vId, targetSkeleton.parentId(jId)) + weight);
-                }
-                else {
-                    targetSkinningWeights.setWeight(vId, jId, targetSkinningWeights.weight(vId, jId) + weight);
-                }
+            if (sumSelectValues > 0 && weight > nvl::EPSILON) {
+                //                if (targetSkeleton.childNumber(jId) == 0 && !targetSkeleton.isRoot(jId)) {
+                //                    targetSkinningWeights.setWeight(vId, targetSkeleton.parentId(jId), targetSkinningWeights.weight(vId, targetSkeleton.parentId(jId)) + weight);
+                //                }
+                //                else {
+                targetSkinningWeights.setWeight(vId, jId, targetSkinningWeights.weight(vId, jId) + weight);
+                //                }
             }
+
         }
     }
 

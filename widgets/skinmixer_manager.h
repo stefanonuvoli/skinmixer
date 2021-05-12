@@ -109,6 +109,7 @@ private:
 
     void mix();
     void blendAnimations();
+//    nvl::Index findBestAnimation(const nvl::Index& index);
 
     void applyOperation();
     void abortOperation();    

@@ -417,6 +417,16 @@ void SkinMixerManager::blendAnimations()
     vCanvas->updateGL();
 }
 
+//nvl::Index SkinMixerManager::findBestAnimation(const nvl::Index& index)
+//{
+//    Model* modelPtr = vSelectedModelDrawer->model();
+//    SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
+
+//    vBlendingAnimation = vModelAnimationWidget->selectedAnimation();
+
+//    return skinmixer::chooseAnimation(vSkinMixerData, entry, index);
+//}
+
 void SkinMixerManager::applyOperation()
 {
     if (vCurrentOperation == OperationType::NONE)
@@ -782,21 +792,49 @@ void SkinMixerManager::updateView()
             Model* currentModel = vSkinMixerData.entry(eId).model;
 
             QComboBox* combo = new QComboBox(this);
-            combo->addItem("None");
+            combo->addItem("Rest pose");
+            combo->addItem("Best keyframes");
+//            combo->addItem("Best animation");
 
             for (Index aId = 0; aId < currentModel->animationNumber(); aId++) {
                 const Animation& animation = currentModel->animation(aId);
                 combo->addItem(animation.name().c_str());
             }
-            combo->setCurrentIndex(animationIds[cId] + 1);
+
+            if (animationIds[cId] == BLEND_ANIMATION_REST) {
+                combo->setCurrentIndex(0);
+            }
+            else if (animationIds[cId] == BLEND_ANIMATION_KEYFRAME) {
+                combo->setCurrentIndex(1);
+            }
+//            else if (animationIds[cId] == BLEND_ANIMATION_FIND) {
+//                combo->setCurrentIndex(2);
+//            }
+            else {
+                combo->setCurrentIndex(animationIds[cId] + 2);
+            }
 
             QComboBox::connect(combo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            [&animationIds, cId, this](int index) {
+            [&animationIds, cId, combo, this](int index) {
                 if (index == 0) {
-                    animationIds[cId] = nvl::MAX_INDEX;
+                    animationIds[cId] = BLEND_ANIMATION_REST;
                 }
+                else if (index == 1) {
+                    animationIds[cId] = BLEND_ANIMATION_KEYFRAME;
+                }
+//                else if (index == 2) {
+//                    animationIds[cId] = BLEND_ANIMATION_FIND;
+//                    nvl::Index bestAnimation = findBestAnimation(cId);
+
+//                    if (bestAnimation != nvl::MAX_INDEX) {
+//                        combo->setCurrentIndex(bestAnimation + 3);
+//                    }
+//                    else {
+//                        combo->setCurrentIndex(0);
+//                    }
+//                }
                 else {
-                    animationIds[cId] = index - 1;
+                    animationIds[cId] = index - 2;
                 }
 
                 if (vBlendingAnimation != nvl::MAX_INDEX) {
@@ -929,7 +967,6 @@ void SkinMixerManager::updateView()
             }
 
             ui->animationJointMeshComboBox->addItem("None");
-
             for (const Index& eId : birthEntries) {
                 Model* currentModel = vSkinMixerData.entry(eId).model;
                 ui->animationJointMeshComboBox->addItem(currentModel->name().c_str());
