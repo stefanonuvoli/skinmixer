@@ -22,8 +22,8 @@ typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
 
 template<class Model>
 void blendSkinningWeights(
-        const SkinMixerData<Model>& data,
-        typename SkinMixerData<Model>::Entry& entry)
+        SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& newEntries)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::BirthInfo::VertexInfo VertexInfo;
@@ -36,81 +36,80 @@ void blendSkinningWeights(
     typedef typename Mesh::Face Face;
     typedef typename Mesh::Point Point;
 
-    Model* targetModel = entry.model;
-    SkinningWeights& targetSkinningWeights = targetModel->skinningWeights;
-    Mesh& targetMesh = targetModel->mesh;
-    Skeleton& targetSkeleton = targetModel->skeleton;
+    for (const nvl::Index& eId : newEntries) {
+        Entry& entry = data.entry(eId);
 
-    targetModel->initializeSkinningWeights();
+        Model* targetModel = entry.model;
+        SkinningWeights& targetSkinningWeights = targetModel->skinningWeights;
+        Mesh& targetMesh = targetModel->mesh;
+        Skeleton& targetSkeleton = targetModel->skeleton;
 
-    for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
-        if (targetMesh.isVertexDeleted(vId))
-            continue;
+        targetModel->initializeSkinningWeights();
 
-        const std::vector<VertexInfo>& vertexInfos = entry.birth.vertex[vId];
+        for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
+            if (targetMesh.isVertexDeleted(vId))
+                continue;
 
-        const Point& point = targetMesh.vertex(vId).point();
+            const std::vector<VertexInfo>& vertexInfos = entry.birth.vertex[vId];
 
-        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-            const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+            const Point& point = targetMesh.vertex(vId).point();
 
-            double weight = 0.0;
-            double sumSelectValues = 0;
+            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+                const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
-            for (VertexInfo vertexInfo : vertexInfos) {
-                for (JointInfo jointInfo : jointInfos) {
-                    assert (jointInfo.jId != nvl::MAX_INDEX);
+                double weight = 0.0;
+                double sumSelectValues = 0;
 
-                    if (jointInfo.eId != vertexInfo.eId) {
-                        continue;
-                    }
+                for (VertexInfo vertexInfo : vertexInfos) {
+                    for (JointInfo jointInfo : jointInfos) {
+                        assert (jointInfo.jId != nvl::MAX_INDEX);
 
-                    const Entry& currentEntry = data.entry(vertexInfo.eId);
-                    const Model* currentModel = currentEntry.model;
-                    const Mesh& currentMesh = currentModel->mesh;
-                    const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
+                        if (jointInfo.eId != vertexInfo.eId) {
+                            continue;
+                        }
 
-                    if (vertexInfo.vId != nvl::MAX_INDEX) {
-                        weight += vertexInfo.weight * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
-                        sumSelectValues += vertexInfo.weight;
-                    }
-                    else {
-                        double interpolatedWeight = internal::interpolateSkinningWeightOnFace(currentMesh, currentSkinningWeights, jointInfo.jId, vertexInfo.closestFaceId, point);
+                        const Entry& currentEntry = data.entry(vertexInfo.eId);
+                        const Model* currentModel = currentEntry.model;
+                        const Mesh& currentMesh = currentModel->mesh;
+                        const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
 
-                        weight += vertexInfo.weight * interpolatedWeight;
-                        sumSelectValues += vertexInfo.weight;
+                        if (vertexInfo.vId != nvl::MAX_INDEX) {
+                            weight += vertexInfo.weight * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
+                            sumSelectValues += vertexInfo.weight;
+                        }
+                        else {
+                            double interpolatedWeight = internal::interpolateSkinningWeightOnFace(currentMesh, currentSkinningWeights, jointInfo.jId, vertexInfo.closestFaceId, point);
+
+                            weight += vertexInfo.weight * interpolatedWeight;
+                            sumSelectValues += vertexInfo.weight;
+                        }
                     }
                 }
-            }
 
-            if (sumSelectValues > 0 && weight > nvl::EPSILON) {
-                //                if (targetSkeleton.childNumber(jId) == 0 && !targetSkeleton.isRoot(jId)) {
-                //                    targetSkinningWeights.setWeight(vId, targetSkeleton.parentId(jId), targetSkinningWeights.weight(vId, targetSkeleton.parentId(jId)) + weight);
-                //                }
-                //                else {
-                targetSkinningWeights.setWeight(vId, jId, targetSkinningWeights.weight(vId, jId) + weight);
-                //                }
-            }
+                if (sumSelectValues > 0 && weight > nvl::EPSILON) {
+                    targetSkinningWeights.setWeight(vId, jId, targetSkinningWeights.weight(vId, jId) + weight);
+                }
 
-        }
-    }
-
-    for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
-        if (targetMesh.isVertexDeleted(vId))
-            continue;
-
-        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-            if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 0.0)) {
-                targetSkinningWeights.setWeight(vId, jId, 0.0);
-            }
-            else if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 1.0)) {
-                targetSkinningWeights.setWeight(vId, jId, 1.0);
             }
         }
-    }
 
-    targetSkinningWeights.updateNonZeros();
-    nvl::modelNormalizeSkinningWeights(*targetModel);
+        for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
+            if (targetMesh.isVertexDeleted(vId))
+                continue;
+
+            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+                if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 0.0)) {
+                    targetSkinningWeights.setWeight(vId, jId, 0.0);
+                }
+                else if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 1.0)) {
+                    targetSkinningWeights.setWeight(vId, jId, 1.0);
+                }
+            }
+        }
+
+        targetSkinningWeights.updateNonZeros();
+        nvl::modelNormalizeSkinningWeights(*targetModel);
+    }
 }
 
 namespace internal {

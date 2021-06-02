@@ -94,7 +94,7 @@ public:
     ~SkinMixerData();
 
     nvl::Index addEntry(Model* model);
-    void deleteEntry(Model* model);    
+    void deleteEntry(Model* model);
 
     nvl::Size entryNumber() const;
     const std::vector<Entry>& entries() const;
@@ -115,6 +115,7 @@ public:
     typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Index& eId);
 
     void clear();
+    void clearActions();
 
 
 private:

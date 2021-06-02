@@ -77,9 +77,9 @@ macx{
 #Project files
 SOURCES += \
     main.cpp \
+    skinmixer/internal/skinmixer_field.cpp \
     skinmixer/skinmixer.cpp \
     skinmixer/internal/skinmixer_attach_borders.cpp \
-    skinmixer/internal/skinmixer_openvdb_blending.cpp \
     skinmixer/internal/skinmixer_morphological_operations.cpp \
     skinmixer/skinmixer_blend_animations.cpp \
     skinmixer/skinmixer_blend_surfaces.cpp \
@@ -91,9 +91,9 @@ SOURCES += \
     skinmixer/skinmixer_blend_skinningweights.cpp
 
 HEADERS += \
+    skinmixer/internal/skinmixer_field.h \
     skinmixer/skinmixer.h \
     skinmixer/internal/skinmixer_attach_borders.h \
-    skinmixer/internal/skinmixer_openvdb_blending.h \
     skinmixer/internal/skinmixer_morphological_operations.h \
     skinmixer/skinmixer_blend_animations.h \
     skinmixer/skinmixer_blend_surfaces.h \

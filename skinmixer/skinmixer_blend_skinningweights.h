@@ -12,8 +12,8 @@ namespace skinmixer {
 
 template<class Model>
 void blendSkinningWeights(
-        const SkinMixerData<Model>& data,
-        typename SkinMixerData<Model>::Entry& entry);
+        SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& newEntries);
 
 }
 

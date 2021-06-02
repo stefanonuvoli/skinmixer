@@ -214,4 +214,13 @@ void SkinMixerData<Model>::clear()
     vActions.clear();
 }
 
+template<class Model>
+void SkinMixerData<Model>::clearActions()
+{
+    this->vActions.clear();
+    for (Entry& entry : this->vEntries) {
+        entry.relatedActions.clear();
+    }
+}
+
 }

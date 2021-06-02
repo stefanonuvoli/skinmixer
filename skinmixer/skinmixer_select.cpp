@@ -20,7 +20,7 @@ double computeHardness(double x, double h);
 }
 
 template<class Model>
-void computeVertexSelectValues(
+void computeSelectValues(
         const Model& model,
         const unsigned int smoothingIterations,
         const double rigidity,
@@ -215,7 +215,7 @@ void computeRemoveSelectValues(
     }
 
     vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
-    computeVertexSelectValues(
+    computeSelectValues(
         model,
         smoothingIterations,
         rigidity,
@@ -272,7 +272,7 @@ void computeDetachSelectValues(
     }
 
     vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
-    computeVertexSelectValues(
+    computeSelectValues(
         model,
         smoothingIterations,
         rigidity,

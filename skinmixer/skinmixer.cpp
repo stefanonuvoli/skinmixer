@@ -21,36 +21,20 @@ std::vector<nvl::Index> mix(
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename Model::Mesh Mesh;
 
-    std::vector<Index> newEntries;
-
-    std::vector<std::vector<Index>> entryClusters;
-
-    //TODO: clusters by actions, for now we insert every model
-    std::vector<Index> cluster;
     for (Entry entry : data.entries()) {
         if (entry.relatedActions.size() > 0) {
             nvl::modelApplyTransformation(*entry.model, entry.frame);
-            cluster.push_back(entry.id);
         }
     }
-    entryClusters.push_back(cluster);
 
-    for (const std::vector<Index>& cluster : entryClusters) {
-        Model* resultModel = new Model();
-        Index newEntryId = data.addEntry(resultModel);
+    std::vector<Index> newEntries;
 
-        Entry& entry = data.entry(newEntryId);
+    blendSurfaces(data, newEntries);
+    blendSkeletons(data, newEntries);
+    blendSkinningWeights(data, newEntries);
+    initializeAnimationWeights(data, newEntries);
 
-        entry.birth.entries = cluster;
-
-        blendSurfaces(data, cluster, entry);
-        blendSkeletons(data, cluster, entry);
-        blendSkinningWeights(data, entry);
-
-        initializeAnimationWeights(data, entry);
-
-        newEntries.push_back(newEntryId);
-    }
+    data.clearActions();
 
     return newEntries;
 }
@@ -62,15 +46,6 @@ void mixAnimations(
         nvl::Index& targetAnimationId)
 {
     return blendAnimations(data, entry, targetAnimationId);
-}
-
-template<class Model>
-nvl::Index chooseAnimation(
-        SkinMixerData<Model>& data,
-        typename SkinMixerData<Model>::Entry& entry,
-        const nvl::Index& index)
-{
-    return findBestAnimation(data, entry, index);
 }
 
 template<class Model>

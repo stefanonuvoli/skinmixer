@@ -12,7 +12,7 @@ namespace skinmixer {
 template<class Model>
 void initializeAnimationWeights(
         SkinMixerData<Model>& data,
-        typename SkinMixerData<Model>::Entry& entry);
+        const std::vector<nvl::Index>& newEntries);
 
 template<class Model>
 void blendAnimations(

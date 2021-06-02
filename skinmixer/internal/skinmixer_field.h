@@ -45,6 +45,16 @@ struct OpenVDBAdapter {
 };
 
 
+template<class Mesh>
+void getClosedGrid(
+        const Mesh& inputMesh,
+        const double& maxDistance,
+        Mesh& closedMesh,
+        FloatGridPtr& closedGrid,
+        IntGridPtr& polygonGrid,
+        openvdb::Vec3i& bbMin,
+        openvdb::Vec3i& bbMax);
+
 template<class Model>
 void getClosedGrids(
         const OperationType operation,
@@ -52,8 +62,9 @@ void getClosedGrids(
         const std::vector<const std::vector<double>*>& vertexSelectValue,
         const double& scaleFactor,
         const double& maxDistance,
+        std::vector<typename Model::Mesh>& inputMeshes,
         std::vector<typename Model::Mesh>& closedMeshes,
-        std::vector<FloatGridPtr>& closedGrids,        
+        std::vector<FloatGridPtr>& closedGrids,
         std::vector<IntGridPtr>& polygonGrids,
         std::vector<std::unordered_set<typename Model::Mesh::FaceId>>& facesInField,
         std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
@@ -73,6 +84,12 @@ FloatGridPtr getBlendedGrid(
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,        
         const std::vector<openvdb::Vec3i>& bbMin,
         const std::vector<openvdb::Vec3i>& bbMax);
+
+template<class Mesh>
+std::unordered_set<typename Mesh::FaceId> findFacesInField(
+        const Mesh& mesh,
+        const std::vector<double>& vertexSelectValues,
+        const double& scaleFactor);
 
 template<class Model>
 typename Model::Mesh getRemoveDetachMesh(
@@ -106,6 +123,6 @@ Mesh convertGridToMesh(const FloatGridPtr& gridPtr, bool transformQuadsToTriangl
 }
 }
 
-#include "skinmixer_openvdb_blending.cpp"
+#include "skinmixer_field.cpp"
 
 #endif // SKINMIXER_OPENVDB_BLENDING_H

@@ -8,7 +8,7 @@
 namespace skinmixer {
 
 template<class Model>
-void computeVertexSelectValues(
+void computeSelectValues(
         const Model& model,
         const unsigned int smoothingIterations,
         const double rigidity,

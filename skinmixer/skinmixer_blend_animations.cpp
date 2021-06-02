@@ -30,7 +30,7 @@ namespace internal {
 template<class Model>
 void initializeAnimationWeights(
         SkinMixerData<Model>& data,
-        typename SkinMixerData<Model>::Entry& entry)
+        const std::vector<nvl::Index>& newEntries)
 {
     typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
@@ -38,60 +38,63 @@ void initializeAnimationWeights(
     typedef typename Model::Skeleton Skeleton;
     typedef typename Skeleton::JointId JointId;
 
-    NVL_SUPPRESS_UNUSEDVARIABLE(data);
+    for (const nvl::Index& eId : newEntries) {
+        Entry& entry = data.entry(eId);
 
-    Model* targetModel = entry.model;
-    Skeleton& targetSkeleton = targetModel->skeleton;
-    std::vector<Index>& cluster = entry.birth.entries;
-    std::vector<Index>& animationsIds = entry.blendingAnimations;
-    std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
+        Model* targetModel = entry.model;
+        Skeleton& targetSkeleton = targetModel->skeleton;
 
-    animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(cluster.size(), 0.0));
+        std::vector<Index>& birthEntries = entry.birth.entries;
+        std::vector<Index>& animationsIds = entry.blendingAnimations;
+        std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
 
-    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
-    for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-        const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+        animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(birthEntries.size(), 0.0));
 
-        JointId parentId = targetSkeleton.parentId(jId);
+        std::vector<Index> clusterMap = nvl::inverseMap(birthEntries);
+        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+            const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
-        int numConfidence = 0;
-        for (JointInfo jointInfo : jointInfos) {
-            assert(jointInfo.jId != nvl::MAX_INDEX);
-            assert(jointInfo.eId != nvl::MAX_INDEX);
-            assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
+            JointId parentId = targetSkeleton.parentId(jId);
 
-            const Index& cId = clusterMap[jointInfo.eId];
-
-            if (jointInfo.confidence == 1.0) {
-                animationWeights[jId][cId] = 1.0;
-                numConfidence++;
-            }
-        }
-        if (numConfidence > 1) {
+            int numConfidence = 0;
             for (JointInfo jointInfo : jointInfos) {
                 assert(jointInfo.jId != nvl::MAX_INDEX);
                 assert(jointInfo.eId != nvl::MAX_INDEX);
                 assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
-                assert(parentId != nvl::MAX_INDEX);
 
                 const Index& cId = clusterMap[jointInfo.eId];
 
-                const std::vector<JointInfo>& parentJointInfos = entry.birth.joint[parentId];
+                if (jointInfo.confidence == 1.0) {
+                    animationWeights[jId][cId] = 1.0;
+                    numConfidence++;
+                }
+            }
+            if (numConfidence > 1) {
+                for (JointInfo jointInfo : jointInfos) {
+                    assert(jointInfo.jId != nvl::MAX_INDEX);
+                    assert(jointInfo.eId != nvl::MAX_INDEX);
+                    assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
+                    assert(parentId != nvl::MAX_INDEX);
 
-                for (JointInfo parentJointInfo : parentJointInfos) {
-                    const Index& parentCId = clusterMap[parentJointInfo.eId];
+                    const Index& cId = clusterMap[jointInfo.eId];
 
-                    if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1.0 && parentCId != cId) {
-                        animationWeights[jId][cId] = 0.0;
+                    const std::vector<JointInfo>& parentJointInfos = entry.birth.joint[parentId];
+
+                    for (JointInfo parentJointInfo : parentJointInfos) {
+                        const Index& parentCId = clusterMap[parentJointInfo.eId];
+
+                        if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1.0 && parentCId != cId) {
+                            animationWeights[jId][cId] = 0.0;
+                        }
                     }
                 }
             }
+
+            nvl::normalize(animationWeights[jId]);
         }
 
-        nvl::normalize(animationWeights[jId]);
+        animationsIds.resize(birthEntries.size(), BLEND_ANIMATION_REST);
     }
-
-    animationsIds.resize(cluster.size(), BLEND_ANIMATION_REST);
 }
 
 template<class Model>
@@ -212,6 +215,158 @@ void blendAnimations(
             }
         }
 
+#ifndef KEYFRAME_PER_JOINT
+
+        std::vector<double> bestKeyframeScore(cluster.size(), nvl::minLimitValue<double>());
+        std::vector<Index> bestAnimation(cluster.size(), nvl::MAX_INDEX);
+        std::vector<Index> bestFrame(cluster.size(), nvl::MAX_INDEX);
+
+        for (Index cId = 0; cId < cluster.size(); ++cId) {
+            const Index& animationId = animationIds[cId];
+            const Model* currentModel = data.entry(cluster[cId]).model;
+
+            if (animationId == BLEND_ANIMATION_KEYFRAME) {
+                for (nvl::Index candidateAId = 0; candidateAId < currentModel->animationNumber(); ++candidateAId) {
+                    const std::vector<Frame>& currentCandidateLocalFrames = candidateFrames[cId][candidateAId];
+                    for (Index candidateFId = 0; candidateFId < currentCandidateLocalFrames.size(); candidateFId++) {
+                        double keyframeScore = 0.0;
+                        int numKeyframeScores = 0;
+
+                        //For each joint
+                        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+                            if (!nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
+                                const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+
+                                const Frame& candidateFrame1 = currentCandidateLocalFrames[candidateFId];
+                                const Frame& candidateFrame2 = currentCandidateLocalFrames[(candidateFId + 1) % currentCandidateLocalFrames.size()];
+
+                                for (JointInfo jointInfo : jointInfos) {
+                                    double candidateTime1 = candidateFrame1.time();
+                                    double candidateTime2 = candidateFrame2.time();
+                                    const Transformation& candidateTransformation1 = candidateFrame1.transformation(jointInfo.jId) * restPoses[cId][jointInfo.jId].inverse();
+                                    const Transformation& candidateTransformation2 = candidateFrame2.transformation(jointInfo.jId) * restPoses[cId][jointInfo.jId].inverse();
+
+                                    for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
+                                        Index otherAnimationId = animationIds[otherCId];
+                                        if (otherAnimationId != BLEND_ANIMATION_KEYFRAME && otherAnimationId != BLEND_ANIMATION_REST) {
+                                            const std::vector<Frame>& currentSelectedLocalFrames = fixedFrames[otherCId];
+
+                                            for (Index otherFId = 0; otherFId < currentSelectedLocalFrames.size(); otherFId++) {
+                                                const Frame& frame1 = currentSelectedLocalFrames[currentFrameId[otherCId]];
+                                                const Frame& frame2 = currentSelectedLocalFrames[(currentFrameId[otherCId] + 1) % currentSelectedLocalFrames.size()];
+
+                                                double time1 = frame1.time();
+                                                double time2 = frame2.time();
+                                                const Transformation& transformation1 = frame1.transformation(jointInfo.jId) * restPoses[otherCId][jointInfo.jId].inverse();
+                                                const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[otherCId][jointInfo.jId].inverse();
+
+                                                double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
+                                                keyframeScore += similarity * animationWeights[jId][cId] * jointInfo.confidence;
+                                                numKeyframeScores++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (numKeyframeScores > 0) {
+                            keyframeScore /= numKeyframeScores;
+                            if (keyframeScore > bestKeyframeScore[cId]) {
+                                bestKeyframeScore[cId] = keyframeScore;
+                                bestAnimation[cId] = candidateAId;
+                                bestFrame[cId] = candidateFId;
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+        //For each joint
+        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+            const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+
+            std::vector<Transformation> transformations(cluster.size(), Transformation::Identity());
+            std::vector<double> weights(cluster.size(), 0.0);
+
+            for (JointInfo jointInfo : jointInfos) {
+                assert(jointInfo.jId != nvl::MAX_INDEX);
+                assert(jointInfo.eId != nvl::MAX_INDEX);
+                assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
+
+                const Index& clusterId = clusterMap[jointInfo.eId];
+                const Index& animationId = animationIds[clusterId];
+
+                //Avoid numerical errors
+                if (!nvl::epsEqual(animationWeights[jId][clusterId], 0.0)) {
+                    weights[clusterId] = animationWeights[jId][clusterId];
+
+                    if (animationId == BLEND_ANIMATION_REST) {
+                        transformations[clusterId] = Transformation::Identity();
+                    }
+                    else if (animationId == BLEND_ANIMATION_KEYFRAME) {
+                        if (bestAnimation[clusterId] != nvl::MAX_INDEX) {
+                            const std::vector<Frame>& currentCandidateLocalFrames = candidateFrames[clusterId][bestAnimation[clusterId]];
+
+                            const Frame& frame1 = currentCandidateLocalFrames[bestFrame[clusterId]];
+                            const Frame& frame2 = currentCandidateLocalFrames[(bestFrame[clusterId] + 1) % currentCandidateLocalFrames.size()];
+
+                            const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[clusterId][jointInfo.jId].inverse();
+
+                            transformations[clusterId] = transformation2;
+
+                            std::cout << bestAnimation[clusterId] << " " << bestFrame[clusterId] << std::endl;
+                        }
+                        else {
+                            transformations[clusterId] = Transformation::Identity();
+                        }
+                    }
+//                    else if (animationId != BLEND_ANIMATION_FIND) {
+
+//                    }
+                    else {
+                        const std::vector<Frame>& currentSelectedLocalFrames = fixedFrames[clusterId];
+
+                        const Frame& frame1 = currentSelectedLocalFrames[currentFrameId[clusterId]];
+                        const Frame& frame2 = currentSelectedLocalFrames[(currentFrameId[clusterId] + 1) % currentSelectedLocalFrames.size()];
+
+                        double time1 = frame1.time() + currentTimeOffset[clusterId];
+                        double time2 = frame2.time() + currentTimeOffset[clusterId];
+                        const Transformation& transformation1 = frame1.transformation(jointInfo.jId) * restPoses[clusterId][jointInfo.jId].inverse();
+                        const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[clusterId][jointInfo.jId].inverse();
+
+                        double alpha = (currentTime - time1) / (time2 - time1);
+
+                        transformations[clusterId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
+                    }
+                }
+            }
+
+            nvl::normalize(weights);
+
+            double sum = 0.0;
+            for (const double& value : weights) {
+                sum += value;
+            }
+            if (nvl::epsEqual(sum, 0.0)) {
+                for (double& value : weights) {
+                    value = 1.0 / weights.size();
+                }
+            }
+
+            Transformation interpolated = nvl::interpolateAffine(transformations, weights);
+            Transformation rot(interpolated.rotation() * targetLocalRestPoses[jId].rotation());
+            Transformation tra(nvl::Translation3d(targetLocalRestPoses[jId].translation()));
+
+            if (targetSkeleton.isRoot(jId)) {
+                tra = nvl::Translation3d(interpolated.translation()) * tra;
+            }
+
+            blendedTransformations[jId] = Transformation(tra * rot);
+        }
+#else
         //For each joint
         for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
             const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
@@ -344,6 +499,7 @@ void blendAnimations(
 
             blendedTransformations[jId] = Transformation(tra * rot);
         }
+#endif
 
         Frame newFrame(currentTime, blendedTransformations);
         nvl::animationComputeGlobalFrame(targetSkeleton, newFrame);

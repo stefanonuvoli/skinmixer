@@ -12,9 +12,8 @@ namespace skinmixer {
 
 template<class Model>
 void blendSkeletons(
-        const SkinMixerData<Model>& data,
-        const std::vector<nvl::Index>& cluster,
-        typename SkinMixerData<Model>::Entry& entry);
+        SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& newEntries);
 
 }
 
