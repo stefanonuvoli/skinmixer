@@ -16,7 +16,7 @@
 
 #include <nvl/math/scaling.h>
 
-#include "skinmixer/skinmixer_operation.h"
+#include "skinmixer/skinmixer_data.h"
 
 namespace skinmixer {
 namespace internal {
@@ -73,17 +73,20 @@ void getClosedGrids(
         std::vector<openvdb::Vec3i>& bbMax);
 
 template<class Model>
-FloatGridPtr getBlendedGrid(
-        const OperationType operation,
-        const std::vector<const Model*>& models,
-        const std::vector<const std::vector<double>*>& vertexSelectValue,
+void getBlendedGrid(
+        const SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& actions,
+        const std::vector<std::vector<const Model*>>& models,
+        const std::vector<std::vector<const std::vector<double>*>>& vertexSelectValue,
+        const std::vector<std::vector<FloatGridPtr>>& closedGrids,
+        const std::vector<std::vector<IntGridPtr>>& polygonGrids,
+        const std::vector<std::vector<std::vector<typename Model::Mesh::FaceId>>>& gridBirthFace,
+        const std::vector<std::vector<openvdb::Vec3i>>& bbMin,
+        const std::vector<std::vector<openvdb::Vec3i>>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
-        const std::vector<FloatGridPtr>& closedGrids,
-        const std::vector<IntGridPtr>& polygonGrids,
-        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,        
-        const std::vector<openvdb::Vec3i>& bbMin,
-        const std::vector<openvdb::Vec3i>& bbMax);
+        FloatGridPtr& blendedGrid,
+        IntGridPtr& activeActionGrid);
 
 template<class Mesh>
 std::unordered_set<typename Mesh::FaceId> findFacesInField(
