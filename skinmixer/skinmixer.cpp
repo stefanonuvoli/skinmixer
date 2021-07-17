@@ -38,38 +38,27 @@ std::vector<nvl::Index> mix(
     std::vector<Index> newEntries;
 
     //Blend surface
-    std::cout << "Blending surface... " << std::endl;
     start = chrono::steady_clock::now();
-
     blendSurfaces(data, newEntries);
-
-    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+    std::cout << "Surface blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
 
     //Blend skeleton
-    std::cout << "Blending skeleton... " << std::endl;
     start = chrono::steady_clock::now();
-
     blendSkeletons(data, newEntries);
-
-    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+    std::cout << "Skeleton blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
 
     //Blend skinning weights
-    std::cout << "Blending skinning weights... " << std::endl;
     start = chrono::steady_clock::now();
-
     blendSkinningWeights(data, newEntries);
-
-    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+    std::cout << "Skinning weight blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
     //Blend skinning weights
-    std::cout << "Initilize animation weights... " << std::endl;
     start = chrono::steady_clock::now();
-
     initializeAnimationWeights(data, newEntries);
+    std::cout << "Animation weight initialized in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
-    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
     data.clearActions();
 
@@ -85,12 +74,9 @@ void mixAnimations(
     chrono::steady_clock::time_point start;
 
     //Blending animations
-    std::cout << "Blend animations... " << std::endl;
     start = chrono::steady_clock::now();
-
     return blendAnimations(data, entry, targetAnimationId);
-
-    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+    std::cout << "Blended animations in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
 }
 
