@@ -9,7 +9,10 @@
 #include "skinmixer/skinmixer_blend_animations.h"
 
 #include <nvl/models/model_transformations.h>
+#include <nvl/models/model_deformation.h>
 #include <nvl/models/mesh_normals.h>
+
+#include <chrono>
 
 namespace skinmixer {
 
@@ -21,18 +24,52 @@ std::vector<nvl::Index> mix(
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename Model::Mesh Mesh;
 
+    chrono::steady_clock::time_point start;
+
     for (Entry entry : data.entries()) {
         if (entry.relatedActions.size() > 0) {
-            nvl::modelApplyTransformation(*entry.model, entry.frame);
+            data.computeDeformation(entry);
+            if (!entry.deformation.empty()) {
+                nvl::modelDeformDualQuaternionSkinning(*entry.model, entry.deformation);
+            }
         }
     }
 
     std::vector<Index> newEntries;
 
+    //Blend surface
+    std::cout << "Blending surface... " << std::endl;
+    start = chrono::steady_clock::now();
+
     blendSurfaces(data, newEntries);
+
+    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+
+
+    //Blend skeleton
+    std::cout << "Blending skeleton... " << std::endl;
+    start = chrono::steady_clock::now();
+
     blendSkeletons(data, newEntries);
+
+    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+
+
+    //Blend skinning weights
+    std::cout << "Blending skinning weights... " << std::endl;
+    start = chrono::steady_clock::now();
+
     blendSkinningWeights(data, newEntries);
+
+    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+
+    //Blend skinning weights
+    std::cout << "Initilize animation weights... " << std::endl;
+    start = chrono::steady_clock::now();
+
     initializeAnimationWeights(data, newEntries);
+
+    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
     data.clearActions();
 
@@ -45,11 +82,20 @@ void mixAnimations(
         typename SkinMixerData<Model>::Entry& entry,
         nvl::Index& targetAnimationId)
 {
+    chrono::steady_clock::time_point start;
+
+    //Blending animations
+    std::cout << "Blend animations... " << std::endl;
+    start = chrono::steady_clock::now();
+
     return blendAnimations(data, entry, targetAnimationId);
+
+    std::cout << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+
 }
 
 template<class Model>
-void replace(
+nvl::Index replace(
         SkinMixerData<Model>& data,
         Model* model1,
         Model* model2,
@@ -60,7 +106,9 @@ void replace(
         const double hardness1,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2)
+        const bool includeParent2,
+        const nvl::Affine3d& vActionRotation,
+        const nvl::Translation3d& vActionTranslation)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -89,14 +137,18 @@ void replace(
     action.select1.joint = jointValues1;
     action.select2.vertex = vertexValues2;
     action.select2.joint = jointValues2;
+    action.rotation2 = vActionRotation;
+    action.translation2 = vActionTranslation;
 
     nvl::Index actionId = data.addAction(action);
     entry1.relatedActions.push_back(actionId);
     entry2.relatedActions.push_back(actionId);
+
+    return actionId;
 }
 
 template<class Model>
-void attach(
+nvl::Index attach(
         SkinMixerData<Model>& data,
         Model* model1,
         Model* model2,
@@ -106,7 +158,9 @@ void attach(
         const double rigidity,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2)
+        const bool includeParent2,
+        const nvl::Affine3d& vActionRotation,
+        const nvl::Translation3d& vActionTranslation)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -134,14 +188,18 @@ void attach(
     action.select1.joint = jointValues1;
     action.select2.vertex = vertexValues2;
     action.select2.joint = jointValues2;
+    action.rotation2 = vActionRotation;
+    action.translation2 = vActionTranslation;
 
     nvl::Index actionId = data.addAction(action);
     entry1.relatedActions.push_back(actionId);
     entry2.relatedActions.push_back(actionId);
+
+    return actionId;
 }
 
 template<class Model>
-void remove(
+nvl::Index remove(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
@@ -171,10 +229,12 @@ void remove(
 
     nvl::Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);
+
+    return actionId;
 }
 
 template<class Model>
-void detach(
+nvl::Index detach(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
@@ -204,6 +264,8 @@ void detach(
 
     nvl::Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);
+
+    return actionId;
 }
 
 }

@@ -15,16 +15,34 @@
 namespace skinmixer {
 
 namespace internal {
-    template<class T>
-    double transformationSimilarityScore(
-            const double& time1,
-            const T& transformation1,
-            const double& time2,
-            const T& transformation2,
-            const double& candidateTime1,
-            const T& candidateTransformation1,
-            const double& candidateTime2,
-            const T& candidateTransformation2);
+
+template<class Model>
+std::vector<double> computeJointWeights(
+        const typename SkinMixerData<Model>::Entry& entry);
+
+template<class Skeleton>
+std::vector<double> computePropagatedJointWeights(
+        const Skeleton& skeleton,
+        const std::vector<typename Skeleton::JointId>& seedJoints,
+        std::vector<double>& weights);
+
+template<class Skeleton>
+void propagateJointWeights(
+        const Skeleton& skeleton,
+        const typename Skeleton::JointId& jointId,
+        std::vector<double>& weights,
+        std::vector<bool>& computedWeights);
+
+template<class T>
+double transformationSimilarityScore(
+        const double& time1,
+        const T& transformation1,
+        const double& time2,
+        const T& transformation2,
+        const double& candidateTime1,
+        const T& candidateTransformation1,
+        const double& candidateTime2,
+        const T& candidateTransformation2);
 }
 
 template<class Model>
@@ -130,6 +148,8 @@ void blendAnimations(
     std::vector<std::vector<Frame>> fixedFrames(cluster.size());
     std::vector<std::vector<std::vector<Frame>>> candidateFrames(cluster.size());
     std::vector<std::vector<Transformation>> restPoses(cluster.size());
+
+    std::vector<double> scoreWeights = internal::computeJointWeights<Model>(entry);
 
     std::vector<double> times;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -261,7 +281,7 @@ void blendAnimations(
                                                 const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[otherCId][jointInfo.jId].inverse();
 
                                                 double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
-                                                keyframeScore += similarity * animationWeights[jId][cId] * jointInfo.confidence;
+                                                keyframeScore += similarity * animationWeights[jId][cId] * scoreWeights[jId];
                                                 numKeyframeScores++;
                                             }
                                         }
@@ -316,8 +336,6 @@ void blendAnimations(
                             const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[clusterId][jointInfo.jId].inverse();
 
                             transformations[clusterId] = transformation2;
-
-                            std::cout << bestAnimation[clusterId] << " " << bestFrame[clusterId] << std::endl;
                         }
                         else {
                             transformations[clusterId] = Transformation::Identity();
@@ -425,7 +443,7 @@ void blendAnimations(
                                             const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[otherCId][jointInfo.jId].inverse();
 
                                             double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
-                                            keyframeScore += similarity;
+                                            keyframeScore += similarity * jointInfo.confidence;
                                             numKeyframeScores++;
                                         }
                                     }
@@ -726,64 +744,159 @@ void blendAnimations(
 //}
 
 namespace internal {
-    template<class T>
-    double transformationSimilarityScore(
-            const double& targetTime1,
-            const T& targetTransformation1,
-            const double& targetTime2,
-            const T& targetTransformation2,
-            const double& candidateTime1,
-            const T& candidateTransformation1,
-            const double& candidateTime2,
-            const T& candidateTransformation2)
-    {
-        const double velocityWeight = 0.5;
-        const double similarityWeight = 1.0 - velocityWeight;
-        
 
+template<class Model>
+std::vector<double> computeJointWeights(
+        const typename SkinMixerData<Model>::Entry& entry)
+{
+    typedef typename nvl::Index Index;
 
-        nvl::Quaterniond targetQuaternion(targetTransformation2.rotation());
-        nvl::Quaterniond candidateQuaternion(candidateTransformation2.rotation());
+    typedef typename SkinMixerData<Model>::Entry Entry;
+    typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
 
-        double similarityScore = std::fabs(targetQuaternion.dot(candidateQuaternion));
+    typedef typename Model::Skeleton Skeleton;
+    typedef typename Skeleton::JointId JointId;
 
+    std::vector<double> weights;
 
+    Model* targetModel = entry.model;
+    Skeleton& targetSkeleton = targetModel->skeleton;
 
+    std::vector<JointId> seedJoints;
+    weights.resize(targetSkeleton.jointNumber());
+    for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+        const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
-        nvl::Vector4d candidateVec1(nvl::Quaterniond(candidateTransformation1.rotation()    ).coeffs());
-        nvl::Vector4d candidateVec2(nvl::Quaterniond(candidateTransformation2.rotation()).coeffs());
+        weights[jId] = jointInfos[jId].confidence;
 
-        nvl::Vector4d candidateDifference;
-
-        double candidateDot = candidateVec1.dot(candidateVec2);
-        if (candidateDot < 0.0) {
-            candidateDifference = candidateVec2 - candidateVec1;
+        bool isSeed = false;
+        for (JointInfo jointInfo : jointInfos) {
+            if (jointInfo.confidence == 1.0) {
+                isSeed = true;
+            }
         }
-        else {
-            candidateDifference = candidateVec2 + candidateVec1;
+        if (isSeed) {
+            seedJoints.push_back(jId);
         }
-        candidateDifference /= (candidateTime2 - candidateTime1);
-
-        nvl::Vector4d targetVec1(nvl::Quaterniond(targetTransformation1.rotation()).coeffs());
-        nvl::Vector4d targetVec2(nvl::Quaterniond(targetTransformation2.rotation()).coeffs());
-
-        nvl::Vector4d targetDifference;
-
-        double targetDot = targetVec1.dot(targetVec2);
-        if (targetDot < 0.0) {
-            targetDifference = targetVec2 - targetVec1;
-        }
-        else {
-            targetDifference = targetVec2 + targetVec1;
-        }
-        targetDifference /= (targetTime2 - targetTime1);
-
-        double velocityScore = std::fabs(targetDifference.dot(candidateDifference));
-
-
-
-
-        return similarityWeight * similarityScore + velocityWeight * velocityScore;
     }
+
+    weights = computePropagatedJointWeights(targetModel->skeleton, seedJoints, weights);
+
+    return weights;
+}
+
+
+template<class Skeleton>
+std::vector<double> computePropagatedJointWeights(
+        const Skeleton& skeleton,
+        const std::vector<typename Skeleton::JointId>& seedJoints,
+        std::vector<double>& weights)
+{
+    typedef typename Skeleton::JointId JointId;
+
+    std::vector<double> propagatedWeights(skeleton.jointNumber(), 0.0);
+
+    for (JointId seedJoint : seedJoints) {
+        std::vector<double> seedWeights = weights;
+        std::vector<bool> computedWeights(skeleton.jointNumber(), false);
+
+        propagateJointWeights(skeleton, seedJoint, seedWeights, computedWeights);
+
+        for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
+            propagatedWeights[jId] = std::max(propagatedWeights[jId], seedWeights[jId]);
+        }
+    }
+
+    return propagatedWeights;
+}
+
+template<class Skeleton>
+void propagateJointWeights(
+        const Skeleton& skeleton,
+        const typename Skeleton::JointId& jointId,
+        std::vector<double>& weights,
+        std::vector<bool>& computedWeights)
+{
+    typedef typename Skeleton::JointId JointId;
+
+    if (computedWeights[jointId])
+        return;
+
+    computedWeights[jointId] = true;
+
+    if (!skeleton.isRoot(jointId)) {
+        const JointId& parentId = skeleton.parentId(jointId);
+
+        if (!computedWeights[jointId]) {
+            weights[parentId] = weights[jointId] * weights[parentId];
+            propagateJointWeights(skeleton, parentId, weights, computedWeights);
+        }
+    }
+    for (const JointId& childId : skeleton.children(jointId)) {
+        weights[childId] = weights[jointId] * weights[childId];
+        propagateJointWeights(skeleton, childId, weights, computedWeights);
+    }
+}
+
+template<class T>
+double transformationSimilarityScore(
+        const double& targetTime1,
+        const T& targetTransformation1,
+        const double& targetTime2,
+        const T& targetTransformation2,
+        const double& candidateTime1,
+        const T& candidateTransformation1,
+        const double& candidateTime2,
+        const T& candidateTransformation2)
+{
+    const double velocityWeight = 0.5;
+    const double similarityWeight = 1.0 - velocityWeight;
+
+
+
+    nvl::Quaterniond targetQuaternion(targetTransformation2.rotation());
+    nvl::Quaterniond candidateQuaternion(candidateTransformation2.rotation());
+
+    double similarityScore = std::fabs(targetQuaternion.dot(candidateQuaternion));
+
+
+
+
+    nvl::Vector4d candidateVec1(nvl::Quaterniond(candidateTransformation1.rotation()    ).coeffs());
+    nvl::Vector4d candidateVec2(nvl::Quaterniond(candidateTransformation2.rotation()).coeffs());
+
+    nvl::Vector4d candidateDifference;
+
+    double candidateDot = candidateVec1.dot(candidateVec2);
+    if (candidateDot < 0.0) {
+        candidateDifference = candidateVec2 - candidateVec1;
+    }
+    else {
+        candidateDifference = candidateVec2 + candidateVec1;
+    }
+    candidateDifference /= (candidateTime2 - candidateTime1);
+
+    nvl::Vector4d targetVec1(nvl::Quaterniond(targetTransformation1.rotation()).coeffs());
+    nvl::Vector4d targetVec2(nvl::Quaterniond(targetTransformation2.rotation()).coeffs());
+
+    nvl::Vector4d targetDifference;
+
+    double targetDot = targetVec1.dot(targetVec2);
+    if (targetDot < 0.0) {
+        targetDifference = targetVec2 - targetVec1;
+    }
+    else {
+        targetDifference = targetVec2 + targetVec1;
+    }
+    targetDifference /= (targetTime2 - targetTime1);
+
+    double velocityScore = std::fabs(targetDifference.dot(candidateDifference));
+
+
+
+
+    return similarityWeight * similarityScore + velocityWeight * velocityScore;
+}
+
 }
 }

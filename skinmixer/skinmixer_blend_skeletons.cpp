@@ -321,7 +321,7 @@ void blendSkeletons(
                 JointInfo jInfo;
                 jInfo.eId = birthEId;
                 jInfo.jId = bestCurrentJoint;
-                jInfo.confidence = bestScore;
+                jInfo.confidence = std::min(0.9999, bestScore);
                 entry.birth.joint[bestTargetJoint].push_back(jInfo);
 
                 remainingJoints.erase(bestCurrentJoint);

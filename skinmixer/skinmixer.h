@@ -24,7 +24,7 @@ void mixAnimations(
 //        const nvl::Index& index);
 
 template<class Model>
-void replace(
+nvl::Index replace(
         SkinMixerData<Model>& data,
         Model* model1,
         Model* model2,
@@ -35,10 +35,12 @@ void replace(
         const double hardness1,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2);
+        const bool includeParent2,
+        const nvl::Affine3d& vActionRotation,
+        const nvl::Translation3d& vActionTranslation);
 
 template<class Model>
-void attach(
+nvl::Index attach(
         SkinMixerData<Model>& data,
         Model* model1,
         Model* model2,
@@ -48,10 +50,12 @@ void attach(
         const double rigidity,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2);
+        const bool includeParent2,
+        const nvl::Affine3d& vActionRotation,
+        const nvl::Translation3d& vActionTranslation);
 
 template<class Model>
-void remove(
+nvl::Index remove(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
@@ -61,7 +65,7 @@ void remove(
         const bool includeParent);
 
 template<class Model>
-void detach(
+nvl::Index detach(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,

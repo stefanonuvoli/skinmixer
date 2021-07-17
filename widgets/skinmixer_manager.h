@@ -70,12 +70,13 @@ private slots:
 
     void on_modelLoadButton_clicked();
     void on_modelRemoveButton_clicked();
-    void on_modelSaveButton_clicked();    
+    void on_modelSaveButton_clicked();
+    void on_modelMoveButton_clicked();
     void on_modelDuplicateButton_clicked();
 
     void on_functionSmoothingSlider_valueChanged(int value);
     void on_rigiditySlider_valueChanged(int value);
-    void on_previewCheckBox_clicked();
+    void on_showZeroCheckBox_clicked();
 
     void on_hardness1Slider_valueChanged(int value);
     void on_hardness2Slider_valueChanged(int value);
@@ -118,8 +119,11 @@ private:
     void prepareModelForReplaceOrAttach();
     void updateView();
 
-    void colorizeByData(
+
+    void updateAllModelDrawers();
+    void updateModelDrawer(
             ModelDrawer* modelDrawer);
+
     void colorizeBySelectValues(
             ModelDrawer* modelDrawer,
             const std::vector<double>& vertexSelectValue,
@@ -162,7 +166,8 @@ private:
     ModelDrawer* vFirstSelectedModelDrawer;
     JointId vFirstSelectedJoint;
     bool vPreparedOperation;
-    nvl::Affine3d vBackupFrame;
+    nvl::Affine3d vActionRotation;
+    nvl::Translation3d vActionTranslation;
 
     Index vBlendingAnimation;
     std::vector<QSlider*> animationWeightSliders;

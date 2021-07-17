@@ -148,65 +148,18 @@ void getClosedGrid(
 }
 
 template<class Model>
-void getClosedGrids(
-        const OperationType operation,
-        const std::vector<const Model*>& models,
-        const std::vector<const std::vector<double>*>& vertexSelectValue,
-        const double& scaleFactor,
-        const double& maxDistance,
-        std::vector<typename Model::Mesh>& inputMeshes,
-        std::vector<typename Model::Mesh>& closedMeshes,
-        std::vector<FloatGridPtr>& closedGrids,
-        std::vector<IntGridPtr>& polygonGrids,
-        std::vector<std::unordered_set<typename Model::Mesh::FaceId>>& facesInField,
-        std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
-        std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
-        std::vector<openvdb::Vec3i>& bbMin,
-        std::vector<openvdb::Vec3i>& bbMax)
-{
-    typedef typename Model::Mesh Mesh;
-    typedef typename Mesh::Point Point;
-    typedef typename Mesh::FaceId FaceId;
-    typedef typename nvl::Index Index;
-
-    inputMeshes.resize(models.size());
-    closedMeshes.resize(models.size());
-    polygonGrids.resize(models.size());
-    closedGrids.resize(models.size());
-    facesInField.resize(models.size());
-    gridBirthVertex.resize(models.size());
-    gridBirthFace.resize(models.size());
-    bbMin.resize(models.size());
-    bbMax.resize(models.size());
-
-    for (Index mId = 0; mId < models.size(); ++mId) {
-        const Model* model = models[mId];
-        const Mesh& mesh = model->mesh;
-
-        facesInField[mId] = findFacesInField(mesh, *vertexSelectValue[mId], scaleFactor);
-
-        //Transfer vertices to keep in the current mesh
-        nvl::meshTransferFaces(mesh, std::vector<FaceId>(facesInField[mId].begin(), facesInField[mId].end()), inputMeshes[mId], gridBirthVertex[mId], gridBirthFace[mId]);
-
-        //Scale mesh
-        const nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
-        nvl::meshApplyTransformation(inputMeshes[mId], scaleTransform);
-
-        getClosedGrid(inputMeshes[mId], maxDistance, closedMeshes[mId], closedGrids[mId], polygonGrids[mId], bbMin[mId], bbMax[mId]);
-    }
-}
-
-template<class Model>
 void getBlendedGrid(
         const SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& cluster,
+        const std::unordered_map<nvl::Index, nvl::Index>& clusterMap,
         const std::vector<nvl::Index>& actions,
-        const std::vector<std::vector<const Model*>>& models,
-        const std::vector<std::vector<const std::vector<double>*>>& vertexSelectValues,
-        const std::vector<std::vector<FloatGridPtr>>& closedGrids,
-        const std::vector<std::vector<IntGridPtr>>& polygonGrids,
-        const std::vector<std::vector<std::vector<typename Model::Mesh::FaceId>>>& gridBirthFace,
-        const std::vector<std::vector<openvdb::Vec3i>>& bbMin,
-        const std::vector<std::vector<openvdb::Vec3i>>& bbMax,
+        const std::vector<const Model*>& models,
+        const std::vector<std::vector<double>>& vertexSelectValues,
+        const std::vector<FloatGridPtr>& closedGrids,
+        const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
+        const std::vector<openvdb::Vec3i>& bbMin,
+        const std::vector<openvdb::Vec3i>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
         FloatGridPtr& blendedGrid,
@@ -220,7 +173,6 @@ void getBlendedGrid(
     typedef typename Mesh::Point Point;
     typedef typename SkinMixerData<Model>::Action Action;
 
-
     //Minimum and maximum coordinates in the scalar fields
     openvdb::Vec3i minCoord(
         std::numeric_limits<int>::max(),
@@ -231,22 +183,19 @@ void getBlendedGrid(
         std::numeric_limits<int>::min(),
         std::numeric_limits<int>::min());
 
-    for (Index aId = 0; aId < actions.size(); ++aId) {
-        for (nvl::Index mId = 0; mId < models.size(); ++mId) {
-            minCoord = openvdb::Vec3i(
-                        std::min(minCoord.x(), bbMin[aId][mId].x()),
-                        std::min(minCoord.y(), bbMin[aId][mId].y()),
-                        std::min(minCoord.z(), bbMin[aId][mId].z()));
+    for (nvl::Index mId = 0; mId < cluster.size(); ++mId) {
+        minCoord = openvdb::Vec3i(
+            std::min(minCoord.x(), bbMin[mId].x()),
+            std::min(minCoord.y(), bbMin[mId].y()),
+            std::min(minCoord.z(), bbMin[mId].z()));
 
-            maxCoord = openvdb::Vec3i(
-                        std::max(maxCoord.x(), bbMax[aId][mId].x()),
-                        std::max(maxCoord.y(), bbMax[aId][mId].y()),
-                        std::max(maxCoord.z(), bbMax[aId][mId].z()));
-        }
+        maxCoord = openvdb::Vec3i(
+            std::max(maxCoord.x(), bbMax[mId].x()),
+            std::max(maxCoord.y(), bbMax[mId].y()),
+            std::max(maxCoord.z(), bbMax[mId].z()));
     }
 
-
-    nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
+    const nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
 
     Mesh blendedMesh;
 
@@ -263,6 +212,8 @@ void getBlendedGrid(
                 GridCoord coord(i, j, k);
                 Point point(i, j, k);
 
+                point = scaleTransform.inverse() * point;
+
                 FloatGrid::ValueType resultValue = maxDistance;
 
                 //Find best action
@@ -270,79 +221,117 @@ void getBlendedGrid(
                 IntGrid::ValueType bestActionId = nvl::maxLimitValue<IntGrid::ValueType>();
 
                 for (Index aId = 0; aId < actions.size(); ++aId) {
-                    const std::vector<const Model*>& actionModels = models[aId];
-                    const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValues[aId];
-                    const std::vector<internal::IntGridPtr>& actionPolygonGrids = polygonGrids[aId];
-                    const std::vector<internal::FloatGridPtr>& actionClosedGrids = closedGrids[aId];
-                    const std::vector<std::vector<FaceId>>& actionGridBirthFace = gridBirthFace[aId];
+                    const Index& actionId = actions[aId];
+                    const Action& action = data.action(actionId);
 
-                    double currentScore = 0.0;
-                    int numValues = 0;
+                    const Index eId1 = action.entry1;
+                    assert(eId1 != nvl::MAX_INDEX);
+                    const Index cId1 = clusterMap.at(eId1);
 
-                    for (Index mId = 0; mId < actionModels.size(); ++mId) {
-                        const Mesh& mesh = actionModels[mId]->mesh;
+                    const internal::IntGridPtr& polygonGrid1 = polygonGrids[cId1];
+                    const internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrid1->getConstAccessor();
+                    const internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
 
-                        internal::FloatGrid::ConstAccessor closedAccessor = actionClosedGrids[mId]->getConstAccessor();
-                        internal::FloatGrid::ValueType closedDistance = closedAccessor.getValue(coord);
+                    double actionScore = nvl::maxLimitValue<double>();
+                    if (pId1 >= 0) {
+                        const internal::FloatGridPtr& closedGrid1 = closedGrids[cId1];
+                        const internal::FloatGrid::ConstAccessor closedAccessor1 = closedGrid1->getConstAccessor();
+                        const internal::FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
 
-                        IntGrid::ConstAccessor polygonAccessor = actionPolygonGrids[mId]->getConstAccessor();
-                        IntGrid::ValueType pId = polygonAccessor.getValue(coord);
+                        const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
 
-                        if (closedDistance > -maxDistance && closedDistance < maxDistance && pId >= 0) {
-                            FaceId originFaceId = actionGridBirthFace[mId][pId];
-                            double selectValue = internal::interpolateFaceSelectValue(mesh, originFaceId, point, *actionVertexSelectValues[mId]);
+                        const Mesh& mesh1 = models[cId1]->mesh;
 
-                            currentScore += 1.0 * (std::fabs(closedDistance) / maxDistance) + (std::fabs(0.5 - selectValue) * 0.0);
-                            numValues++;
+                        FaceId originFaceId1 = fieldBirthFace1[pId1];
+                        double actionSelectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, action.select1.vertex);
+
+                        double score1 = 0.1 * (std::fabs(closedDistance1) / maxDistance) +
+                                        0.9 * (std::fabs(0.5 - actionSelectValue1) * 2.0);
+
+                        const Index eId2 = action.entry2;
+                        if (eId2 != nvl::MAX_INDEX) {
+                            const Index cId2 = clusterMap.at(eId2);
+
+                            const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
+                            const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
+                            const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+
+                            if (pId2 >= 0) {
+                                const internal::FloatGridPtr& closedGrid2 = closedGrids[cId2];
+                                const internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrid2->getConstAccessor();
+                                const internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
+
+                                const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
+                                const Mesh& mesh2 = models[cId2]->mesh;
+
+                                FaceId originFaceId2 = fieldBirthFace2[pId2];
+                                double actionSelectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, action.select2.vertex);
+
+                                double score2 = 0.1 * (std::fabs(closedDistance2) / maxDistance) +
+                                                0.9 * (std::fabs(0.5 - actionSelectValue2) * 2.0);
+
+                                actionScore = (score1 + score2) / 2.0;
+                            }
+                        }
+                        else {
+                            actionScore = score1;
                         }
                     }
 
-                    if (numValues > 0) {
-                        currentScore /= numValues;
-
-                        if (currentScore < bestScore) {
-                            bestScore = currentScore;
-                            bestActionId = static_cast<IntGrid::ValueType>(aId);
-                        }
+                    if (actionScore < nvl::maxLimitValue<double>() && actionScore < bestScore) {
+                        bestScore = actionScore;
+                        bestActionId = static_cast<IntGrid::ValueType>(aId);
                     }
                 }
 
                 if (bestActionId < nvl::maxLimitValue<IntGrid::ValueType>()) {
-                    //Action data
                     const Index& actionId = actions[bestActionId];
                     const Action& action = data.action(actionId);
 
-                    const std::vector<const Model*>& actionModels = models[bestActionId];
-                    const std::vector<const std::vector<double>*>& actionVertexSelectValues = vertexSelectValues[bestActionId];
-                    const std::vector<internal::IntGridPtr>& actionPolygonGrids = polygonGrids[bestActionId];
-                    const std::vector<internal::FloatGridPtr>& actionClosedGrids = closedGrids[bestActionId];
-                    const std::vector<std::vector<FaceId>>& actionGridBirthFace = gridBirthFace[bestActionId];
+                    const Index eId1 = action.entry1;
+                    assert(eId1 != nvl::MAX_INDEX);
+                    const Index cId1 = clusterMap.at(eId1);
 
+                    const internal::FloatGridPtr& closedGrid1 = closedGrids[cId1];
+                    const internal::FloatGrid::ConstAccessor closedAccessor1 = closedGrid1->getConstAccessor();
+                    const internal::FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
 
-                    //Data for first model
-                    const Mesh& mesh1 = actionModels[0]->mesh;
-                    FloatGrid::ConstAccessor closedAccessor1 = actionClosedGrids[0]->getConstAccessor();
-                    IntGrid::ConstAccessor polygonAccessor1 = actionPolygonGrids[0]->getConstAccessor();
-
-                    FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
-                    IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
                     if (action.operation == OperationType::REMOVE || action.operation == OperationType::DETACH) {
                         resultValue = closedDistance1;
                     }
                     else if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-                        const Mesh& mesh2 = actionModels[1]->mesh;
-                        FloatGrid::ConstAccessor closedAccessor2 = actionClosedGrids[1]->getConstAccessor();
-                        IntGrid::ConstAccessor polygonAccessor2 = actionPolygonGrids[1]->getConstAccessor();
+                        const internal::IntGridPtr& polygonGrid1 = polygonGrids[cId1];
+                        const internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrid1->getConstAccessor();
+                        const internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
 
-                        FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
-                        IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                        const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
+                        const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
+
+                        const Mesh& mesh1 = models[cId1]->mesh;
+
+                        const Index eId2 = action.entry2;
+                        assert(eId2 != nvl::MAX_INDEX);
+                        const Index cId2 = clusterMap.at(eId2);
+
+                        const internal::FloatGridPtr& closedGrid2 = closedGrids[cId2];
+                        const internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrid2->getConstAccessor();
+                        const internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
+
+                        const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
+                        const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
+                        const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+
+                        const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
+                        const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
+
+                        const Mesh& mesh2 = models[cId2]->mesh;
 
                         if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
-                            FaceId originFaceId1 = actionGridBirthFace[0][pId1];
-                            double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, *actionVertexSelectValues[0]);
+                            FaceId originFaceId1 = fieldBirthFace1[pId1];
+                            double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, vertexSelectValues1);
 
-                            FaceId originFaceId2 = actionGridBirthFace[1][pId2];
-                            double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, *actionVertexSelectValues[1]);
+                            FaceId originFaceId2 = fieldBirthFace2[pId2];
+                            double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, vertexSelectValues2);
 
                             //Replace operation blending
                             if (action.operation == OperationType::REPLACE) {
@@ -367,13 +356,6 @@ void getBlendedGrid(
 
                             //Attach operation blending
                             else if (action.operation == OperationType::ATTACH) {
-//                                if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < 0.5) {
-//                                    resultValue = closedDistance1;
-//                                }
-//                                else {
-//                                    resultValue = nvl::min(closedDistance1, closedDistance2);
-//                                }
-
                                 resultValue = nvl::min(closedDistance1, closedDistance2);
                             }
                         }
@@ -413,7 +395,7 @@ std::unordered_set<typename Mesh::FaceId> findFacesInField(
     std::vector<std::vector<FaceId>> meshCC = nvl::meshConnectedComponents(mesh, meshFFAdj);
 
     Scalar maxExpansionDistance = EXPANSION_VOXELS / scaleFactor;
-    if (maxExpansionDistance == 0) {
+    if (nvl::epsEqual(maxExpansionDistance, 0.0)) {
         for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
             if (mesh.isFaceDeleted(fId)) {
                 continue;
@@ -423,6 +405,20 @@ std::unordered_set<typename Mesh::FaceId> findFacesInField(
 
             if (selectValue > 0.0 && !nvl::epsEqual(selectValue, 0.0) && selectValue < 1.0 && !nvl::epsEqual(selectValue, 1.0)) {
                 facesInField.insert(fId);
+            }
+        }
+
+        if (facesInField.empty()) {
+            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+                if (mesh.isFaceDeleted(fId)) {
+                    continue;
+                }
+
+                double selectValue = internal::averageFaceSelectValue(mesh, fId, vertexSelectValues);
+
+                if (selectValue > 0.0 && !nvl::epsEqual(selectValue, 0.0)) {
+                    facesInField.insert(fId);
+                }
             }
         }
     }
@@ -529,7 +525,7 @@ std::unordered_set<typename Mesh::FaceId> findFacesInField(
                         if (facesInField.find(adj) == facesInField.end()) {
 
                             double selectValue = internal::averageFaceSelectValue(mesh, adj, vertexSelectValues);
-                            if (selectValue > 0.0) {
+                            if (selectValue > 0.0 && !nvl::epsEqual(selectValue, 0.0)) {
                                 const Point barycenter = nvl::meshFaceBarycenter(mesh, adj);
 
                                 for (const Point& point : points) {

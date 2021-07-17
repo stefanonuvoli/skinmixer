@@ -9,6 +9,7 @@
 #include "skinmixer/skinmixer_operation.h"
 
 #include <nvl/math/affine.h>
+#include <nvl/math/dual_quaternion.h>
 
 namespace skinmixer {
 
@@ -64,12 +65,12 @@ public:
 
         BirthInfo birth;
 
-        Transformation frame;
-
         std::vector<Index> relatedActions;
 
         std::vector<Index> blendingAnimations;
         std::vector<std::vector<double>> blendingAnimationWeights;
+
+        std::vector<nvl::DualQuaterniond> deformation;
 
         void clear();
     };    
@@ -85,6 +86,9 @@ public:
         SelectInfo select2;
         double hardness1;
         double hardness2;
+
+        nvl::Affine3d rotation2;
+        nvl::Translation3d translation2;
 
         void clear();
     };
@@ -113,6 +117,9 @@ public:
 
     typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Entry& entry);
     typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Index& eId);
+
+    void computeDeformation(const Index& entryId);
+    void computeDeformation(Entry& entry);
 
     void clear();
     void clearActions();

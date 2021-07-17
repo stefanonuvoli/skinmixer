@@ -56,33 +56,18 @@ void getClosedGrid(
         openvdb::Vec3i& bbMax);
 
 template<class Model>
-void getClosedGrids(
-        const OperationType operation,
-        const std::vector<const Model*>& models,
-        const std::vector<const std::vector<double>*>& vertexSelectValue,
-        const double& scaleFactor,
-        const double& maxDistance,
-        std::vector<typename Model::Mesh>& inputMeshes,
-        std::vector<typename Model::Mesh>& closedMeshes,
-        std::vector<FloatGridPtr>& closedGrids,
-        std::vector<IntGridPtr>& polygonGrids,
-        std::vector<std::unordered_set<typename Model::Mesh::FaceId>>& facesInField,
-        std::vector<std::vector<typename Model::Mesh::VertexId>>& gridBirthVertex,
-        std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
-        std::vector<openvdb::Vec3i>& bbMin,
-        std::vector<openvdb::Vec3i>& bbMax);
-
-template<class Model>
 void getBlendedGrid(
         const SkinMixerData<Model>& data,
+        const std::vector<nvl::Index>& cluster,
+        const std::unordered_map<nvl::Index, nvl::Index>& clusterMap,
         const std::vector<nvl::Index>& actions,
-        const std::vector<std::vector<const Model*>>& models,
-        const std::vector<std::vector<const std::vector<double>*>>& vertexSelectValue,
-        const std::vector<std::vector<FloatGridPtr>>& closedGrids,
-        const std::vector<std::vector<IntGridPtr>>& polygonGrids,
-        const std::vector<std::vector<std::vector<typename Model::Mesh::FaceId>>>& gridBirthFace,
-        const std::vector<std::vector<openvdb::Vec3i>>& bbMin,
-        const std::vector<std::vector<openvdb::Vec3i>>& bbMax,
+        const std::vector<const Model*>& models,
+        const std::vector<std::vector<double>>& vertexSelectValues,
+        const std::vector<FloatGridPtr>& closedGrids,
+        const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
+        const std::vector<openvdb::Vec3i>& bbMin,
+        const std::vector<openvdb::Vec3i>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
         FloatGridPtr& blendedGrid,
@@ -102,7 +87,7 @@ typename Model::Mesh getRemoveDetachMesh(
         const double& maxDistance,
         const std::vector<FloatGridPtr>& closedGrids,
         const std::vector<IntGridPtr>& polygonGrids,
-        const std::vector<std::vector<typename Model::Mesh::FaceId>>& gridBirthFace,
+        const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
         const openvdb::Vec3i& minCoord,
         const openvdb::Vec3i& maxCoord);
 

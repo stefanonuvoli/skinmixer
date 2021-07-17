@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>382</width>
-    <height>775</height>
+    <height>787</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,41 +20,10 @@
       <string>Models</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="2">
-       <widget class="QPushButton" name="modelRemoveButton">
+      <item row="4" column="3">
+       <widget class="QPushButton" name="modelDuplicateButton">
         <property name="text">
-         <string>Remove</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="normalsLabel">
-        <property name="text">
-         <string>Normals:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="modelSaveButton">
-        <property name="text">
-         <string>Save</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="3">
-       <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
-        <property name="text">
-         <string>Faces</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="modelLoadButton">
-        <property name="text">
-         <string>Load</string>
+         <string>Duplicate</string>
         </property>
        </widget>
       </item>
@@ -68,20 +37,58 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="3">
-       <widget class="QPushButton" name="modelDuplicateButton">
+      <item row="0" column="2">
+       <widget class="QPushButton" name="modelRemoveButton">
         <property name="text">
-         <string>Duplicate</string>
+         <string>Remove</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1" colspan="2">
-       <widget class="QCheckBox" name="scaleOn1AndCenterCheckBox">
+      <item row="0" column="3">
+       <widget class="QPushButton" name="modelSaveButton">
         <property name="text">
-         <string>Scale on 1 and center</string>
+         <string>Save</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="modelLoadButton">
+        <property name="text">
+         <string>Load</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
+        <property name="text">
+         <string>Faces</string>
         </property>
         <property name="checked">
          <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="normalsLabel">
+        <property name="text">
+         <string>Normals:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QCheckBox" name="scaleOn1AndCenterCheckBox">
+        <property name="text">
+         <string>Scale/centre</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="2">
+       <widget class="QPushButton" name="modelMoveButton">
+        <property name="text">
+         <string>Move</string>
         </property>
        </widget>
       </item>
@@ -202,13 +209,6 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
-           <widget class="QCheckBox" name="previewCheckBox">
-            <property name="text">
-             <string>Preview</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </widget>
         <widget class="QWidget" name="hardnessParametersPage">
@@ -216,6 +216,50 @@
           <string>Select</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
+          <item row="2" column="0">
+           <widget class="QLabel" name="hardness1Label">
+            <property name="text">
+             <string>Hardness 1</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="hardness2Label">
+            <property name="text">
+             <string>Hardness 2</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QSlider" name="hardness2Slider">
+            <property name="minimum">
+             <number>-99</number>
+            </property>
+            <property name="maximum">
+             <number>99</number>
+            </property>
+            <property name="value">
+             <number>1</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="3">
+           <widget class="QCheckBox" name="parent2CheckBox">
+            <property name="text">
+             <string>Parent</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="3">
+           <widget class="QCheckBox" name="parent1CheckBox">
+            <property name="text">
+             <string>Parent</string>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="2">
            <widget class="QLabel" name="hardness1ValueLabel">
             <property name="text">
@@ -239,36 +283,6 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="0">
-           <widget class="QLabel" name="hardness2Label">
-            <property name="text">
-             <string>Hardness 2</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="hardness1Label">
-            <property name="text">
-             <string>Hardness 1</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="1">
-           <widget class="QSlider" name="hardness2Slider">
-            <property name="minimum">
-             <number>-99</number>
-            </property>
-            <property name="maximum">
-             <number>99</number>
-            </property>
-            <property name="value">
-             <number>1</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
           <item row="6" column="2">
            <widget class="QLabel" name="hardness2ValueLabel">
             <property name="text">
@@ -276,17 +290,10 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="3">
-           <widget class="QCheckBox" name="parent1CheckBox">
+          <item row="7" column="0" colspan="2">
+           <widget class="QCheckBox" name="showZeroCheckBox">
             <property name="text">
-             <string>Parent</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="3">
-           <widget class="QCheckBox" name="parent2CheckBox">
-            <property name="text">
-             <string>Parent</string>
+             <string>Show zero select values </string>
             </property>
            </widget>
           </item>
