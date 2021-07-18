@@ -10,9 +10,6 @@
   #undef foreach
 #endif
 #include <openvdb/openvdb.h>
-#include <openvdb/tools/MeshToVolume.h>
-#include <openvdb/tools/VolumeToMesh.h>
-#include <openvdb/tools/Interpolation.h>
 
 #include <nvl/math/scaling.h>
 

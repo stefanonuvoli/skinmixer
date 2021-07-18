@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     SkinMixerManager skinMixerManager(&canvas, &drawableListWidget, &skeletonWidget, &modelAnimationWidget);
     viewer.addToLeftDock(&skinMixerManager);
 
-    //Add a model
+    //Add models
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Timmy/timmy.rig");
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Crypto/crypto.rig");
 

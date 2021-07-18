@@ -8,15 +8,19 @@
 #include <nvl/models/mesh_transformations.h>
 #include <nvl/models/mesh_triangulation.h>
 #include <nvl/models/mesh_geometric_information.h>
+#include <nvl/models/mesh_eigen_convert.h>
 
 #include <nvl/math/barycentric_interpolation.h>
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/comparisons.h>
 
+#include <openvdb/tools/MeshToVolume.h>
+#include <openvdb/tools/VolumeToMesh.h>
+#include <openvdb/tools/Interpolation.h>
+#include <openvdb/tools/Composite.h>
+
 #include <igl/fast_winding_number.h>
 #include <igl/winding_number.h>
-
-#include <nvl/models/mesh_eigen_convert.h>
 
 #define SELECT_VALUE_MIN_THRESHOLD 0.01
 #define SELECT_VALUE_MAX_THRESHOLD 0.99
@@ -46,8 +50,6 @@ void getClosedGrid(
     TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(1.0);
     FloatGridPtr signedGrid = openvdb::tools::meshToVolume<FloatGrid>(
                 adapter, *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrid.get());
-
-    FloatGrid::Accessor signedAccessor = signedGrid->getAccessor();
 
     //Eigen mesh conversion
     Mesh triangulatedMesh = inputMesh;
@@ -95,45 +97,46 @@ void getClosedGrid(
 
     //Fill fast winding number structure
     unsigned int currentVoxel = 0;
+
     for (int i = bbMin.x(); i < bbMax.x(); i++) {
         for (int j = bbMin.y(); j < bbMax.y(); j++) {
             for (int k = bbMin.z(); k < bbMax.z(); k++) {
                 GridCoord coord(i,j,k);
-                openvdb::Vec3d p = signedGrid->indexToWorld(coord);
+                openvdb::Vec3d openvdbPoint = signedGrid->indexToWorld(coord);
 
-                Q(currentVoxel, 0) = p.x();
-                Q(currentVoxel, 1) = p.y();
-                Q(currentVoxel, 2) = p.z();
+                Q(currentVoxel, 0) = openvdbPoint.x();
+                Q(currentVoxel, 1) = openvdbPoint.y();
+                Q(currentVoxel, 2) = openvdbPoint.z();
 
                 currentVoxel++;
             }
         }
     }
-
     //Calculate fast winding number
     igl::fast_winding_number(fwn, 2, Q.cast<float>().eval(), W);
 
     //Set the sign
     currentVoxel = 0;
+
+    FloatGrid::Accessor signedAccessor = signedGrid->getAccessor();
     for (int i = bbMin.x(); i < bbMax.x(); i++) {
         for (int j = bbMin.y(); j < bbMax.y(); j++) {
             for (int k = bbMin.z(); k < bbMax.z(); k++) {
                 GridCoord coord(i,j,k);
 
                 FloatGrid::ValueType dist = signedAccessor.getValue(coord);
-                //FloatGrid::ValueType dist = openvdb::tools::QuadraticSampler::sample(accessor, p);
+                assert(dist >= 0);
 
                 int fwn = static_cast<int>(std::round(W(currentVoxel)));
-                int sign = (fwn % 2 == 0 ? 1 : -1);
 
-                assert(dist >= 0);
-                signedAccessor.setValue(coord, sign * dist);
+                if (fwn % 2 != 0) {
+                    signedAccessor.setValue(coord, -dist);
+                }
 
                 currentVoxel++;
             }
         }
     }
-
 
     //Create openvdb mesh
     closedMesh = convertGridToMesh<Mesh>(signedGrid, true);
@@ -199,6 +202,7 @@ void getBlendedGrid(
 
     Mesh blendedMesh;
 
+
     blendedGrid = FloatGrid::create(maxDistance);
     FloatGrid::Accessor blendedAccessor = blendedGrid->getAccessor();
 
@@ -210,7 +214,8 @@ void getBlendedGrid(
         for (int j = minCoord.y(); j < maxCoord.y(); j++) {
             for (int k = minCoord.z(); k < maxCoord.z(); k++) {
                 GridCoord coord(i, j, k);
-                Point point(i, j, k);
+                openvdb::Vec3d openvdbPoint = blendedGrid->indexToWorld(coord);
+                Point point(openvdbPoint.x(), openvdbPoint.y(), openvdbPoint.z());
 
                 point = scaleTransform.inverse() * point;
 
@@ -246,7 +251,7 @@ void getBlendedGrid(
                         double actionSelectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, action.select1.vertex);
 
                         double score1 = 0.1 * (std::fabs(closedDistance1) / maxDistance) +
-                                        0.9 * (std::fabs(0.5 - actionSelectValue1) * 2.0);
+                                0.9 * (std::fabs(0.5 - actionSelectValue1) * 2.0);
 
                         const Index eId2 = action.entry2;
                         if (eId2 != nvl::MAX_INDEX) {
@@ -268,7 +273,7 @@ void getBlendedGrid(
                                 double actionSelectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, action.select2.vertex);
 
                                 double score2 = 0.1 * (std::fabs(closedDistance2) / maxDistance) +
-                                                0.9 * (std::fabs(0.5 - actionSelectValue2) * 2.0);
+                                        0.9 * (std::fabs(0.5 - actionSelectValue2) * 2.0);
 
                                 actionScore = (score1 + score2) / 2.0;
                             }
@@ -349,8 +354,8 @@ void getBlendedGrid(
                                 }
                                 else {
                                     resultValue =
-                                        (selectValue1 * closedDistance1 + selectValue2 * closedDistance2) /
-                                        (selectValue1 + selectValue2);
+                                            (selectValue1 * closedDistance1 + selectValue2 * closedDistance2) /
+                                            (selectValue1 + selectValue2);
                                 }
                             }
 

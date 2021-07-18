@@ -16,22 +16,22 @@ namespace skinmixer {
 
 namespace internal {
 
-template<class Model>
-std::vector<double> computeJointWeights(
-        const typename SkinMixerData<Model>::Entry& entry);
+//template<class Model>
+//std::vector<double> computeJointWeights(
+//        const typename SkinMixerData<Model>::Entry& entry);
 
-template<class Skeleton>
-std::vector<double> computePropagatedJointWeights(
-        const Skeleton& skeleton,
-        const std::vector<typename Skeleton::JointId>& seedJoints,
-        std::vector<double>& weights);
+//template<class Skeleton>
+//std::vector<double> computePropagatedJointWeights(
+//        const Skeleton& skeleton,
+//        const std::vector<typename Skeleton::JointId>& seedJoints,
+//        const std::vector<double>& weights);
 
-template<class Skeleton>
-void propagateJointWeights(
-        const Skeleton& skeleton,
-        const typename Skeleton::JointId& jointId,
-        std::vector<double>& weights,
-        std::vector<bool>& computedWeights);
+//template<class Skeleton>
+//void propagateJointWeights(
+//        const Skeleton& skeleton,
+//        const typename Skeleton::JointId& jointId,
+//        std::vector<double>& weights,
+//        std::vector<bool>& computedWeights);
 
 template<class T>
 double transformationSimilarityScore(
@@ -148,8 +148,6 @@ void blendAnimations(
     std::vector<std::vector<Frame>> fixedFrames(cluster.size());
     std::vector<std::vector<std::vector<Frame>>> candidateFrames(cluster.size());
     std::vector<std::vector<Transformation>> restPoses(cluster.size());
-
-    std::vector<double> scoreWeights = internal::computeJointWeights<Model>(entry);
 
     std::vector<double> times;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -281,7 +279,7 @@ void blendAnimations(
                                                 const Transformation& transformation2 = frame2.transformation(jointInfo.jId) * restPoses[otherCId][jointInfo.jId].inverse();
 
                                                 double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
-                                                keyframeScore += similarity * animationWeights[jId][cId] * scoreWeights[jId];
+                                                keyframeScore += similarity * animationWeights[jId][cId] * jointInfo.confidence;
                                                 numKeyframeScores++;
                                             }
                                         }
@@ -745,98 +743,98 @@ void blendAnimations(
 
 namespace internal {
 
-template<class Model>
-std::vector<double> computeJointWeights(
-        const typename SkinMixerData<Model>::Entry& entry)
-{
-    typedef typename nvl::Index Index;
+//template<class Model>
+//std::vector<double> computeJointWeights(
+//        const typename SkinMixerData<Model>::Entry& entry)
+//{
+//    typedef typename nvl::Index Index;
 
-    typedef typename SkinMixerData<Model>::Entry Entry;
-    typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
+//    typedef typename SkinMixerData<Model>::Entry Entry;
+//    typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
 
-    typedef typename Model::Skeleton Skeleton;
-    typedef typename Skeleton::JointId JointId;
+//    typedef typename Model::Skeleton Skeleton;
+//    typedef typename Skeleton::JointId JointId;
 
-    std::vector<double> weights;
+//    std::vector<double> weights;
 
-    Model* targetModel = entry.model;
-    Skeleton& targetSkeleton = targetModel->skeleton;
+//    Model* targetModel = entry.model;
+//    Skeleton& targetSkeleton = targetModel->skeleton;
 
-    std::vector<JointId> seedJoints;
-    weights.resize(targetSkeleton.jointNumber());
-    for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-        const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+//    std::vector<JointId> seedJoints;
+//    weights.resize(targetSkeleton.jointNumber(), 0.0);
+//    for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+//        const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
-        weights[jId] = jointInfos[jId].confidence;
+//        bool isSeed = false;
+//        for (JointInfo jointInfo : jointInfos) {
+//            weights[jId] = std::max(weights[jId], jointInfo.confidence);
 
-        bool isSeed = false;
-        for (JointInfo jointInfo : jointInfos) {
-            if (jointInfo.confidence == 1.0) {
-                isSeed = true;
-            }
-        }
-        if (isSeed) {
-            seedJoints.push_back(jId);
-        }
-    }
+//            if (jointInfo.confidence == 1.0) {
+//                isSeed = true;
+//            }
+//        }
+//        if (isSeed) {
+//            seedJoints.push_back(jId);
+//        }
+//    }
 
-    weights = computePropagatedJointWeights(targetModel->skeleton, seedJoints, weights);
+//    weights = computePropagatedJointWeights(targetModel->skeleton, seedJoints, weights);
 
-    return weights;
-}
+//    return weights;
+//}
 
 
-template<class Skeleton>
-std::vector<double> computePropagatedJointWeights(
-        const Skeleton& skeleton,
-        const std::vector<typename Skeleton::JointId>& seedJoints,
-        std::vector<double>& weights)
-{
-    typedef typename Skeleton::JointId JointId;
+//template<class Skeleton>
+//std::vector<double> computePropagatedJointWeights(
+//        const Skeleton& skeleton,
+//        const std::vector<typename Skeleton::JointId>& seedJoints,
+//        const std::vector<double>& weights)
+//{
+//    typedef typename Skeleton::JointId JointId;
 
-    std::vector<double> propagatedWeights(skeleton.jointNumber(), 0.0);
+//    std::vector<double> propagatedWeights(skeleton.jointNumber(), 0.0);
 
-    for (JointId seedJoint : seedJoints) {
-        std::vector<double> seedWeights = weights;
-        std::vector<bool> computedWeights(skeleton.jointNumber(), false);
+//    for (JointId seedJoint : seedJoints) {
+//        std::vector<double> seedWeights = weights;
+//        std::vector<bool> computedWeights(skeleton.jointNumber(), false);
 
-        propagateJointWeights(skeleton, seedJoint, seedWeights, computedWeights);
+//        propagateJointWeights(skeleton, seedJoint, seedWeights, computedWeights);
 
-        for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
-            propagatedWeights[jId] = std::max(propagatedWeights[jId], seedWeights[jId]);
-        }
-    }
+//        for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
+//            propagatedWeights[jId] = std::max(propagatedWeights[jId], seedWeights[jId]);
+//        }
+//    }
 
-    return propagatedWeights;
-}
+//    return propagatedWeights;
+//}
 
-template<class Skeleton>
-void propagateJointWeights(
-        const Skeleton& skeleton,
-        const typename Skeleton::JointId& jointId,
-        std::vector<double>& weights,
-        std::vector<bool>& computedWeights)
-{
-    typedef typename Skeleton::JointId JointId;
+//template<class Skeleton>
+//void propagateJointWeights(
+//        const Skeleton& skeleton,
+//        const typename Skeleton::JointId& jointId,
+//        std::vector<double>& weights,
+//        std::vector<bool>& computedWeights)
+//{
+//    typedef typename Skeleton::JointId JointId;
 
-    if (computedWeights[jointId])
-        return;
+//    if (computedWeights[jointId])
+//        return;
 
-    computedWeights[jointId] = true;
+//    computedWeights[jointId] = true;
 
-    if (!skeleton.isRoot(jointId)) {
-        const JointId& parentId = skeleton.parentId(jointId);
+//    if (!skeleton.isRoot(jointId)) {
+//        const JointId& parentId = skeleton.parentId(jointId);
 
-        if (!computedWeights[jointId]) {
-            weights[parentId] = weights[jointId] * weights[parentId];
-            propagateJointWeights(skeleton, parentId, weights, computedWeights);
-        }
-    }
-    for (const JointId& childId : skeleton.children(jointId)) {
-        weights[childId] = weights[jointId] * weights[childId];
-        propagateJointWeights(skeleton, childId, weights, computedWeights);
-    }
-}
+//        if (!computedWeights[jointId]) {
+//            weights[parentId] = weights[jointId] * weights[parentId];
+//            propagateJointWeights(skeleton, parentId, weights, computedWeights);
+//        }
+//    }
+//    for (const JointId& childId : skeleton.children(jointId)) {
+//        weights[childId] = weights[jointId] * weights[childId];
+//        propagateJointWeights(skeleton, childId, weights, computedWeights);
+//    }
+//}
 
 template<class T>
 double transformationSimilarityScore(
