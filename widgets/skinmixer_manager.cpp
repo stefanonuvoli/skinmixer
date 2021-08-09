@@ -95,6 +95,9 @@ nvl::Index SkinMixerManager::loadModel(Model* model)
     vDrawerToModelMap.insert(std::make_pair(modelDrawer, model));
     vModelToDrawerMap.insert(std::make_pair(model, modelDrawer));
 
+    //Remove rotations in rest pose of the model
+    modelRemoveRotationInRestPose(*model);
+
     vSkinMixerData.addEntry(model);
 
     return vCanvas->addDrawable(modelDrawer, model->name());
@@ -396,7 +399,7 @@ void SkinMixerManager::mix()
             Model* model = vSkinMixerData.entry(bId).model;
             typename std::unordered_map<Model*, ModelDrawer*>::iterator it = vModelToDrawerMap.find(model);
             if (it != vModelToDrawerMap.end()) {
-                removeModelDrawer(it->second);
+                it->second->setVisible(false);
             }
         }
 
@@ -486,11 +489,9 @@ void SkinMixerManager::abortOperation()
 
     if (vSelectedModelDrawer != nullptr) {
         updateModelDrawer(vSelectedModelDrawer);
-        vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
     }
     if (vFirstSelectedModelDrawer != nullptr) {
         updateModelDrawer(vFirstSelectedModelDrawer);
-        vFirstSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
     }
 
     vFirstSelectedModelDrawer = nullptr;
@@ -591,6 +592,7 @@ void SkinMixerManager::prepareModelForReplaceOrAttach()
             vPreparedOperation = true;
 
             vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
+            vFirstSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
         }
         else {
             abortOperation();
@@ -1164,19 +1166,29 @@ void SkinMixerManager::on_modelSaveButton_clicked()
 
 void SkinMixerManager::on_modelMoveButton_clicked()
 {
-    Model* modelPtr = vSelectedModelDrawer->model();
-    SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
+    const std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
+    for (Index selected : selectedDrawables) {
+        ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(vCanvas->drawable(selected));
+        if (modelDrawer != nullptr) {
+            Model* modelPtr = modelDrawer->model();
+            SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-    if (entry.relatedActions.empty()) {
-        nvl::modelApplyTransformation(*entry.model, vSelectedModelDrawer->frame());
-        vSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
-        vSelectedModelDrawer->update();
+            if (entry.relatedActions.empty()) {
+                nvl::modelApplyTransformation(*modelPtr, modelDrawer->frame());
 
-        vCanvas->updateGL();
+                modelPtr->mesh.computeFaceNormals();
+                modelPtr->mesh.computeVertexNormals();
+
+                modelDrawer->setFrame(nvl::Affine3d::Identity());
+                modelDrawer->update();
+            }
+            else {
+                QMessageBox::warning(this, tr("Error"), tr("Error: impossible to move model if an operation has been taken!"));
+            }
+        }
     }
-    else {
-        QMessageBox::warning(this, tr("Error"), tr("Error: impossible to move model if an operation has been taken!"));
-    }
+
+    vCanvas->updateGL();
 }
 
 void SkinMixerManager::on_modelDuplicateButton_clicked()

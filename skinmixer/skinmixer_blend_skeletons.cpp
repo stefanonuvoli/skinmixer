@@ -48,6 +48,8 @@ void blendSkeletons(
         std::vector<std::set<JointId>> nonKeptJoints(data.entryNumber());
 
         std::vector<std::unordered_set<JointId>> matchedJoint(data.entryNumber());
+        std::vector<std::unordered_set<JointId>> seedJoints(data.entryNumber());
+        std::vector<std::vector<unsigned int>> mergeDistance(data.entryNumber());
 
         for (const nvl::Index& birthEId : birthEntries) {
             const Entry& currentEntry = data.entry(birthEId);
@@ -71,17 +73,30 @@ void blendSkeletons(
             for (const Index& aId : currentEntry.relatedActions) {
                 const Action& action = data.action(aId);
 
-                if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-                    if (action.entry1 == birthEId) {
+                if (action.entry1 == birthEId) {
+                    if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
                         jointToBeMerged[action.entry1].insert(action.joint1);
                     }
-                    else if (action.entry2 == birthEId) {
+                    seedJoints[action.entry1].insert(action.joint1);
+                }
+                else if (action.entry2 == birthEId) {
+                    if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
                         jointToBeMerged[action.entry2].insert(action.joint2);
                     }
+                    seedJoints[action.entry2].insert(action.joint2);
                 }
             }
 
             jointMap[birthEId] = std::vector<JointId>(currentSkeleton.jointNumber(), nvl::MAX_INDEX);
+        }
+
+        for (const nvl::Index& birthEId : birthEntries) {
+            const Entry& currentEntry = data.entry(birthEId);
+
+            Model* currentModel = currentEntry.model;
+            Skeleton& currentSkeleton = currentModel->skeleton;
+
+            mergeDistance[birthEId] = nvl::skeletonJointDistance(currentSkeleton, std::vector<JointId>(seedJoints[birthEId].begin(), seedJoints[birthEId].end()));
         }
 
 
@@ -128,14 +143,11 @@ void blendSkeletons(
                         JointInfo jInfo;
                         jInfo.eId = birthEId;
                         jInfo.jId = jId;
-                        jInfo.confidence = 1.0;
+                        jInfo.confidence = 1.0;                        
+                        jInfo.mergeDistance = mergeDistance[birthEId][jInfo.jId];
                         entry.birth.joint[newJId].push_back(jInfo);
 
                         Transformation transformation = joint.restPose();
-                        //                    std::vector<Transformation> transformations;
-                        //                    std::vector<double> transformationWeights;
-                        //                    transformations.push_back(joint.restPose());
-                        //                    transformationWeights.push_back(1.0);
 
                         for (const Index& aId : currentEntry.relatedActions) {
                             const Action& action = data.action(aId);
@@ -157,10 +169,10 @@ void blendSkeletons(
 
                                 if (actionJInfo.jId != nvl::MAX_INDEX) {
                                     jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
+
+                                    actionJInfo.mergeDistance = mergeDistance[birthEId][actionJInfo.jId];
                                     entry.birth.joint[newJId].push_back(actionJInfo);
 
-                                    //                                transformations.push_back(data.entry(actionJInfo.eId).model->skeleton.joint(actionJInfo.jId).restPose());
-                                    //                                transformationWeights.push_back(1.0);
                                     transformation = data.entry(action.entry1).model->skeleton.joint(action.joint1).restPose();
 
                                     remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
@@ -168,11 +180,6 @@ void blendSkeletons(
                                 }
                             }
                         }
-
-                        //                    if (transformations.size() > 1) {
-                        //                        nvl::normalize(transformationWeights);
-                        //                        targetSkeleton.joint(newJId).setRestPose(nvl::interpolateAffine(transformations, transformationWeights));
-                        //                    }
 
                         targetSkeleton.joint(newJId).setRestPose(transformation);
 
@@ -322,6 +329,7 @@ void blendSkeletons(
                 jInfo.eId = birthEId;
                 jInfo.jId = bestCurrentJoint;
                 jInfo.confidence = std::min(0.9999, bestScore);
+                jInfo.mergeDistance = mergeDistance[birthEId][jInfo.jId];
                 entry.birth.joint[bestTargetJoint].push_back(jInfo);
 
                 remainingJoints.erase(bestCurrentJoint);

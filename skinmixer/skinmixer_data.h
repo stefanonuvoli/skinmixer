@@ -49,6 +49,8 @@ public:
             JointId jId;
 
             double confidence;
+
+            double mergeDistance;
         };
 
         std::vector<Index> entries;
