@@ -103,6 +103,9 @@ private slots:
     void on_updateValuesSelectButton_clicked();
     void on_updateValuesBirthButton_clicked();
 
+    void on_updateJointsResetButton_clicked();
+    void on_updateJointsBirthButton_clicked();
+
 private:
 
     ModelDrawer* getSelectedModelDrawer();
@@ -110,6 +113,7 @@ private:
 
     void mix();
     void blendAnimations();
+    void abortAnimations();
 //    nvl::Index findBestAnimation(const nvl::Index& index);
 
     void applyOperation();
@@ -136,6 +140,8 @@ private:
     void updateValuesSkinningWeights();
     void updateValuesSelect();
     void updateValuesBirth();
+    void updateJointsReset();
+    void updateJointsBirth();
 
     void initialize();
     void connectSignals();
@@ -169,7 +175,7 @@ private:
     nvl::Affine3d vActionRotation;
     nvl::Translation3d vActionTranslation;
 
-    Index vBlendingAnimation;
+    std::vector<std::pair<Index, Index>> vBlendingAnimations;
     std::vector<QSlider*> animationWeightSliders;
     std::vector<QLabel*> animationWeightLabels;
 

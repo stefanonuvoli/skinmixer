@@ -49,13 +49,12 @@ public:
             JointId jId;
 
             double confidence;
-
-            double mergeDistance;
         };
 
         std::vector<Index> entries;
         std::vector<std::vector<VertexInfo>> vertex;
         std::vector<std::vector<JointInfo>> joint;
+        std::vector<JointId> mergeJoints;
 
         void clear();
     };
@@ -73,6 +72,7 @@ public:
         std::vector<std::vector<double>> blendingAnimationWeights;
 
         std::vector<nvl::DualQuaterniond> deformation;
+
 
         void clear();
     };    

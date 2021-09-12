@@ -1528,48 +1528,27 @@ void computeResult(
         }
     }
 
+
 #ifdef SAVE_MESHES_FOR_DEBUG
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/result_5_recompacted.obj", vcg::tri::io::Mask::IOM_NONE);
 #endif
 
-    vcg::tri::UpdateNormal<TriangleMeshType>::PerFaceNormalized(targetBoolean);
-    vcg::tri::UpdateNormal<TriangleMeshType>::PerVertexNormalized(targetBoolean);
-    vcg::tri::UpdateBounding<TriangleMeshType>::Box(targetBoolean);
+    if (!targetBoolean.face.empty()) {
+        vcg::tri::UpdateNormal<TriangleMeshType>::PerFaceNormalized(targetBoolean);
+        vcg::tri::UpdateNormal<TriangleMeshType>::PerVertexNormalized(targetBoolean);
+        vcg::tri::UpdateBounding<TriangleMeshType>::Box(targetBoolean);
 
-    if (result.face.size() == 0)
-        return;
+        if (result.face.size() == 0)
+            return;
 
-    vcg::tri::UpdateSelection<PolyMeshType>::VertexClear(result);
-    vcg::tri::UpdateSelection<PolyMeshType>::FaceClear(result);
-    for (const size_t& vId : smoothingVertices) {
-        result.vert[vId].SetS();
-    }
+        vcg::tri::UpdateSelection<PolyMeshType>::VertexClear(result);
+        vcg::tri::UpdateSelection<PolyMeshType>::FaceClear(result);
+        for (const size_t& vId : smoothingVertices) {
+            result.vert[vId].SetS();
+        }
 
-    vcg::GridStaticPtr<typename TriangleMeshType::FaceType,typename TriangleMeshType::FaceType::ScalarType> Grid;
-    Grid.Set(targetBoolean.face.begin(),targetBoolean.face.end());
-
-    //Reproject
-    vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
-    typename TriangleMeshType::ScalarType maxD=result.bbox.Diag();
-    typename TriangleMeshType::ScalarType minD=0;
-
-    for (const size_t& vId : smoothingVertices) {
-        typename TriangleMeshType::CoordType closestPT;
-        typename TriangleMeshType::FaceType *f=
-                vcg::tri::GetClosestFaceBase<TriangleMeshType>(
-                    targetBoolean,
-                    Grid,
-                    result.vert[vId].P(),
-                    maxD,minD,
-                    closestPT);
-
-        result.vert[vId].P()=closestPT;
-    }
-
-    for (int it = 0; it < resultSmoothingIterations; it++) {
-        typename PolyMeshType::ScalarType maxDistance = internal::averageEdgeLength(result) * resultSmoothingNRing;
-
-        internal::LaplacianGeodesicSmoothing(result, resultSmoothingIterations, maxDistance, 0.7);
+        vcg::GridStaticPtr<typename TriangleMeshType::FaceType,typename TriangleMeshType::FaceType::ScalarType> Grid;
+        Grid.Set(targetBoolean.face.begin(),targetBoolean.face.end());
 
         //Reproject
         vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
@@ -1588,15 +1567,39 @@ void computeResult(
 
             result.vert[vId].P()=closestPT;
         }
+
+        for (int it = 0; it < resultSmoothingIterations; it++) {
+            typename PolyMeshType::ScalarType maxDistance = internal::averageEdgeLength(result) * resultSmoothingNRing;
+
+            internal::LaplacianGeodesicSmoothing(result, resultSmoothingIterations, maxDistance, 0.7);
+
+            //Reproject
+            vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
+            typename TriangleMeshType::ScalarType maxD=result.bbox.Diag();
+            typename TriangleMeshType::ScalarType minD=0;
+
+            for (const size_t& vId : smoothingVertices) {
+                typename TriangleMeshType::CoordType closestPT;
+                typename TriangleMeshType::FaceType *f=
+                        vcg::tri::GetClosestFaceBase<TriangleMeshType>(
+                            targetBoolean,
+                            Grid,
+                            result.vert[vId].P(),
+                            maxD,minD,
+                            closestPT);
+
+                result.vert[vId].P()=closestPT;
+            }
+        }
+
+        typename PolyMeshType::ScalarType maxDistance = internal::averageEdgeLength(result) * resultSmoothingLaplacianNRing;
+
+        internal::LaplacianGeodesicSmoothing(result, resultSmoothingLaplacianIterations, maxDistance, 0.8);
+
+        vcg::PolygonalAlgorithm<PolyMeshType>::UpdateFaceNormalByFitting(result);
+        vcg::tri::UpdateNormal<PolyMeshType>::PerVertexNormalized(result);
+        vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
     }
-
-    typename PolyMeshType::ScalarType maxDistance = internal::averageEdgeLength(result) * resultSmoothingLaplacianNRing;
-
-    internal::LaplacianGeodesicSmoothing(result, resultSmoothingLaplacianIterations, maxDistance, 0.8);
-
-    vcg::PolygonalAlgorithm<PolyMeshType>::UpdateFaceNormalByFitting(result);
-    vcg::tri::UpdateNormal<PolyMeshType>::PerVertexNormalized(result);
-    vcg::tri::UpdateBounding<PolyMeshType>::Box(result);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
     vcg::tri::io::ExporterOBJ<PolyMeshType>::Save(result, "results/result_6_final.obj", vcg::tri::io::Mask::IOM_NONE);

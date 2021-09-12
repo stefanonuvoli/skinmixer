@@ -41,8 +41,7 @@ SkinMixerManager::SkinMixerManager(
     vFirstSelectedJoint(nvl::MAX_INDEX),
     vPreparedOperation(false),
     vActionRotation(nvl::Affine3d::Identity()),
-    vActionTranslation(nvl::Translation3d::Identity()),
-    vBlendingAnimation(nvl::MAX_INDEX)
+    vActionTranslation(nvl::Translation3d::Identity())
 {
     ui->setupUi(this);
 
@@ -235,13 +234,6 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(selectedDrawables);
 
-    if (vBlendingAnimation != nvl::MAX_INDEX) {
-        vCanvas->stopAnimations();
-        vSelectedModelDrawer->unloadAnimation();
-        vSelectedModelDrawer->model()->removeAnimation(vBlendingAnimation);
-        vBlendingAnimation = nvl::MAX_INDEX;
-    }
-
     if (vSelectedModelDrawer != nullptr) {
         updateModelDrawer(vSelectedModelDrawer);
     }
@@ -409,16 +401,46 @@ void SkinMixerManager::mix()
 
 void SkinMixerManager::blendAnimations()
 {
+    if (!vBlendingAnimations.empty())
+        abortAnimations();
+
     Model* modelPtr = vSelectedModelDrawer->model();
     SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-    vBlendingAnimation = vModelAnimationWidget->selectedAnimation();
-
-    skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimation);
+    skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimations);
 
     vCanvas->stopAnimations();
-    vModelAnimationWidget->selectAnimation(vBlendingAnimation);
+
+    if (!vBlendingAnimations.empty()) {
+        const Index& animationId = vBlendingAnimations[0].second;
+
+        ModelDrawer* modelDrawer = vModelToDrawerMap.at(modelPtr);
+        modelDrawer->loadAnimation(animationId);
+    }
+
+    vModelAnimationWidget->updateView();
     vCanvas->updateGL();
+}
+
+void SkinMixerManager::abortAnimations()
+{
+    vCanvas->stopAnimations();
+    vModelAnimationWidget->unselectAnimation();
+
+    for (const std::pair<Index, Index>& blendingAnimation : vBlendingAnimations) {
+        const Index& entryId = blendingAnimation.first;
+        const Index& animationId = blendingAnimation.second;
+
+        const SkinMixerEntry& entry = vSkinMixerData.entry(entryId);
+        ModelDrawer* modelDrawer = vModelToDrawerMap.at(entry.model);
+
+        modelDrawer->unloadAnimation();
+        entry.model->removeAnimation(animationId);
+    }
+
+    vBlendingAnimations.clear();
+
+    vModelAnimationWidget->updateView();
 }
 
 //nvl::Index SkinMixerManager::findBestAnimation(const nvl::Index& index)
@@ -608,7 +630,7 @@ void SkinMixerManager::updateView()
     bool modelDrawerSelected = vSelectedModelDrawer != nullptr;
     bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::MAX_INDEX;
     bool blendedModelSelected = modelDrawerSelected && !vSkinMixerData.entryFromModel(vSelectedModelDrawer->model()).birth.entries.empty();
-    bool animationBlending = blendedModelSelected && vBlendingAnimation != nvl::MAX_INDEX;
+    bool animationBlending = blendedModelSelected && !vBlendingAnimations.empty();
 
     ui->modelLoadButton->setEnabled(true);
     ui->modelRemoveButton->setEnabled(atLeastOneDrawableSelected);
@@ -637,11 +659,13 @@ void SkinMixerManager::updateView()
     ui->animationBlendingFrame->setEnabled(blendedModelSelected);
     ui->animationSelectGroupBox->setEnabled(blendedModelSelected && !animationBlending);
     ui->animationBlendButton->setEnabled(blendedModelSelected && !animationBlending);
-    ui->animationConfirmButton->setEnabled(blendedModelSelected && animationBlending);
-    ui->animationAbortButton->setEnabled(blendedModelSelected && animationBlending);
+    ui->animationConfirmButton->setEnabled(animationBlending);
+    ui->animationAbortButton->setEnabled(animationBlending);
 
-    ui->animationJointFrame->setEnabled(blendedModelSelected && animationBlending && jointSelected);
-    ui->animationJointGroupBox->setEnabled(blendedModelSelected && animationBlending && jointSelected);
+    ui->animationJointFrame->setEnabled(blendedModelSelected && jointSelected);
+    ui->animationJointGroupBox->setEnabled(blendedModelSelected && jointSelected);
+
+    ui->updateJointsBirthButton->setEnabled(blendedModelSelected && jointSelected);
 
     clearLayout(ui->animationSelectGroupBox->layout());
     clearLayout(ui->animationJointGroupBox->layout());
@@ -704,7 +728,7 @@ void SkinMixerManager::updateView()
                     animationIds[cId] = index - 2;
                 }
 
-                if (vBlendingAnimation != nvl::MAX_INDEX) {
+                if (!vBlendingAnimations.empty()) {
                     blendAnimations();
                 }
             });
@@ -827,7 +851,7 @@ void SkinMixerManager::updateView()
                         }
                     }
 
-                    if (vBlendingAnimation != nvl::MAX_INDEX) {
+                    if (!vBlendingAnimations.empty()) {
                         blendAnimations();
                     }
                 });
@@ -973,10 +997,8 @@ void SkinMixerManager::colorizeByAnimationWeights(
 
 void SkinMixerManager::updateValuesReset()
 {
-    ModelDrawer* selectedModelDrawer = getSelectedModelDrawer();
-
-    if (selectedModelDrawer != nullptr) {
-        selectedModelDrawer->meshDrawer().clearVertexValues();
+    if (vSelectedModelDrawer != nullptr) {
+        vSelectedModelDrawer->meshDrawer().clearVertexValues();
 
         vCanvas->updateGL();
     }
@@ -984,21 +1006,18 @@ void SkinMixerManager::updateValuesReset()
 
 void SkinMixerManager::updateValuesSkinningWeights()
 {
-    ModelDrawer* selectedModelDrawer = getSelectedModelDrawer();
-    JointId selectedJointId = getSelectedJointId();
-
-    if (selectedModelDrawer != nullptr) {
+    if (vSelectedModelDrawer != nullptr) {
         std::vector<double> vertexValues;
 
-        if (selectedJointId != nvl::MAX_INDEX) {
-            vertexValues.resize(selectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
+        if (vSelectedJoint != nvl::MAX_INDEX) {
+            vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
 
-            for (auto vertex : selectedModelDrawer->model()->mesh.vertices()) {
-                vertexValues[vertex.id()] = selectedModelDrawer->model()->skinningWeights.weight(vertex.id(), selectedJointId);
+            for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
+                vertexValues[vertex.id()] = vSelectedModelDrawer->model()->skinningWeights.weight(vertex.id(), vSelectedJoint);
             }
         }
 
-        selectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+        vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
 
         vCanvas->updateGL();
     }
@@ -1006,22 +1025,20 @@ void SkinMixerManager::updateValuesSkinningWeights()
 
 void SkinMixerManager::updateValuesSelect()
 {
-    ModelDrawer* selectedModelDrawer = getSelectedModelDrawer();
-
-    if (selectedModelDrawer != nullptr) {
+    if (vSelectedModelDrawer != nullptr) {
         Model* modelPtr = vSelectedModelDrawer->model();
         const SkinMixerEntry& currentEntry = vSkinMixerData.entryFromModel(modelPtr);
         SelectInfo currentSelect = vSkinMixerData.computeGlobalSelectInfo(currentEntry);
 
         std::vector<double> vertexValues;
 
-        vertexValues.resize(selectedModelDrawer->model()->mesh.nextVertexId(), 1.0);
+        vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), 1.0);
 
-        for (auto vertex : selectedModelDrawer->model()->mesh.vertices()) {
+        for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
             vertexValues[vertex.id()] = currentSelect.vertex[vertex.id()];
         }
 
-        selectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+        vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
 
         vCanvas->updateGL();
     }
@@ -1029,28 +1046,27 @@ void SkinMixerManager::updateValuesSelect()
 
 void SkinMixerManager::updateValuesBirth()
 {
-    ModelDrawer* selectedModelDrawer = getSelectedModelDrawer();
-    if (selectedModelDrawer != nullptr) {
-        SkinMixerEntry& entry = vSkinMixerData.entryFromModel(selectedModelDrawer->model());
+    if (vSelectedModelDrawer != nullptr) {
+        SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
 
         if (!entry.birth.vertex.empty()) {
             std::set<nvl::Index> birthEntries;
-            for (auto vertex : selectedModelDrawer->model()->mesh.vertices()) {
+            for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
                 for (auto info : entry.birth.vertex[vertex.id()]) {
                     birthEntries.insert(info.eId);
                 }
             }
 
             if (birthEntries.size() > 2) {
-                selectedModelDrawer->meshDrawer().clearVertexValues();
+                vSelectedModelDrawer->meshDrawer().clearVertexValues();
             }
             else {
                 nvl::Index firstEntry = *birthEntries.begin();
 
                 std::vector<double> vertexValues;
-                vertexValues.resize(selectedModelDrawer->model()->mesh.nextVertexId(), -1.0);
+                vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), -1.0);
 
-                for (auto vertex : selectedModelDrawer->model()->mesh.vertices()) {
+                for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
                     double currentValue = 0.0;
 
                     nvl::Size n = 0;
@@ -1070,7 +1086,35 @@ void SkinMixerManager::updateValuesBirth()
                     vertexValues[vertex.id()] = currentValue;
                 }
 
-                selectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+                vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+            }
+
+            vCanvas->updateGL();
+        }
+    }
+}
+
+void SkinMixerManager::updateJointsReset()
+{
+    updateAllModelDrawers();
+
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::updateJointsBirth()
+{
+    updateAllModelDrawers();
+
+    if (vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::MAX_INDEX) {
+        SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
+
+        if (!entry.birth.joint.empty()) {
+            for (auto jointInfo : entry.birth.joint[vSelectedJoint]) {
+                const SkinMixerEntry& birthEntry = vSkinMixerData.entry(jointInfo.eId);
+                ModelDrawer* modelDrawer = vModelToDrawerMap.at(birthEntry.model);
+
+                nvl::Color color = nvl::getRampRedGreen(jointInfo.confidence);
+                modelDrawer->skeletonDrawer().setRenderingJointColor(jointInfo.jId, color);
             }
 
             vCanvas->updateGL();
@@ -1428,7 +1472,7 @@ void SkinMixerManager::on_animationJointAllCheckBox_stateChanged(int arg1)
             }
         }
 
-        if (vBlendingAnimation != nvl::MAX_INDEX) {
+        if (!vBlendingAnimations.empty()) {
             blendAnimations();
         }
     }
@@ -1468,7 +1512,7 @@ void SkinMixerManager::on_animationJointMeshComboBox_currentIndexChanged(int ind
             }
         }
 
-        if (vBlendingAnimation != nvl::MAX_INDEX) {
+        if (!vBlendingAnimations.empty()) {
             blendAnimations();
         }
     }
@@ -1480,27 +1524,27 @@ void SkinMixerManager::on_animationBlendButton_clicked()
 
     updatePreview();
     updateView();
-
     vCanvas->updateGL();
 }
 
 void SkinMixerManager::on_animationConfirmButton_clicked()
 {
     vCanvas->stopAnimations();
-    vBlendingAnimation = nvl::MAX_INDEX;
 
+    vBlendingAnimations.clear();
+
+    updatePreview();
     updateView();
     vCanvas->updateGL();
 }
 
 void SkinMixerManager::on_animationAbortButton_clicked()
 {
-    vCanvas->stopAnimations();
-    vSelectedModelDrawer->model()->removeAnimation(vBlendingAnimation);
-    vModelAnimationWidget->unselectAnimation();
-    vBlendingAnimation = nvl::MAX_INDEX;
+    abortAnimations();
 
+    updatePreview();
     updateView();
+
     vCanvas->updateGL();
 }
 
@@ -1522,4 +1566,14 @@ void SkinMixerManager::on_updateValuesSelectButton_clicked()
 void SkinMixerManager::on_updateValuesBirthButton_clicked()
 {
     updateValuesBirth();
+}
+
+void SkinMixerManager::on_updateJointsResetButton_clicked()
+{
+    updateJointsReset();
+}
+
+void SkinMixerManager::on_updateJointsBirthButton_clicked()
+{
+    updateJointsBirth();
 }

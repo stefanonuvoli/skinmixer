@@ -469,6 +469,29 @@
      </layout>
     </widget>
    </item>
+   <item>
+    <widget class="QGroupBox" name="updateJointsGroupBox">
+     <property name="title">
+      <string>Joints</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <item>
+       <widget class="QPushButton" name="updateJointsResetButton">
+        <property name="text">
+         <string>Reset</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="updateJointsBirthButton">
+        <property name="text">
+         <string>Birth joints</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

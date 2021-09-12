@@ -364,6 +364,7 @@ void SkinMixerData<Model>::BirthInfo::clear()
 {
     vertex.clear();
     joint.clear();
+    mergeJoints.clear();
 }
 
 template<class Model>

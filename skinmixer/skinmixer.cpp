@@ -69,13 +69,13 @@ template<class Model>
 void mixAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
-        nvl::Index& targetAnimationId)
+        std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations)
 {
     chrono::steady_clock::time_point start;
 
     //Blending animations
     start = chrono::steady_clock::now();
-    return blendAnimations(data, entry, targetAnimationId);
+    return blendAnimations(data, entry, resultAnimations);
     std::cout << "Blended animations in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
 }

@@ -15,7 +15,7 @@ template<class Model>
 void mixAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
-        nvl::Index& targetAnimationId);
+        std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations);
 
 //template<class Model>
 //nvl::Index chooseAnimation(
