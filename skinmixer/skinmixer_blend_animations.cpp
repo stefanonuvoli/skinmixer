@@ -12,6 +12,7 @@
 #define BLEND_ANIMATION_KEYFRAME nvl::MAX_INDEX - 2
 #define KEYFRAME_SELECTION_VERBOSITY
 #define SIMILARITY_WITH_INTERPOLATED_TRANSFORMATION
+#define DUPLICATE_KEYFRAME_TO_BLEND nvl::MAX_INDEX - 1
 
 namespace skinmixer {
 
@@ -188,10 +189,6 @@ void blendAnimations(
     std::sort(times.begin(), times.end());
     times.erase(std::unique(times.begin(), times.end()), times.end());
 
-    //Variables for iteration
-    std::vector<Index> currentFrameId(cluster.size(), 0);
-    std::vector<double> currentTimeOffset(cluster.size(), 0.0);
-
 
     //Compute global frames
     std::vector<std::vector<Frame>> globalFixedFrames = fixedFrames;
@@ -207,20 +204,33 @@ void blendAnimations(
         }
     }
 
+    std::vector<std::vector<double>> bestFrameScore(times.size());
+    std::vector<std::vector<Index>> bestAnimation(times.size());
+    std::vector<std::vector<Index>> bestFrame(times.size());
+
+    //Variables for iteration
+    std::vector<std::vector<Index>> currentFrameId(times.size());
+    std::vector<std::vector<double>> currentTimeOffset(times.size());
+
     //For each time entry
     for (Index i = 0; i < times.size(); ++i) {
         const double& currentTime = times[i];
-        std::vector<Transformation> blendedTransformations(targetSkeleton.jointNumber());
+
+        bestFrameScore[i].resize(cluster.size(), nvl::minLimitValue<double>());
+        bestAnimation[i].resize(cluster.size(), nvl::MAX_INDEX);
+        bestFrame[i].resize(cluster.size(), nvl::MAX_INDEX);
+        currentFrameId[i].resize(cluster.size(), 0);
+        currentTimeOffset[i].resize(cluster.size(), 0.0);
 
         //Update corresponding frame for the current time
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const std::vector<Frame>& currentFixedFrames = fixedFrames[cId];
-            while (currentFrameId[cId] < currentFixedFrames.size() && currentFixedFrames[currentFrameId[cId]].time() + currentTimeOffset[cId] < currentTime) {
-                ++currentFrameId[cId];
+            while (currentFrameId[i][cId] < currentFixedFrames.size() && currentFixedFrames[currentFrameId[i][cId]].time() + currentTimeOffset[i][cId] < currentTime) {
+                ++currentFrameId[i][cId];
 
-                if (currentFrameId[cId] >= currentFixedFrames.size()) {
-                    currentTimeOffset[cId] += currentFixedFrames[currentFixedFrames.size() - 1].time();
-                    currentFrameId[cId] = 0;
+                if (currentFrameId[i][cId] >= currentFixedFrames.size()) {
+                    currentTimeOffset[i][cId] += currentFixedFrames[currentFixedFrames.size() - 1].time();
+                    currentFrameId[i][cId] = 0;
                 }
             }
         }
@@ -228,9 +238,6 @@ void blendAnimations(
         std::vector<unsigned int> targetJointDistance = nvl::skeletonJointDistance(targetSkeleton, entry.birth.mergeJoints);
 
         //Compute best frames for select best keyframe animation
-        std::vector<double> bestFrameScore(cluster.size(), nvl::minLimitValue<double>());
-        std::vector<Index> bestAnimation(cluster.size(), nvl::MAX_INDEX);
-        std::vector<Index> bestFrame(cluster.size(), nvl::MAX_INDEX);
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Index& animationId = animationIds[cId];
             const Model* currentModel = data.entry(cluster[cId]).model;
@@ -282,8 +289,8 @@ void blendAnimations(
                                 if (otherAnimationId != BLEND_ANIMATION_KEYFRAME && otherAnimationId != BLEND_ANIMATION_REST) {
                                     const std::vector<Frame>& currentFixedFrames = globalFixedFrames[otherCId];
 
-                                    const Frame& frame1 = currentFixedFrames[currentFrameId[otherCId] == 0 ? currentFixedFrames.size() - 1 : currentFrameId[otherCId] - 1];
-                                    const Frame& frame2 = currentFixedFrames[currentFrameId[otherCId]];
+                                    const Frame& frame1 = currentFixedFrames[currentFrameId[i][otherCId] == 0 ? currentFixedFrames.size() - 1 : currentFrameId[i][otherCId] - 1];
+                                    const Frame& frame2 = currentFixedFrames[currentFrameId[i][otherCId]];
                                     double time1 = frame1.time();
                                     double time2 = frame2.time();
 
@@ -300,7 +307,7 @@ void blendAnimations(
                             }
 #else
                             std::vector<std::vector<double>> normalizedMappedJointConfidence = mappedJointConfidence;
-                            for (Index i = 0; i < mappedJoints.size(); ++i) {
+                            for (Index mi = 0; mi < mappedJoints.size(); ++mi) {
                                 nvl::normalize(normalizedMappedJointConfidence[i]);
                             }
 
@@ -320,8 +327,8 @@ void blendAnimations(
 
                                             const std::vector<Frame>& currentFixedFrames = globalFixedFrames[otherCId];
 
-                                            const Frame& frame1 = currentFixedFrames[currentFrameId[otherCId] == 0 ? currentFixedFrames.size() - 1 : currentFrameId[otherCId] - 1];
-                                            const Frame& frame2 = currentFixedFrames[currentFrameId[otherCId]];
+                                            const Frame& frame1 = currentFixedFrames[currentFrameId[i][otherCId] == 0 ? currentFixedFrames.size() - 1 : currentFrameId[i][otherCId] - 1];
+                                            const Frame& frame2 = currentFixedFrames[currentFrameId[i][otherCId]];
                                             double time1 = frame1.time();
                                             double time2 = frame2.time();
 
@@ -347,91 +354,88 @@ void blendAnimations(
                             frameScore += distanceWeight * jointFrameScore;
                         }
 
-                        if (frameScore > bestFrameScore[cId]) {
-                            bestFrameScore[cId] = frameScore;
-                            bestAnimation[cId] = candidateAId;
-                            bestFrame[cId] = candidateFId;
+                        if (frameScore > bestFrameScore[i][cId]) {
+                            bestFrameScore[i][cId] = frameScore;
+                            bestAnimation[i][cId] = candidateAId;
+                            bestFrame[i][cId] = candidateFId;
                         }
                     }
 
                 }
             }
         }
+    }
 
-#ifdef KEYFRAME_SELECTION_VERBOSITY
-        std::cout << ">>>> " << targetAnimation.keyframeNumber() << " - Time: " << currentTime << std::endl;
-        for (Index cId = 0; cId < cluster.size(); ++cId) {
-            const Index& animationId = animationIds[cId];
-            if (animationId == BLEND_ANIMATION_KEYFRAME) {
-                if (bestAnimation[cId] != nvl::MAX_INDEX) {
-                    std::cout << cId << " -> Animation: " << bestAnimation[cId] << " - Frame: " << bestFrame[cId] << std::endl;
+    for (Index cId = 0; cId < cluster.size(); ++cId) {
+        const Index& animationId = animationIds[cId];
+        if (animationId == BLEND_ANIMATION_KEYFRAME) {
+            for (Index i = 0; i < times.size(); ++i) {
+                if (bestAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND || bestAnimation[i][cId] == nvl::MAX_INDEX)
+                    continue;
+
+                Index maxScoreIndex = i;
+
+                Index j = i+1;
+                while (j < times.size() && bestAnimation[i][cId] == bestAnimation[j][cId] && bestFrame[i][cId] == bestFrame[j][cId]) {
+                    if (bestFrameScore[j][cId] > bestFrameScore[i][cId]) {
+                        maxScoreIndex = j;
+                    }
+                    j++;
+                }
+
+                if (i == 0 && j == times.size())
+                    continue;
+
+                if (i == 0) {
+                    maxScoreIndex = 0;
+                }
+                if (j == times.size()) {
+                    maxScoreIndex = times.size() - 1;
+                }
+
+
+                for (Index k = i; k < j; k++) {
+                    if (k != maxScoreIndex) {
+                        bestAnimation[k][cId] = DUPLICATE_KEYFRAME_TO_BLEND;
+                        bestFrame[k][cId] = DUPLICATE_KEYFRAME_TO_BLEND;
+                    }
                 }
             }
         }
+    }
+
+#ifdef KEYFRAME_SELECTION_VERBOSITY
+    for (Index i = 0; i < times.size(); ++i) {
+        const double& currentTime = times[i];
+        std::cout << ">>>> " << i << " - " << targetAnimation.keyframeNumber() << " - Time: " << currentTime << std::endl;
+
+        for (Index cId = 0; cId < cluster.size(); ++cId) {
+            const Index& animationId = animationIds[cId];
+            if (animationId == BLEND_ANIMATION_KEYFRAME) {
+                if (bestAnimation[i][cId] != nvl::MAX_INDEX) {
+                    std::cout << cId << " -> ";
+                    if (bestAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                        std::cout << "Blended" << std::endl;
+                    }
+                    else {
+                        std::cout << "Animation: " << bestAnimation[i][cId] << " - Frame: " << bestFrame[i][cId] << std::endl;
+                    }
+                }
+            }
+        }
+    }
 #endif
 
-        //For each joint
+    for (Index i = 0; i < times.size(); ++i) {
+        const double& currentTime = times[i];
+        std::vector<Transformation> blendedTransformations(targetSkeleton.jointNumber());
+
+        //For each joint blend transformations
         for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
             const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
             std::vector<Transformation> transformations(cluster.size(), Transformation::Identity());
             std::vector<double> weights(cluster.size(), 0.0);
-
-//            for (Index cId = 0; cId < cluster.size(); ++cId) {
-//                const Index& animationId = animationIds[cId];
-
-//                JointId correspondingJoint = nvl::MAX_INDEX;
-//                double bestConfidence = nvl::minLimitValue<double>();
-//                for (JointInfo jointInfo : jointInfos) {
-//                    if (clusterMap[jointInfo.eId] == cId) {
-//                        if (jointInfo.confidence > bestConfidence) {
-//                            correspondingJoint = jointInfo.jId;
-//                            bestConfidence = jointInfo.confidence;
-//                        }
-//                    }
-//                }
-
-//                //Avoid numerical errors
-//                if (!nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
-//                    assert(correspondingJoint != nvl::MAX_INDEX);
-//                    weights[cId] = animationWeights[jId][cId];
-
-//                    if (animationId == BLEND_ANIMATION_REST) {
-//                        transformations[cId] = Transformation::Identity();
-//                    }
-//                    else if (animationId == BLEND_ANIMATION_KEYFRAME) {
-//                        if (bestAnimation[cId] != nvl::MAX_INDEX) {
-//                            const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestAnimation[cId]];
-
-//                            const Frame& frame1 = currentCandidateFrames[bestFrame[cId] == 0 ? currentCandidateFrames.size() - 1 : bestFrame[cId] - 1];
-//                            const Frame& frame2 = currentCandidateFrames[bestFrame[cId]];
-
-//                            const Transformation& transformation2 = frame2.transformation(correspondingJoint);
-
-//                            transformations[cId] = transformation2;
-//                        }
-//                        else {
-//                            transformations[cId] = Transformation::Identity();
-//                        }
-//                    }
-//                    else {
-//                        const std::vector<Frame>& currentSelectedFrames = fixedFrames[cId];
-
-//                        const Frame& frame1 = currentSelectedFrames[currentFrameId[cId] == 0 ? currentSelectedFrames.size() - 1 : currentFrameId[cId] - 1];
-//                        const Frame& frame2 = currentSelectedFrames[currentFrameId[cId]];
-
-//                        double time1 = frame1.time() + currentTimeOffset[cId];
-//                        double time2 = frame2.time() + currentTimeOffset[cId];
-//                        const Transformation& transformation1 = frame1.transformation(correspondingJoint);
-//                        const Transformation& transformation2 = frame2.transformation(correspondingJoint);
-
-//                        double alpha = time1 == time2 ? 0 : (currentTime - time1) / (time2 - time1);
-//                        assert(alpha >= 0.0 && alpha <= 1.0);
-
-//                        transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
-//                    }
-//                }
-//            }
 
             for (Index cId = 0; cId < cluster.size(); ++cId) {
                 const Index& animationId = animationIds[cId];
@@ -452,11 +456,48 @@ void blendAnimations(
                         transformations[cId] = Transformation::Identity();
                     }
                     else if (animationId == BLEND_ANIMATION_KEYFRAME) {
-                        if (bestAnimation[cId] != nvl::MAX_INDEX) {
-                            const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestAnimation[cId]];
+                        if (bestAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                            Index prevIndex = i-1;
+                            while (bestAnimation[prevIndex][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                                prevIndex--;
+                            }
 
-                            const Frame& frame1 = currentCandidateFrames[bestFrame[cId] == 0 ? currentCandidateFrames.size() - 1 : bestFrame[cId] - 1];
-                            const Frame& frame2 = currentCandidateFrames[bestFrame[cId]];
+                            Index nextIndex = i+1;
+                            while (bestAnimation[nextIndex][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                                nextIndex++;
+                            }
+
+                            assert(bestAnimation[prevIndex][cId] != nvl::MAX_INDEX);
+                            assert(bestFrame[prevIndex][cId] != nvl::MAX_INDEX);
+                            assert(bestAnimation[nextIndex][cId] != nvl::MAX_INDEX);
+                            assert(bestFrame[nextIndex][cId] != nvl::MAX_INDEX);
+
+                            assert(bestAnimation[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+                            assert(bestFrame[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+                            assert(bestAnimation[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+                            assert(bestFrame[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+
+                            const std::vector<Frame>& prevCandidateFrames = candidateFrames[cId][bestAnimation[prevIndex][cId]];
+                            const std::vector<Frame>& nextCandidateFrames = candidateFrames[cId][bestAnimation[nextIndex][cId]];
+
+                            const Frame& frame1 = prevCandidateFrames[bestFrame[prevIndex][cId]];
+                            const Frame& frame2 = nextCandidateFrames[bestFrame[nextIndex][cId]];
+                            double prevTime = times[prevIndex];
+                            double nextTime = times[nextIndex];
+
+                            Transformation transformation1 = internal::computeMappedTransformation(frame1, mappedJoints[cId], mappedJointConfidence[cId]);
+                            Transformation transformation2 = internal::computeMappedTransformation(frame2, mappedJoints[cId], mappedJointConfidence[cId]);
+
+                            double alpha = (currentTime - prevTime) / (nextTime - prevTime);
+                            assert(alpha >= 0 && alpha <= 1);
+
+                            transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
+                        }
+                        else if (bestAnimation[i][cId] != nvl::MAX_INDEX) {
+                            const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestAnimation[i][cId]];
+
+                            const Frame& frame1 = currentCandidateFrames[bestFrame[i][cId] == 0 ? currentCandidateFrames.size() - 1 : bestFrame[i][cId] - 1];
+                            const Frame& frame2 = currentCandidateFrames[bestFrame[i][cId]];
 
                             Transformation transformation2 = internal::computeMappedTransformation(frame2, mappedJoints[cId], mappedJointConfidence[cId]);
 
@@ -469,15 +510,14 @@ void blendAnimations(
                     else {
                         const std::vector<Frame>& currentSelectedFrames = fixedFrames[cId];
 
-                        const Frame& frame1 = currentSelectedFrames[currentFrameId[cId] == 0 ? currentSelectedFrames.size() - 1 : currentFrameId[cId] - 1];
-                        const Frame& frame2 = currentSelectedFrames[currentFrameId[cId]];
+                        const Frame& frame1 = currentSelectedFrames[currentFrameId[i][cId] == 0 ? currentSelectedFrames.size() - 1 : currentFrameId[i][cId] - 1];
+                        const Frame& frame2 = currentSelectedFrames[currentFrameId[i][cId]];
 
-                        double time1 = frame1.time() + currentTimeOffset[cId];
-                        double time2 = frame2.time() + currentTimeOffset[cId];
+                        double time1 = frame1.time() + currentTimeOffset[i][cId];
+                        double time2 = frame2.time() + currentTimeOffset[i][cId];
 
                         Transformation transformation1 = internal::computeMappedTransformation(frame1, mappedJoints[cId], mappedJointConfidence[cId]);
                         Transformation transformation2 = internal::computeMappedTransformation(frame2, mappedJoints[cId], mappedJointConfidence[cId]);
-
 
                         double alpha = time1 == time2 ? 0 : (currentTime - time1) / (time2 - time1);
                         assert(alpha >= 0.0 && alpha <= 1.0);
@@ -507,7 +547,7 @@ void blendAnimations(
         targetAnimation.addKeyframe(targetFrame);
 
 
-
+        //Filling selected keyframes
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Model* currentModel = data.entry(cluster[cId]).model;
             const Skeleton& currentSkeleton = currentModel->skeleton;
@@ -522,11 +562,48 @@ void blendAnimations(
                     clusterTransformations[jId] = Transformation::Identity();
                 }
                 else if (animationId == BLEND_ANIMATION_KEYFRAME) {
-                    if (bestAnimation[cId] != nvl::MAX_INDEX) {
-                        const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestAnimation[cId]];
+                    if (bestAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                        Index prevIndex = i-1;
+                        while (bestAnimation[prevIndex][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                            prevIndex--;
+                        }
 
-                        const Frame& frame1 = currentCandidateFrames[bestFrame[cId] == 0 ? currentCandidateFrames.size() - 1 : bestFrame[cId] - 1];
-                        const Frame& frame2 = currentCandidateFrames[bestFrame[cId]];
+                        Index nextIndex = i+1;
+                        while (bestAnimation[nextIndex][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
+                            nextIndex++;
+                        }
+
+                        assert(bestAnimation[prevIndex][cId] != nvl::MAX_INDEX);
+                        assert(bestFrame[prevIndex][cId] != nvl::MAX_INDEX);
+                        assert(bestAnimation[nextIndex][cId] != nvl::MAX_INDEX);
+                        assert(bestFrame[nextIndex][cId] != nvl::MAX_INDEX);
+
+                        assert(bestAnimation[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+                        assert(bestFrame[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+                        assert(bestAnimation[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+                        assert(bestFrame[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
+
+                        const std::vector<Frame>& prevCandidateFrames = candidateFrames[cId][bestAnimation[prevIndex][cId]];
+                        const std::vector<Frame>& nextCandidateFrames = candidateFrames[cId][bestAnimation[nextIndex][cId]];
+
+                        const Frame& frame1 = prevCandidateFrames[bestFrame[prevIndex][cId]];
+                        const Frame& frame2 = nextCandidateFrames[bestFrame[nextIndex][cId]];
+                        double prevTime = times[prevIndex];
+                        double nextTime = times[nextIndex];
+
+                        const Transformation& transformation1 = frame1.transformation(jId);
+                        const Transformation& transformation2 = frame2.transformation(jId);
+
+                        double alpha = (currentTime - prevTime) / (nextTime - prevTime);
+                        assert(alpha >= 0 && alpha <= 1);
+
+                        clusterTransformations[jId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
+                    }
+                    else if (bestAnimation[i][cId] != nvl::MAX_INDEX) {
+                        const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestAnimation[i][cId]];
+
+//                      const Frame& frame1 = currentCandidateFrames[bestFrame[i][cId] == 0 ? currentCandidateFrames.size() - 1 : bestFrame[i][cId] - 1];
+                        const Frame& frame2 = currentCandidateFrames[bestFrame[i][cId]];
 
                         const Transformation& transformation2 = frame2.transformation(jId);
 
@@ -539,11 +616,11 @@ void blendAnimations(
                 else {
                     const std::vector<Frame>& currentSelectedFrames = fixedFrames[cId];
 
-                    const Frame& frame1 = currentSelectedFrames[currentFrameId[cId] == 0 ? currentSelectedFrames.size() - 1 : currentFrameId[cId] - 1];
-                    const Frame& frame2 = currentSelectedFrames[currentFrameId[cId]];
+                    const Frame& frame1 = currentSelectedFrames[currentFrameId[i][cId] == 0 ? currentSelectedFrames.size() - 1 : currentFrameId[i][cId] - 1];
+                    const Frame& frame2 = currentSelectedFrames[currentFrameId[i][cId]];
 
-                    double time1 = frame1.time() + currentTimeOffset[cId];
-                    double time2 = frame2.time() + currentTimeOffset[cId];
+                    double time1 = frame1.time() + currentTimeOffset[i][cId];
+                    double time2 = frame2.time() + currentTimeOffset[i][cId];
                     const Transformation& transformation1 = frame1.transformation(jId);
                     const Transformation& transformation2 = frame2.transformation(jId);
 
@@ -624,8 +701,8 @@ double transformationSimilarityScore(
         const double& candidateTime2,
         const T& candidateTransformation2)
 {
-    const double globalWeight = 0.8;
-    const double localWeight = 0.2;
+    const double globalWeight = 1;
+    const double localWeight = 0;
 
 
     nvl::Quaterniond targetQuaternion1(targetTransformation1.rotation());

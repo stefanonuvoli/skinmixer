@@ -43,8 +43,8 @@ double skeletonMatchingConfidence(
         const SkeletonPaths<Skeleton>& currentPaths,
         const unsigned int& targetTopologicalDistance,
         const unsigned int& maxTopologicalDistance,
-        const std::vector<typename Skeleton::JointId>& currentMap,
-        const typename Skeleton::JointId& pivotJoint);
+        const nvl::Point3<typename Skeleton::Scalar>& currentPivotPoint,
+        const nvl::Point3<typename Skeleton::Scalar>& targetPivotPoint);
 
 }
 
@@ -65,6 +65,8 @@ void blendSkeletons(
     typedef typename Skeleton::Joint Joint;
 
     typedef typename Skeleton::Transformation Transformation;
+    typedef typename Skeleton::Scalar Scalar;
+    typedef typename nvl::Point3<Scalar> Point;
 
     for (const nvl::Index& eId : newEntries) {
         Entry& entry = data.entry(eId);
@@ -276,10 +278,10 @@ void blendSkeletons(
                         //Find candidates (parents)
                         std::vector<JointId> candidates;
                         std::vector<unsigned int> candidateDistance;
-                        unsigned int maxTopologicalDistance = 0;
 
                         JointId candidateJoint = currentMap[assignedJId];
 
+                        unsigned int maxTopologicalDistance = 0;
                         candidates.push_back(candidateJoint);
                         candidateDistance.push_back(maxTopologicalDistance);
 
@@ -298,6 +300,9 @@ void blendSkeletons(
                             const JointId& targetJId = candidates[candidateId];
                             const unsigned int& targetTopologicalDistance = candidateDistance[candidateId];
 
+                            Point currentPivotPoint = currentSkeleton.joint(assignedJId).restPose() * Point::Zero();
+                            Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).restPose() * nvl::Point3d::Zero();
+
                             double confidence = internal::skeletonMatchingConfidence(
                                         currentSkeleton,
                                         targetSkeleton,
@@ -307,8 +312,8 @@ void blendSkeletons(
                                         currentPaths,
                                         targetTopologicalDistance,
                                         maxTopologicalDistance,
-                                        currentMap,
-                                        assignedJId);
+                                        currentPivotPoint,
+                                        targetPivotPoint);
 
                             double matchedScore = internal::skeletonMatchingMatchedScore(
                                         matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
@@ -352,6 +357,9 @@ void blendSkeletons(
                             const JointId& targetJId = candidates[candidateId];
                             const int& targetTopologicalDistance = distanceFromAssignedJoint[targetJId];
 
+                            Point currentPivotPoint = currentSkeleton.joint(assignedJId).restPose() * Point::Zero();
+                            Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).restPose() * nvl::Point3d::Zero();
+
                             double confidence = internal::skeletonMatchingConfidence(
                                         currentSkeleton,
                                         targetSkeleton,
@@ -361,8 +369,8 @@ void blendSkeletons(
                                         currentPaths,
                                         targetTopologicalDistance,
                                         maxTopologicalDistance,
-                                        currentMap,
-                                        assignedJId);
+                                        currentPivotPoint,
+                                        targetPivotPoint);
 
                             double matchedScore = internal::skeletonMatchingMatchedScore(
                                         matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
@@ -377,134 +385,34 @@ void blendSkeletons(
                                 bestScore = score;
                             }
                         }
-
                     }
                 }
 
+
+                //Case not connected component
                 if (bestConfidence == nvl::minLimitValue<double>()) {
 
                     for (JointId currentJId = 0; currentJId < currentSkeleton.jointNumber(); ++currentJId) {
                         if (remainingJoints.find(currentJId) != remainingJoints.end()) {
                             for (JointId targetJId = 0; targetJId < targetSkeleton.jointNumber(); ++targetJId) {
 
-                                //TODO SPOSTARE NELLA FUNCTION QUESTO CASO (ADATTARLA)
+                                double confidence = internal::skeletonMatchingConfidence(
+                                            currentSkeleton,
+                                            targetSkeleton,
+                                            currentJId,
+                                            targetJId,
+                                            targetPaths,
+                                            currentPaths,
+                                            nvl::maxLimitValue<unsigned int>(),
+                                            nvl::maxLimitValue<unsigned int>(),
+                                            Point::Zero(),
+                                            Point::Zero());
 
-                                //Path score
-                                double pathScore = 0.0;
-                                //Both roots
-                                if (currentSkeleton.isRoot(currentJId) && targetSkeleton.isRoot(targetJId)) {
-                                    pathScore = 1.0;
-                                }
-                                else {
-                                    const std::vector<std::pair<Index, Index>>& targetPassingPaths = targetPaths.jointToPaths[targetJId];
-                                    for (const std::pair<Index, Index>& targetPassingPath : targetPassingPaths) {
-                                        JointId targetLastJointInPath = targetPaths.paths[targetPassingPath.first][targetPaths.paths[targetPassingPath.first].size() - 1];
-                                        double targetMaxDistance = targetPaths.pathDistance[targetPassingPath.first].at(targetLastJointInPath);
-                                        double targetPathDistance = targetPaths.pathDistance[targetPassingPath.first].at(targetJId);
-                                        double targetNormalizedDistance = targetPaths.pathNormalizedDistance[targetPassingPath.first].at(targetJId);
+                                double matchedScore = internal::skeletonMatchingMatchedScore(
+                                            matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
+                                            perfectMatchedJoints[birthEId].find(targetJId) == perfectMatchedJoints[birthEId].end());
 
-
-                                        double bestPathScore = nvl::minLimitValue<double>();
-                                        const std::vector<std::pair<Index, Index>>& currentPassingPaths = currentPaths.jointToPaths[currentJId];
-                                        for (const std::pair<Index, Index>& currentPassingPath : currentPassingPaths) {
-                                            JointId currentLastJointInPath = currentPaths.paths[currentPassingPath.first][currentPaths.paths[currentPassingPath.first].size() - 1];
-                                            double currentMaxDistance = currentPaths.pathDistance[currentPassingPath.first].at(currentLastJointInPath);
-                                            double currentPathDistance = currentPaths.pathDistance[currentPassingPath.first].at(currentJId);
-                                            double currentNormalizedDistance = currentPaths.pathNormalizedDistance[currentPassingPath.first].at(currentJId);
-
-                                            double currentPathScore = 1.0 - (0.1 * std::fabs(currentPathDistance - targetPathDistance) / std::max(currentMaxDistance, targetMaxDistance) + 0.9 * std::fabs(currentNormalizedDistance - targetNormalizedDistance));
-
-                                            if (currentPathScore >= bestPathScore) {
-                                                bestPathScore = currentPathScore;
-                                            }
-                                        }
-
-                                        pathScore += bestPathScore;
-                                    }
-                                    pathScore /= static_cast<double>(targetPassingPaths.size());
-                                }
-                                assert(pathScore >= 0 - nvl::EPSILON && pathScore <= 1 + nvl::EPSILON);
-
-
-                                double topologyScore;
-
-                                //Both roots
-                                if (currentSkeleton.isRoot(currentJId) && targetSkeleton.isRoot(targetJId)) {
-                                    topologyScore = 1.0;
-                                }
-                                else if (currentSkeleton.isLeaf(currentJId) && targetSkeleton.isLeaf(targetJId)) {
-                                    topologyScore = 1.0;
-                                }
-                                else {
-                                    topologyScore = 0.0;
-                                }
-
-                                assert(topologyScore >= 0 - nvl::EPSILON && topologyScore <= 1 + nvl::EPSILON);
-
-
-
-                                double childrenNumberScore;
-                                //Both no children
-                                if (currentSkeleton.children(currentJId).empty() && targetSkeleton.children(targetJId).empty()) {
-                                    childrenNumberScore = 1.0;
-                                }
-                                //Otherwise
-                                else {
-                                    childrenNumberScore =
-                                            static_cast<double>(std::min(currentSkeleton.childrenNumber(currentJId), targetSkeleton.childrenNumber(targetJId))) /
-                                            static_cast<double>(std::max(currentSkeleton.childrenNumber(currentJId), targetSkeleton.childrenNumber(targetJId)));
-                                }
-                                assert(childrenNumberScore >= 0 - nvl::EPSILON && childrenNumberScore <= 1 + nvl::EPSILON);
-
-
-
-                                double globalDirectionScore = 0.0;
-                                if (currentSkeleton.isRoot(currentJId) && targetSkeleton.isRoot(targetJId)) {
-                                    globalDirectionScore = 1.0;
-                                }
-                                else if (!currentSkeleton.isRoot(currentJId) && !targetSkeleton.isRoot(targetJId)) {
-                                    JointId targetRootId = targetJId;
-                                    while (!targetSkeleton.isRoot(targetRootId)) {
-                                        targetRootId = targetSkeleton.parentId(targetRootId);
-                                    }
-                                    JointId currentRootId = currentJId;
-                                    while (!currentSkeleton.isRoot(currentRootId)) {
-                                        currentRootId = currentSkeleton.parentId(currentRootId);
-                                    }
-
-                                    nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentJId).restPose() * nvl::Point3d::Zero() - currentSkeleton.joint(currentRootId).restPose() * nvl::Point3d::Zero();
-                                    currentParentDirection.normalize();
-                                    nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetJId).restPose() * nvl::Point3d::Zero() - targetSkeleton.joint(targetRootId).restPose() * nvl::Point3d::Zero();
-                                    targetParentDirection.normalize();
-                                    globalDirectionScore = (currentParentDirection.dot(targetParentDirection) + 1) / 2.0;
-                                }
-                                else {
-                                    globalDirectionScore = 0.0;
-                                }
-                                assert(globalDirectionScore >= 0 - nvl::EPSILON && globalDirectionScore <= 1 + nvl::EPSILON);
-
-
-
-                                double confidence =
-                                        0.35 * pathScore +
-                                        0.25 * topologyScore +
-                                        0.25 * globalDirectionScore +
-                                        0.15 * childrenNumberScore;
-
-                                assert(confidence >= 0 - nvl::EPSILON && confidence <= 1 + nvl::EPSILON);
-
-
-
-                                double matchedScore = (matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end() ? 1.0 : 0.0);
-                                assert(matchedScore >= 0 - nvl::EPSILON && matchedScore <= 1 + nvl::EPSILON);
-
-                                double perfectMatchedScore = (perfectMatchedJoints[birthEId].find(targetJId) == perfectMatchedJoints[birthEId].end() ? 1.0 : 0.0);
-                                assert(perfectMatchedScore >= 0 - nvl::EPSILON && perfectMatchedScore <= 1 + nvl::EPSILON);
-
-                                double score = confidence + 0.05 * matchedScore + 0.95 * perfectMatchedScore;
-                                assert(score >= 0 - nvl::EPSILON && score <= 2 + nvl::EPSILON);
-
-
+                                double score = confidence + matchedScore;
 
                                 if (score >= bestScore) {
                                     bestCurrentJoint = currentJId;
@@ -744,12 +652,11 @@ inline double skeletonMatchingMatchedScore(
         const bool perfectMatched)
 {
     double alreadyMatchedScore = (matched ? 1.0 : 0.0);
-    assert(alreadyMatchedScore >= 0 - nvl::EPSILON && alreadyMatchedScore <= 1 + nvl::EPSILON);
-
     double perfectMatchedScore = (perfectMatched ? 1.0 : 0.0);
-    assert(perfectMatchedScore >= 0 - nvl::EPSILON && perfectMatchedScore <= 1 + nvl::EPSILON);
 
-    double matchedScore = 0.95 + alreadyMatchedScore * 0.05 + perfectMatchedScore;
+    double matchedScore =
+            1.0 * perfectMatchedScore +
+            0.3 * alreadyMatchedScore;
 
     return matchedScore;
 }
@@ -764,11 +671,14 @@ double skeletonMatchingConfidence(
         const SkeletonPaths<Skeleton>& currentPaths,
         const unsigned int& targetTopologicalDistance,
         const unsigned int& maxTopologicalDistance,
-        const std::vector<typename Skeleton::JointId>& currentMap,
-        const typename Skeleton::JointId& pivotJoint)
+        const nvl::Point3<typename Skeleton::Scalar>& currentPivotPoint,
+        const nvl::Point3<typename Skeleton::Scalar>& targetPivotPoint)
 {
     typedef typename Skeleton::JointId JointId;
     typedef typename nvl::Index Index;
+    typedef typename Skeleton::Scalar Scalar;
+    typedef typename nvl::Point3<Scalar> Point;
+
     //Path score
     double pathScore = 0.0;
     //Both roots
@@ -792,7 +702,7 @@ double skeletonMatchingConfidence(
                 double currentPathDistance = currentPaths.pathDistance[currentPassingPath.first].at(currentJId);
                 double currentNormalizedDistance = currentPaths.pathNormalizedDistance[currentPassingPath.first].at(currentJId);
 
-                double currentPathScore = 1.0 - (0.1 * std::fabs(currentPathDistance - targetPathDistance) / std::max(currentMaxDistance, targetMaxDistance) + 0.9 * std::fabs(currentNormalizedDistance - targetNormalizedDistance));
+                double currentPathScore = 1.0 - (0.05 * std::fabs(currentPathDistance - targetPathDistance) / std::max(currentMaxDistance, targetMaxDistance) + 0.95 * std::fabs(currentNormalizedDistance - targetNormalizedDistance));
 
                 if (currentPathScore >= bestPathScore) {
                     bestPathScore = currentPathScore;
@@ -842,8 +752,8 @@ double skeletonMatchingConfidence(
     //Otherwise
     else {
         childrenNumberScore =
-                static_cast<double>(std::min(currentSkeleton.children(currentJId).size(), targetSkeleton.children(targetJId).size())) /
-                static_cast<double>(std::max(currentSkeleton.children(currentJId).size(), targetSkeleton.children(targetJId).size()));
+            static_cast<double>(std::min(currentSkeleton.children(currentJId).size(), targetSkeleton.children(targetJId).size())) /
+            static_cast<double>(std::max(currentSkeleton.children(currentJId).size(), targetSkeleton.children(targetJId).size()));
     }
     assert(childrenNumberScore >= 0 - nvl::EPSILON && childrenNumberScore <= 1 + nvl::EPSILON);
 
@@ -854,9 +764,9 @@ double skeletonMatchingConfidence(
         relativeDirectionScore = 1.0;
     }
     else if (!currentSkeleton.isRoot(currentJId) && !targetSkeleton.isRoot(targetJId)) {
-        nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentJId).restPose() * nvl::Point3d::Zero() - currentSkeleton.joint(pivotJoint).restPose() * nvl::Point3d::Zero();
+        nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentJId).restPose() * Point::Zero() - currentPivotPoint;
         currentParentDirection.normalize();
-        nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetJId).restPose() * nvl::Point3d::Zero() - targetSkeleton.joint(currentMap[pivotJoint]).restPose() * nvl::Point3d::Zero();
+        nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetJId).restPose() * nvl::Point3d::Zero() - targetPivotPoint;
         targetParentDirection.normalize();
         relativeDirectionScore = (currentParentDirection.dot(targetParentDirection) + 1) / 2.0;
     }
@@ -895,10 +805,10 @@ double skeletonMatchingConfidence(
 
 
     double confidence =
-            0.3 * pathScore +
-            0.2 * topologyScore +
-            0.2 * globalDirectionScore +
-            0.2 * relativeDirectionScore +
+            0.35 * pathScore +
+            0.3 * topologyScore +
+            0.15 * relativeDirectionScore +
+            0.1 * globalDirectionScore +
             0.1 * childrenNumberScore;
 
     assert(confidence >= 0 - nvl::EPSILON && confidence <= 1 + nvl::EPSILON);
