@@ -348,7 +348,8 @@ void SkinMixerData<Model>::Entry::clear()
     birth.clear();
     relatedActions.clear();
 
-    blendingAnimations.clear();
+    blendingAnimationIds.clear();
+    blendingAnimationModes.clear();
     blendingAnimationWeights.clear();
 }
 

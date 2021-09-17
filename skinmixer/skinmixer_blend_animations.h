@@ -7,6 +7,11 @@
 
 #include "skinmixer_data.h"
 
+#define BLEND_ANIMATION_FIXED 0
+#define BLEND_ANIMATION_KEYFRAME 1
+#define BLEND_ANIMATION_LOOP 2
+#define BLEND_ANIMATION_NONE nvl::MAX_INDEX
+
 namespace skinmixer {
 
 template<class Model>

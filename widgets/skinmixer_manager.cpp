@@ -636,7 +636,7 @@ void SkinMixerManager::updateView()
     ui->modelRemoveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelSaveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelMoveButton->setEnabled(atLeastOneDrawableSelected);
-    ui->modelDuplicateButton->setEnabled(atLeastOneDrawableSelected);
+    ui->modelCopyButton->setEnabled(atLeastOneDrawableSelected);
 
     ui->operationDetachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationRemoveButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
@@ -676,56 +676,52 @@ void SkinMixerManager::updateView()
 
         const std::vector<Index>& birthEntries = entry.birth.entries;
 
-        std::vector<Index>& animationIds = entry.blendingAnimations;
+        std::vector<Index>& animationIds = entry.blendingAnimationIds;
+        std::vector<Index>& animationModes = entry.blendingAnimationModes;
 
         for (Index cId = 0; cId < birthEntries.size(); ++cId) {
             const Index& eId = birthEntries[cId];
             Model* currentModel = vSkinMixerData.entry(eId).model;
 
-            QComboBox* combo = new QComboBox(this);
-            combo->addItem("Rest pose");
-            combo->addItem("Best keyframes");
-//            combo->addItem("Best animation");
+            QComboBox* animationModeCombo = new QComboBox(this);
+            animationModeCombo->addItem("Fixed pose");
+            animationModeCombo->addItem("Best keyframes");
+            animationModeCombo->addItem("Best loop");
 
+            QComboBox* animationIdCombo = new QComboBox(this);
+            animationIdCombo->addItem("None");
             for (Index aId = 0; aId < currentModel->animationNumber(); aId++) {
                 const Animation& animation = currentModel->animation(aId);
-                combo->addItem(animation.name().c_str());
+                animationIdCombo->addItem(animation.name().c_str());
             }
 
-            if (animationIds[cId] == BLEND_ANIMATION_REST) {
-                combo->setCurrentIndex(0);
+            animationModeCombo->setCurrentIndex(animationModes[cId]);
+            if (animationIds[cId] == nvl::MAX_INDEX) {
+                animationIdCombo->setCurrentIndex(0);
             }
-            else if (animationIds[cId] == BLEND_ANIMATION_KEYFRAME) {
-                combo->setCurrentIndex(1);
-            }
-//            else if (animationIds[cId] == BLEND_ANIMATION_FIND) {
-//                combo->setCurrentIndex(2);
-//            }
             else {
-                combo->setCurrentIndex(animationIds[cId] + 2);
+                animationIdCombo->setCurrentIndex(animationIds[cId] + 1);
             }
 
-            QComboBox::connect(combo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-            [&animationIds, cId, combo, this](int index) {
-                if (index == 0) {
-                    animationIds[cId] = BLEND_ANIMATION_REST;
-                }
-                else if (index == 1) {
-                    animationIds[cId] = BLEND_ANIMATION_KEYFRAME;
-                }
-//                else if (index == 2) {
-//                    animationIds[cId] = BLEND_ANIMATION_FIND;
-//                    nvl::Index bestAnimation = findBestAnimation(cId);
 
-//                    if (bestAnimation != nvl::MAX_INDEX) {
-//                        combo->setCurrentIndex(bestAnimation + 3);
-//                    }
-//                    else {
-//                        combo->setCurrentIndex(0);
-//                    }
-//                }
+            QComboBox::connect(animationModeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            [&animationModes, cId, this](int index) {
+                animationModes[cId] = index;
+
+                if (!vBlendingAnimations.empty()) {
+                    blendAnimations();
+                }
+            });
+
+
+
+            QComboBox::connect(animationIdCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            [&animationIds, cId, this](int index) {
+                if (index == 0) {
+                    animationIds[cId] = BLEND_ANIMATION_NONE;
+                }
                 else {
-                    animationIds[cId] = index - 2;
+                    animationIds[cId] = index - 1;
                 }
 
                 if (!vBlendingAnimations.empty()) {
@@ -733,7 +729,13 @@ void SkinMixerManager::updateView()
                 }
             });
 
-            ui->animationSelectGroupBox->layout()->addWidget(combo);
+            QFrame* frame = new QFrame();
+            QVBoxLayout *layout = new QVBoxLayout;
+            frame->setLayout(layout);
+            frame->layout()->addWidget(animationModeCombo);
+            frame->layout()->addWidget(animationIdCombo);
+
+            ui->animationSelectGroupBox->layout()->addWidget(frame);
         }
 
 
@@ -1235,7 +1237,7 @@ void SkinMixerManager::on_modelMoveButton_clicked()
     vCanvas->updateGL();
 }
 
-void SkinMixerManager::on_modelDuplicateButton_clicked()
+void SkinMixerManager::on_modelCopyButton_clicked()
 {
     const std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
     for (Index selected : selectedDrawables) {

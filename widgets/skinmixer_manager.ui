@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>382</width>
-    <height>787</height>
+    <height>862</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,10 +20,31 @@
       <string>Models</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="4" column="3">
-       <widget class="QPushButton" name="modelDuplicateButton">
+      <item row="0" column="3">
+       <widget class="QPushButton" name="modelRemoveButton">
         <property name="text">
-         <string>Duplicate</string>
+         <string>Remove</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="normalsLabel">
+        <property name="text">
+         <string>Normals:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="modelLoadButton">
+        <property name="text">
+         <string>Load</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="modelSaveButton">
+        <property name="text">
+         <string>Save</string>
         </property>
        </widget>
       </item>
@@ -37,45 +58,24 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="modelRemoveButton">
-        <property name="text">
-         <string>Remove</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="modelSaveButton">
-        <property name="text">
-         <string>Save</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="modelLoadButton">
-        <property name="text">
-         <string>Load</string>
-        </property>
-       </widget>
-      </item>
       <item row="2" column="3">
        <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
         <property name="text">
-         <string>Faces</string>
+         <string>Face</string>
         </property>
         <property name="checked">
          <bool>true</bool>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="normalsLabel">
+      <item row="0" column="5">
+       <widget class="QPushButton" name="modelCopyButton">
         <property name="text">
-         <string>Normals:</string>
+         <string>Copy</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
+      <item row="3" column="1">
        <widget class="QCheckBox" name="scaleOn1AndCenterCheckBox">
         <property name="text">
          <string>Scale/centre</string>
@@ -85,7 +85,7 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="2">
+      <item row="3" column="2">
        <widget class="QPushButton" name="modelMoveButton">
         <property name="text">
          <string>Move</string>
@@ -97,6 +97,18 @@
    </item>
    <item>
     <widget class="QGroupBox" name="operationGroupBox">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>16777215</height>
+      </size>
+     </property>
      <property name="title">
       <string>Operations</string>
      </property>
@@ -146,13 +158,6 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="1" colspan="4">
-       <widget class="QPushButton" name="mixButton">
-        <property name="text">
-         <string>Mix</string>
-        </property>
-       </widget>
-      </item>
       <item row="7" column="1" colspan="4">
        <widget class="QTabWidget" name="parametersTabWidget">
         <property name="enabled">
@@ -165,13 +170,27 @@
          <string/>
         </property>
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="generalParametersPage">
          <attribute name="title">
           <string>General</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_5">
+          <item row="0" column="0">
+           <widget class="QLabel" name="functionSmoothingLabel">
+            <property name="text">
+             <string>WF smooth</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="rigidityLabel">
+            <property name="text">
+             <string>Rigidity</string>
+            </property>
+           </widget>
+          </item>
           <item row="1" column="1">
            <widget class="QSlider" name="rigiditySlider">
             <property name="maximum">
@@ -195,17 +214,10 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="functionSmoothingLabel">
+          <item row="2" column="0" colspan="2">
+           <widget class="QCheckBox" name="showZeroCheckBox">
             <property name="text">
-             <string>WF smooth</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="rigidityLabel">
-            <property name="text">
-             <string>Rigidity</string>
+             <string>Show zero select values</string>
             </property>
            </widget>
           </item>
@@ -216,20 +228,6 @@
           <string>Select</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="2" column="0">
-           <widget class="QLabel" name="hardness1Label">
-            <property name="text">
-             <string>Hardness 1</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="0">
-           <widget class="QLabel" name="hardness2Label">
-            <property name="text">
-             <string>Hardness 2</string>
-            </property>
-           </widget>
-          </item>
           <item row="6" column="1">
            <widget class="QSlider" name="hardness2Slider">
             <property name="minimum">
@@ -246,13 +244,6 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="3">
-           <widget class="QCheckBox" name="parent2CheckBox">
-            <property name="text">
-             <string>Parent</string>
-            </property>
-           </widget>
-          </item>
           <item row="2" column="3">
            <widget class="QCheckBox" name="parent1CheckBox">
             <property name="text">
@@ -260,10 +251,38 @@
             </property>
            </widget>
           </item>
+          <item row="6" column="3">
+           <widget class="QCheckBox" name="parent2CheckBox">
+            <property name="text">
+             <string>Parent</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="2">
+           <widget class="QLabel" name="hardness2ValueLabel">
+            <property name="text">
+             <string>+0.00</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="hardness1Label">
+            <property name="text">
+             <string>Hardness 1</string>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="2">
            <widget class="QLabel" name="hardness1ValueLabel">
             <property name="text">
              <string>+0.00</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="hardness2Label">
+            <property name="text">
+             <string>Hardness 2</string>
             </property>
            </widget>
           </item>
@@ -283,22 +302,15 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="2">
-           <widget class="QLabel" name="hardness2ValueLabel">
-            <property name="text">
-             <string>+0.00</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="0" colspan="2">
-           <widget class="QCheckBox" name="showZeroCheckBox">
-            <property name="text">
-             <string>Show zero select values </string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </widget>
+       </widget>
+      </item>
+      <item row="6" column="1" colspan="4">
+       <widget class="QPushButton" name="mixButton">
+        <property name="text">
+         <string>Mix</string>
+        </property>
        </widget>
       </item>
      </layout>
@@ -309,13 +321,13 @@
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>80</height>
+       <height>100</height>
       </size>
      </property>
      <property name="maximumSize">
       <size>
        <width>16777215</width>
-       <height>80</height>
+       <height>16777215</height>
       </size>
      </property>
      <property name="title">
@@ -339,6 +351,18 @@
    </item>
    <item>
     <widget class="QFrame" name="animationBlendingFrame">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>40</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>40</height>
+      </size>
+     </property>
      <layout class="QGridLayout" name="gridLayout_4">
       <item row="0" column="1">
        <widget class="QPushButton" name="animationConfirmButton">
@@ -375,7 +399,7 @@
      <property name="maximumSize">
       <size>
        <width>16777215</width>
-       <height>100</height>
+       <height>16777215</height>
       </size>
      </property>
      <property name="title">
@@ -434,58 +458,75 @@
    </item>
    <item>
     <widget class="QGroupBox" name="updateValuesGroupBox">
-     <property name="title">
-      <string>Update vertex values</string>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>100</height>
+      </size>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <widget class="QPushButton" name="updateValuesResetButton">
-        <property name="text">
-         <string>Reset</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="updateValuesWeightsButton">
-        <property name="text">
-         <string>Weights</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="updateValuesSelectButton">
-        <property name="text">
-         <string>Select</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="updateValuesBirthButton">
-        <property name="text">
-         <string>Birth</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="updateJointsGroupBox">
-     <property name="title">
-      <string>Joints</string>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>16777215</height>
+      </size>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_4">
-      <item>
+     <property name="title">
+      <string>Debug visualization</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_6">
+      <item row="1" column="1">
        <widget class="QPushButton" name="updateJointsResetButton">
         <property name="text">
          <string>Reset</string>
         </property>
        </widget>
       </item>
-      <item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="updateValuesResetButton">
+        <property name="text">
+         <string>Reset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QPushButton" name="updateValuesSelectButton">
+        <property name="text">
+         <string>Select</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Vert.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QPushButton" name="updateValuesWeightsButton">
+        <property name="text">
+         <string>Weights</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Joints</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="updateValuesBirthButton">
+        <property name="text">
+         <string>Birth</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
        <widget class="QPushButton" name="updateJointsBirthButton">
         <property name="text">
-         <string>Birth joints</string>
+         <string>Birth</string>
         </property>
        </widget>
       </item>

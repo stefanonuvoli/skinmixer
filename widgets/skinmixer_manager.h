@@ -72,7 +72,7 @@ private slots:
     void on_modelRemoveButton_clicked();
     void on_modelSaveButton_clicked();
     void on_modelMoveButton_clicked();
-    void on_modelDuplicateButton_clicked();
+    void on_modelCopyButton_clicked();
 
     void on_functionSmoothingSlider_valueChanged(int value);
     void on_rigiditySlider_valueChanged(int value);
