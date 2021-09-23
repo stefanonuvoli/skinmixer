@@ -31,7 +31,10 @@ double transformationSimilarityScore(
         const double& candidateTime1,
         const T& candidateTransformation1,
         const double& candidateTime2,
-        const T& candidateTransformation2);
+        const T& candidateTransformation2,
+        const double& lastTime,
+        const T& lastTransformation,
+        const double& currentTime);
 
 double computeDistanceWeight(const double distance);
 
@@ -145,7 +148,7 @@ void blendAnimations(
 
     //Data for fixed and candidate frames for each cluster
     std::vector<std::vector<Frame>> fixedFrames(cluster.size());
-    std::vector<std::vector<std::vector<Frame>>> candidateFrames(cluster.size());
+    std::vector<std::vector<std::vector<Frame>>> keyframeCandidateFrames(cluster.size());
 
     //Fill candidate and fixed frames
     std::vector<double> times;
@@ -171,14 +174,14 @@ void blendAnimations(
         }
         //Best keyframe or best sliding mode
         else if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
-            candidateFrames[cId].resize(currentModel->animationNumber());
+            keyframeCandidateFrames[cId].resize(currentModel->animationNumber());
             for (Index aId = 0; aId < currentModel->animationNumber(); ++aId) {
                 if (animationId == BLEND_ANIMATION_NONE|| animationId == aId) {
                     assert(animationId == BLEND_ANIMATION_NONE || (animationId >= 0 && animationId < currentModel->animationNumber()));
                     const Animation& currentAnimation = currentModel->animation(aId);
                     for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
                         Frame frame = currentAnimation.keyframe(fId);
-                        candidateFrames[cId][aId].push_back(frame);
+                        keyframeCandidateFrames[cId][aId].push_back(frame);
                     }
                 }
             }
@@ -186,8 +189,8 @@ void blendAnimations(
 
         //Blend frames to a given number of fps
         nvl::animationBlendFrameTransformations(fixedFrames[cId], fps);
-        for (Index aId = 0; aId < candidateFrames[cId].size(); aId++) {
-            nvl::animationBlendFrameTransformations(candidateFrames[cId][aId], fps);
+        for (Index aId = 0; aId < keyframeCandidateFrames[cId].size(); aId++) {
+            nvl::animationBlendFrameTransformations(keyframeCandidateFrames[cId][aId], fps);
         }
 
         //Add times of fixed frames
@@ -207,14 +210,14 @@ void blendAnimations(
 
     //Compute global frames
     std::vector<std::vector<Frame>> globalFixedFrames = fixedFrames;
-    std::vector<std::vector<std::vector<Frame>>> globalCandidateFrames = candidateFrames;
+    std::vector<std::vector<std::vector<Frame>>> globalCandidateFrames = keyframeCandidateFrames;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
         const Model* currentModel = data.entry(cluster[cId]).model;
         const Skeleton& currentSkeleton = currentModel->skeleton;
 
         nvl::animationComputeGlobalFrames(currentSkeleton, globalFixedFrames[cId]);
 
-        for (Index aId = 0; aId < candidateFrames[cId].size(); aId++) {
+        for (Index aId = 0; aId < keyframeCandidateFrames[cId].size(); aId++) {
             nvl::animationComputeGlobalFrames(currentSkeleton, globalCandidateFrames[cId][aId]);
         }
     }
@@ -305,6 +308,10 @@ void blendAnimations(
 
                     for (Index i = 0; i < times.size(); ++i) {
                         const double& currentTime = times[i];
+                        double lastTime = nvl::maxLimitValue<double>();
+                        if (i > 0) {
+                            lastTime = times[i - 1];
+                        }
 
                         while (loopFrameId < currentCandidateFrames.size() && currentCandidateFrames[loopFrameId].time() + loopFrameOffset <= currentTime) {
                             ++loopFrameId;
@@ -360,7 +367,7 @@ void blendAnimations(
                                     Transformation transformation1 = internal::computeMappedTransformation(frame1, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
                                     Transformation transformation2 = internal::computeMappedTransformation(frame2, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
 
-                                    double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
+                                    double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2, candidateTime1, candidateTransformation1, currentTime);
                                     assert(similarity >= 0 && similarity <= 1);
 
                                     jointFrameScore += similarity;
@@ -371,7 +378,7 @@ void blendAnimations(
         #else
                             std::vector<std::vector<double>> normalizedMappedJointConfidence = mappedJointConfidence;
                             for (Index mi = 0; mi < mappedJoints.size(); ++mi) {
-                                nvl::normalize(normalizedMappedJointConfidence[i]);
+                                nvl::normalize(normalizedMappedJointConfidence[mi]);
                             }
 
                             for (Index mi = 0; mi < mappedJoints[cId].size(); ++mi) {
@@ -399,7 +406,18 @@ void blendAnimations(
                                             const Transformation& transformation1 = frame1.transformation(currentMappedJoint);
                                             const Transformation& transformation2 = frame2.transformation(currentMappedJoint);
 
-                                            double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
+
+                                            Transformation lastTransformation = Transformation::Identity();
+                                            if (i > 0) {
+                                                assert(bestKeyframeAnimation[i - 1][cId] != nvl::MAX_INDEX);
+                                                assert(bestKeyframe[i - 1][cId] != nvl::MAX_INDEX);
+                                                const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[i - 1][cId]];
+                                                const Frame& lastFrame = currentCandidateFrames[bestKeyframe[i - 1][cId]];
+                                                lastTransformation = lastFrame.transformation(currentMappedJoint);
+                                            }
+
+
+                                            double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2, candidateTime1, candidateTransformation1, currentTime);
                                             assert(similarity >= 0 && similarity <= 1);
 
                                             jointFrameScore += currentMappedJointConfidence * candidateMappedJointConfidence * similarity;
@@ -462,7 +480,13 @@ void blendAnimations(
     // ------------------------------------------ BEST KEYFRAMES ------------------------------------------
 
     //For each time entry find the best keyframes
-    for (Index i = 0; i < times.size(); ++i) {
+    for (Index i = 0; i < times.size(); ++i) {        
+        const double& currentTime = times[i];
+        double lastTime = nvl::maxLimitValue<double>();
+        if (i > 0) {
+            lastTime = times[i - 1];
+        }
+
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             Index animationMode = animationModes[cId];
             Index animationId = animationIds[cId];
@@ -529,7 +553,18 @@ void blendAnimations(
                                     Transformation transformation1 = internal::computeMappedTransformation(frame1, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
                                     Transformation transformation2 = internal::computeMappedTransformation(frame2, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
 
-                                    double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
+
+                                    Transformation lastTransformation = Transformation::Identity();
+                                    if (i > 0) {
+                                        assert(bestKeyframeAnimation[i - 1][cId] != nvl::MAX_INDEX);
+                                        assert(bestKeyframe[i - 1][cId] != nvl::MAX_INDEX);
+                                        const std::vector<Frame>& currentCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[i - 1][cId]];
+                                        const Frame& lastFrame = currentCandidateFrames[bestKeyframe[i - 1][cId]];
+                                        lastTransformation = internal::computeMappedTransformation(lastFrame, mappedJoints[cId], mappedJointConfidence[cId]);
+                                    }
+
+
+                                    double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2, lastTime, lastTransformation, currentTime);
                                     assert(similarity >= 0 && similarity <= 1);
 
                                     jointFrameScore += similarity;
@@ -540,7 +575,7 @@ void blendAnimations(
 #else
                             std::vector<std::vector<double>> normalizedMappedJointConfidence = mappedJointConfidence;
                             for (Index mi = 0; mi < mappedJoints.size(); ++mi) {
-                                nvl::normalize(normalizedMappedJointConfidence[i]);
+                                nvl::normalize(normalizedMappedJointConfidence[mi]);
                             }
 
                             for (Index mi = 0; mi < mappedJoints[cId].size(); ++mi) {
@@ -568,7 +603,18 @@ void blendAnimations(
                                             const Transformation& transformation1 = frame1.transformation(currentMappedJoint);
                                             const Transformation& transformation2 = frame2.transformation(currentMappedJoint);
 
-                                            double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2);
+
+                                            Transformation lastTransformation = Transformation::Identity();
+                                            if (i > 0) {                                                
+                                                assert(bestKeyframeAnimation[i - 1][cId] != nvl::MAX_INDEX);
+                                                assert(bestKeyframe[i - 1][cId] != nvl::MAX_INDEX);
+                                                const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[i - 1][cId]];
+                                                const Frame& lastFrame = currentCandidateFrames[bestKeyframe[i - 1][cId]];
+                                                lastTransformation = lastFrame.transformation(currentMappedJoint);
+                                            }
+
+
+                                            double similarity = internal::transformationSimilarityScore(time1, transformation1, time2, transformation2, candidateTime1, candidateTransformation1, candidateTime2, candidateTransformation2, lastTime, lastTransformation, currentTime);
                                             assert(similarity >= 0 && similarity <= 1);
 
                                             jointFrameScore += currentMappedJointConfidence * candidateMappedJointConfidence * similarity;
@@ -750,8 +796,8 @@ void blendAnimations(
                             assert(bestKeyframeAnimation[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
                             assert(bestKeyframe[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
 
-                            const std::vector<Frame>& prevCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
-                            const std::vector<Frame>& nextCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
+                            const std::vector<Frame>& prevCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
+                            const std::vector<Frame>& nextCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
 
                             const Frame& frame1 = prevCandidateFrames[bestKeyframe[prevIndex][cId]];
                             const Frame& frame2 = nextCandidateFrames[bestKeyframe[nextIndex][cId]];
@@ -767,7 +813,10 @@ void blendAnimations(
                             transformations[cId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
                         }
                         else if (bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX) {
-                            const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[i][cId]];
+                            assert(bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX);
+                            assert(bestKeyframe[i][cId] != nvl::MAX_INDEX);
+
+                            const std::vector<Frame>& currentCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
 
                             const Frame& frame1 = currentCandidateFrames[bestKeyframe[i][cId] == 0 ? currentCandidateFrames.size() - 1 : bestKeyframe[i][cId] - 1];
                             const Frame& frame2 = currentCandidateFrames[bestKeyframe[i][cId]];
@@ -806,6 +855,8 @@ void blendAnimations(
 
 
 
+
+        // ------------------------------------------ FILLING SELECTED KEYFRAMES ------------------------------------------
 
         //Filling selected keyframes
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -862,8 +913,8 @@ void blendAnimations(
                         assert(bestKeyframeAnimation[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
                         assert(bestKeyframe[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
 
-                        const std::vector<Frame>& prevCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
-                        const std::vector<Frame>& nextCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
+                        const std::vector<Frame>& prevCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
+                        const std::vector<Frame>& nextCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
 
                         const Frame& frame1 = prevCandidateFrames[bestKeyframe[prevIndex][cId]];
                         const Frame& frame2 = nextCandidateFrames[bestKeyframe[nextIndex][cId]];
@@ -879,7 +930,7 @@ void blendAnimations(
                         clusterTransformations[jId] = nvl::interpolateAffine(transformation1, transformation2, alpha);
                     }
                     else if (bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX) {
-                        const std::vector<Frame>& currentCandidateFrames = candidateFrames[cId][bestKeyframeAnimation[i][cId]];
+                        const std::vector<Frame>& currentCandidateFrames = keyframeCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
 
 //                      const Frame& frame1 = currentCandidateFrames[bestFrame[i][cId] == 0 ? currentCandidateFrames.size() - 1 : bestFrame[i][cId] - 1];
                         const Frame& frame2 = currentCandidateFrames[bestKeyframe[i][cId]];
@@ -965,20 +1016,26 @@ double transformationSimilarityScore(
         const double& candidateTime1,
         const T& candidateTransformation1,
         const double& candidateTime2,
-        const T& candidateTransformation2)
+        const T& candidateTransformation2,
+        const double& lastTime,
+        const T& lastTransformation,
+        const double& currentTime)
 {
-    const double globalWeight = 1;
-    const double localWeight = 0;
+    const double globalWeight = 0.8;
+    const double localWeight = 0.2;
+    const double movementWeight = 0.0;
 
 
     nvl::Quaterniond targetQuaternion1(targetTransformation1.rotation());
     nvl::Quaterniond candidateQuaternion1(candidateTransformation1.rotation());
     nvl::Quaterniond targetQuaternion2(targetTransformation2.rotation());
     nvl::Quaterniond candidateQuaternion2(candidateTransformation2.rotation());
+    nvl::Quaterniond lastQuaternion(lastTransformation.rotation());
     targetQuaternion1.normalize();
     candidateQuaternion1.normalize();
     targetQuaternion2.normalize();
     candidateQuaternion2.normalize();
+    lastQuaternion.normalize();
 
 
 
@@ -993,22 +1050,55 @@ double transformationSimilarityScore(
 
 
 
-    nvl::Quaterniond localTargetQuaternion(targetQuaternion2 * targetQuaternion1.inverse());
-    nvl::Quaterniond localCandidateQuaternion(candidateQuaternion2 * candidateQuaternion1.inverse());
+    nvl::Rotation3d localTargetRotation(targetQuaternion2 * targetQuaternion1.inverse());
+    nvl::Rotation3d localCandidateRotation(candidateQuaternion2 * candidateQuaternion1.inverse());
+
+    double localTargetAngle = localTargetRotation.angle() / (targetTime2 - targetTime1);
+    double localCandidateAngle = localCandidateRotation.angle() / (candidateTime2 - candidateTime1);
+
+    nvl::Quaterniond localTargetQuaternion(nvl::Rotation3d(localTargetAngle, localTargetRotation.axis()));
+    nvl::Quaterniond localCandidateQuaternion(nvl::Rotation3d(localCandidateAngle, localCandidateRotation.axis()));
     localTargetQuaternion.normalize();
     localCandidateQuaternion.normalize();
+    
+    double localScore = 0;
+    if (localWeight > 0) {
+        localScore = nvl::abs(localTargetQuaternion.dot(localCandidateQuaternion));
+        if (nvl::epsEqual(localScore, 1.0))
+            localScore = 1.0;
+        else if (nvl::epsEqual(localScore, 0.0))
+            localScore = 0.0;
+        assert(localScore >= 0.0 && localScore <= 1.0);
+    }
 
-    double localScore = nvl::abs(localTargetQuaternion.dot(localCandidateQuaternion));
-    if (nvl::epsEqual(localScore, 1.0))
-        localScore = 1.0;
-    else if (nvl::epsEqual(localScore, 0.0))
-        localScore = 0.0;
-    assert(localScore >= 0.0 && localScore <= 1.0);
+
+    double movementScore = localScore;
+    if (movementWeight > 0 && lastTime < nvl::maxLimitValue<double>()) {
+        nvl::Rotation3d movementTargetRotation(targetQuaternion2 * targetQuaternion1.inverse());
+        nvl::Rotation3d movementCandidateRotation(candidateQuaternion2 * lastQuaternion.inverse());
+
+        double movementTargetAngle = movementTargetRotation.angle() / (targetTime2 - targetTime1);
+        double movementCandidateAngle = movementCandidateRotation.angle() / (currentTime - lastTime);
+
+        nvl::Quaterniond movementTargetQuaternion(nvl::Rotation3d(movementTargetAngle, movementTargetRotation.axis()));
+        nvl::Quaterniond movementCandidateQuaternion(nvl::Rotation3d(movementCandidateAngle, movementCandidateRotation.axis()));
+        movementTargetQuaternion.normalize();
+        movementCandidateQuaternion.normalize();
+
+        double movementScore = nvl::abs(movementTargetQuaternion.dot(movementCandidateQuaternion));
+        if (nvl::epsEqual(movementScore, 1.0))
+            movementScore = 1.0;
+        else if (nvl::epsEqual(movementScore, 0.0))
+            movementScore = 0.0;
+        assert(movementScore >= 0.0 && movementScore <= 1.0);
+    }
 
 
 
 
-    return globalWeight * globalScore + localWeight * localScore;
+    return globalWeight * globalScore +
+           localWeight * localScore *
+           movementWeight * movementScore;
 }
 
 inline double computeDistanceWeight(const double distance) {
