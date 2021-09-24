@@ -1084,6 +1084,9 @@ double transformationSimilarityScore(
             localScore = 1.0;
         }
         else if (candidateTime1 != candidateTime2 && fixedTime1 != fixedTime2) {
+            assert(candidateTime1 < candidateTime2);
+            assert(fixedTime1 < fixedTime2);
+
             nvl::Quaterniond fixedQuaternion1(fixedTransformation1.rotation());
             nvl::Quaterniond fixedQuaternion2(fixedTransformation2.rotation());
             nvl::Quaterniond candidateQuaternion1(candidateTransformation1.rotation());
