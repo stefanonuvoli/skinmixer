@@ -12,7 +12,13 @@ namespace skinmixer {
 template<class Model>
 void blendSurfaces(
         SkinMixerData<Model>& data,
-        std::vector<nvl::Index>& newEntries);
+        std::vector<nvl::Index>& resultEntryIds);
+
+template<class Model>
+void blendSurfaces(
+        SkinMixerData<Model>& data,
+        std::vector<nvl::Index> cluster,
+        typename SkinMixerData<Model>::Entry& resultEntry);
 
 }
 

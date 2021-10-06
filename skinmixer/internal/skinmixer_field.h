@@ -71,7 +71,7 @@ void getBlendedGrid(
         IntGridPtr& activeActionGrid);
 
 template<class Mesh>
-std::unordered_set<typename Mesh::FaceId> findFacesInField(
+std::unordered_set<typename Mesh::FaceId> findFieldFaces(
         const Mesh& mesh,
         const std::vector<double>& vertexSelectValues,
         const double& scaleFactor);

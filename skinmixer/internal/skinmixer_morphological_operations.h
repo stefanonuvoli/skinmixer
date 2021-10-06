@@ -6,6 +6,7 @@
 #include <vector>
 
 namespace skinmixer {
+namespace internal {
 
 template<class Mesh, class Set>
 void meshDilateFaceSelectionNoBorders(
@@ -51,6 +52,7 @@ void meshCloseFaceSelectionNoBorders(
         Set& selectedFaces,
         const std::vector<std::vector<typename Mesh::FaceId>>& ffAdj);
 
+}
 }
 
 #include "skinmixer_morphological_operations.cpp"

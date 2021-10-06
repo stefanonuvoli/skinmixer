@@ -4,6 +4,7 @@
 #include <nvl/models/mesh_borders.h>
 
 namespace skinmixer {
+namespace internal {
 
 template<class Mesh, class Set>
 void meshDilateFaceSelectionNoBorders(
@@ -154,4 +155,5 @@ void meshCloseFaceSelectionNoBorders(
     meshErodeFaceSelectionNoBorders(mesh, selectedFaces, ffAdj);
 }
 
+}
 }
