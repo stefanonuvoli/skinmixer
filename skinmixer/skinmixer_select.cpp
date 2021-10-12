@@ -170,15 +170,15 @@ void computeAttachSelectValues(
     vertexSelectValue1.resize(mesh1.nextVertexId(), 1.0);
     jointSelectValue1.resize(skeleton1.jointNumber(), 1.0);
 
-    for (VertexId vId = 0; vId < mesh1.nextVertexId(); ++vId) {
-        if (mesh1.isVertexDeleted(vId))
-            continue;
+//    for (VertexId vId = 0; vId < mesh1.nextVertexId(); ++vId) {
+//        if (mesh1.isVertexDeleted(vId))
+//            continue;
 
-        if ((skinningWeights1.weight(vId, targetJoint1) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, targetJoint1) < 1.0 - nvl::EPSILON) ||
-            (!skeleton1.isRoot(targetJoint1) && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) < 1.0 - nvl::EPSILON)) {
-            vertexSelectValue1[vId] = 0.99;
-        }
-    }
+//        if ((skinningWeights1.weight(vId, targetJoint1) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, targetJoint1) < 1.0 - nvl::EPSILON) ||
+//            (!skeleton1.isRoot(targetJoint1) && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) < 1.0 - nvl::EPSILON)) {
+//            vertexSelectValue1[vId] = 0.99;
+//        }
+//    }
 
     skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, rigidity, hardness2, includeParent2, 0.5, vertexSelectValue2, jointSelectValue2);
 }

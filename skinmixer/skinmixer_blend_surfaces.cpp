@@ -7,6 +7,8 @@
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/transformations.h>
 
+#include <nvl/vcglib/vcg_remeshing.h>
+
 #include <nvl/models/mesh_geometric_information.h>
 #include <nvl/models/mesh_transformations.h>
 #include <nvl/models/mesh_adjacencies.h>
@@ -27,13 +29,17 @@
 #include <vector>
 
 #define FACE_KEEP_THRESHOLD 0.999
+
 #define VOXEL_SIZE_FACTOR 0.7
-#define MAX_VOXEL_DISTANCE 70.0
-#define SMOOTHING_THRESHOLD 0.9
-#define SMOOTHING_BORDER_ITERATIONS 10
+#define MAX_VOXEL_DISTANCE 50.0
+
+#define SMOOTHING_THRESHOLD 0.8
+#define SMOOTHING_BORDER_ITERATIONS 20
 #define SMOOTHING_INNER_ITERATIONS 10
 #define SMOOTHING_INNER_WEIGHT 0.7
+
 #define NEWSURFACE_DISTANCE_THRESHOLD 0.001
+
 #define PRESERVE_GAP_THRESHOLD 0.01
 #define PRESERVE_DISTANCE_THRESHOLD 1.0
 #define PRESERVE_REGULARIZATION_ITERATIONS 1
@@ -207,7 +213,7 @@ void blendSurfaces(
 
 
 
-// --------------------------------------- GET GRIDS AND BLENDED GRID ---------------------------------------
+    // --------------------------------------- GET GRIDS AND BLENDED GRID ---------------------------------------
 
     //Create grid for each model
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -257,11 +263,19 @@ void blendSurfaces(
     blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/blendedMesh_non_rescaled.obj", blendedMesh);
+    nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
 #endif
 
     //Rescale back
     nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
+
+#ifdef SAVE_MESHES_FOR_DEBUG
+    nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
+#endif
+
+    //Remesh
+    double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
+    blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize / 2.0);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
     nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
@@ -271,7 +285,7 @@ void blendSurfaces(
 
 
 
-// --------------------------------------- GET PRESERVED FACES ---------------------------------------
+    // --------------------------------------- GET PRESERVED FACES ---------------------------------------
 
     //Get preserved faces by select values
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -485,35 +499,16 @@ void blendSurfaces(
     preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
 
 #ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/premesh_5_regularized.obj", preMesh);
+    nvl::meshSaveToFile("results/premesh.obj", preMesh);
 #endif
 
 
-    //Find non snappable vertices in the preserved mesh
-    std::unordered_set<VertexId> preNonSnappableVertices;
-    for (const Index eId : cluster) {
-
-        const Entry& entry = data.entry(eId);
-
-        const Model* model = entry.model;
-        const Mesh& mesh = model->mesh;
-
-        //Find vertices that were already in the border of the original mesh
-        std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
-        std::unordered_set<VertexId> borderVerticesSet(borderVertices.begin(), borderVertices.end());
-
-        for (VertexId vId = 0; vId < preMesh.nextVertexId(); vId++) {
-            if (preMesh.isVertexDeleted(vId))
-                continue;
-
-            if (preBirthVertex[vId].first == eId && borderVerticesSet.find(preBirthVertex[vId].second) != borderVerticesSet.end()) {
-                preNonSnappableVertices.insert(vId);
-            }
-        }
-    }
 
 
-    // --------------------------------------- NEW SURFACE ---------------------------------------
+
+    // --------------------------------------- BORDER ATTACHING ---------------------------------------
+
+
 
     //Fill faces to keep in the blended mesh
     std::unordered_set<FaceId> newSurfaceFaces;
@@ -586,63 +581,34 @@ void blendSurfaces(
         }
     }
 
-#ifdef SAVE_MESHES_FOR_DEBUG
-    //Transfer in the new surface the faces to be kept
-    nvl::meshTransferFaces(blendedMesh, std::vector<VertexId>(newSurfaceFaces.begin(), newSurfaceFaces.end()), newMesh);
-    nvl::meshSaveToFile("results/newmesh_1_initial.obj", newMesh);
-    newMesh.clear();
-#endif
+    //Find non snappable vertices in the preserved mesh
+    std::unordered_set<VertexId> preNonSnappableVertices;
+    for (const Index eId : cluster) {
 
-    //Regularization
-    internal::meshCloseFaceSelectionNoBorders(blendedMesh, newSurfaceFaces);
-    internal::meshOpenFaceSelectionNoBorders(blendedMesh, newSurfaceFaces);
+        const Entry& entry = data.entry(eId);
 
-    //Transfer in the new surface the faces to be kept
-    nvl::meshTransferFaces(blendedMesh, std::vector<VertexId>(newSurfaceFaces.begin(), newSurfaceFaces.end()), newMesh);
+        const Model* model = entry.model;
+        const Mesh& mesh = model->mesh;
 
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newmesh_2_regularized.obj", newMesh);
-#endif
+        //Find vertices that were already in the border of the original mesh
+        std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
+        std::unordered_set<VertexId> borderVerticesSet(borderVertices.begin(), borderVertices.end());
 
+        for (VertexId vId = 0; vId < preMesh.nextVertexId(); vId++) {
+            if (preMesh.isVertexDeleted(vId))
+                continue;
 
-
-
-
-
-
-
-    // --------------------------------------- BORDER ATTACHING ---------------------------------------
-
-    //Attach mesh borders to the preserved mesh
-    double attachingMaxDistance = voxelSize * 10;
-    std::unordered_set<VertexId> newSnappedVertices;
-    std::unordered_set<VertexId> preSnappedVertices;
-    internal::attachMeshesByBorders(newMesh, preMesh, attachingMaxDistance, std::unordered_set<VertexId>(), preNonSnappableVertices, newSnappedVertices, preSnappedVertices);
-
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/newmesh_3_attached.obj", newMesh);
-#endif
-
-
-
-
-
-
-
-    //Create new preserved mesh deleting the not used faces
-    std::vector<FaceId> preNotUsedFaces = internal::getPreNotUsedFacesAfterAttaching(preMesh, preNonSnappableVertices, preSnappedVertices);
-    for (FaceId& fId : preNotUsedFaces) {
-        const Index eId = preBirthFace[fId].first;
-        const Index& cId = clusterMap[eId];
-
-        preservedFaces[cId].erase(preBirthFace[fId].second);
+            if (preBirthVertex[vId].first == eId && borderVerticesSet.find(preBirthVertex[vId].second) != borderVerticesSet.end()) {
+                preNonSnappableVertices.insert(vId);
+            }
+        }
     }
 
-    preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
+    //Attach mesh borders to the preserved mesh
+    std::unordered_set<VertexId> newSnappedVertices;
+    std::unordered_set<VertexId> preSnappedVertices;
+    newMesh = internal::attachMeshesByBorders(blendedMesh, preMesh, preNonSnappableVertices, newSurfaceFaces, newSnappedVertices, preSnappedVertices);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/premesh.obj", preMesh);
-#endif
 
 
 

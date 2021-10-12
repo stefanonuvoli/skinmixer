@@ -623,6 +623,13 @@ double interpolateFaceSelectValue(
         values,
         true);
 
+    if (nvl::epsEqual(value, 0.0)) {
+        value = 0.0;
+    }
+    else if (nvl::epsEqual(value, 1.0)) {
+        value = 1.0;
+    }
+
     return value;
 }
 
@@ -642,6 +649,13 @@ double averageFaceSelectValue(
         selectValue += vertexSelectValue[j];
     }
     selectValue /= face.vertexNumber();
+
+    if (nvl::epsEqual(selectValue, 0.0)) {
+        selectValue = 0.0;
+    }
+    else if (nvl::epsEqual(selectValue, 1.0)) {
+        selectValue = 1.0;
+    }
 
     return selectValue;
 }

@@ -11,21 +11,13 @@ namespace skinmixer {
 namespace internal {
 
 template<class Mesh>
-void attachMeshesByBorders(
-        Mesh& mesh,
+Mesh attachMeshesByBorders(
+        const Mesh& mesh,
         const Mesh& destMesh,
-        const double maxDistance,
-        const std::unordered_set<typename Mesh::VertexId>& meshNonSnappableVertices,
         const std::unordered_set<typename Mesh::VertexId>& destNonSnappableVertices,
+        const std::unordered_set<typename Mesh::FaceId>& newSurfaceFaces,
         std::unordered_set<typename Mesh::VertexId>& newSnappedVertices,
         std::unordered_set<typename Mesh::VertexId>& preSnappedVertices);
-
-template<class Mesh>
-std::vector<typename Mesh::FaceId> getPreUsedFacesAfterAttaching(
-        const Mesh& preMesh,
-        const std::unordered_set<typename Mesh::VertexId>& preNonSnappableVertices,
-        const std::unordered_set<typename Mesh::VertexId>& preSnappedVertices);
-
 }
 }
 
