@@ -6,12 +6,14 @@
 #include <vector>
 #include <unordered_map>
 
-#include "skinmixer/skinmixer_operation.h"
-
 #include <nvl/math/affine.h>
 #include <nvl/math/dual_quaternion.h>
 
 namespace skinmixer {
+
+enum OperationType { NONE, REMOVE, DETACH, REPLACE, ATTACH };
+enum ReplaceMode { BLEND, UNION };
+enum MixMode { RETOPOLOGY, MORPHING };
 
 template<class Model>
 class SkinMixerData
@@ -92,6 +94,8 @@ public:
 
         nvl::Affine3d rotation2;
         nvl::Translation3d translation2;
+
+        ReplaceMode replaceMode;
 
         void clear();
     };

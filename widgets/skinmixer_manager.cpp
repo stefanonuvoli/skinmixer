@@ -372,7 +372,8 @@ SkinMixerManager::JointId SkinMixerManager::getSelectedJointId()
 
 void SkinMixerManager::mix()
 {
-    std::vector<nvl::Index> newEntries = skinmixer::mix(vSkinMixerData);
+    const MixMode mixMode = ui->mixModeRetopologyRadioBox->isChecked() ? MixMode::RETOPOLOGY : MixMode::MORPHING;
+    std::vector<nvl::Index> newEntries = skinmixer::mix(vSkinMixerData, mixMode);
 
     for (nvl::Index eId : newEntries) {
         SkinMixerEntry& newEntry = vSkinMixerData.entry(eId);
@@ -480,7 +481,8 @@ void SkinMixerManager::applyOperation()
         assert(vSelectedModelDrawer != vFirstSelectedModelDrawer);
 
         if (vCurrentOperation == OperationType::REPLACE) {
-            skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
+            const ReplaceMode replaceMode = ui->replaceModeBlendRadioBox->isChecked() ? ReplaceMode::BLEND : ReplaceMode::UNION;
+            skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
         }
         else if (vCurrentOperation == OperationType::ATTACH) {
             skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
@@ -549,7 +551,8 @@ void SkinMixerManager::updatePreview()
             const double includeParent2 = ui->parent2CheckBox->isChecked();
 
             if (vCurrentOperation == OperationType::REPLACE) {
-                actionId = skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
+                const ReplaceMode replaceMode = ui->replaceModeBlendRadioBox->isChecked() ? ReplaceMode::BLEND : ReplaceMode::UNION;
+                actionId = skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
             }
             else if (vCurrentOperation == OperationType::ATTACH) {
                 actionId = skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);

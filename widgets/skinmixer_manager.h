@@ -17,7 +17,6 @@
 #include <nvl/models/model.h>
 #include <nvl/models/meshes.h>
 
-#include "skinmixer/skinmixer_operation.h"
 #include "skinmixer/skinmixer_data.h"
 
 namespace Ui {
@@ -33,11 +32,14 @@ class SkinMixerManager : public QFrame
     typedef nvl::ModelDrawer<Model> ModelDrawer;
     typedef Model::Skeleton::JointId JointId;
 
-    typedef skinmixer::OperationType OperationType;
     typedef skinmixer::SkinMixerData<Model> SkinMixerData;
     typedef typename SkinMixerData::Entry SkinMixerEntry;
     typedef typename SkinMixerData::BirthInfo::JointInfo JointInfo;
     typedef typename SkinMixerData::SelectInfo SelectInfo;
+
+    typedef skinmixer::OperationType OperationType;
+    typedef skinmixer::ReplaceMode ReplaceMode;
+    typedef skinmixer::MixMode MixMode;
 
     typedef nvl::Canvas::PickingData PickingData;
 

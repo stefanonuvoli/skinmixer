@@ -9,7 +9,8 @@ namespace skinmixer {
 
 template<class Model>
 std::vector<nvl::Index> mix(
-        SkinMixerData<Model>& data);
+        SkinMixerData<Model>& data,
+        const MixMode& mixMode);
 
 template<class Model>
 void mixAnimations(
@@ -30,6 +31,7 @@ nvl::Index replace(
         Model* model2,
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
+        const ReplaceMode& replaceMode,
         const unsigned int functionSmoothingIterations,
         const double rigidity,
         const double hardness1,

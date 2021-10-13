@@ -1,7 +1,5 @@
 #include "skinmixer_blend_skeletons.h"
 
-#include "skinmixer/skinmixer_operation.h"
-
 #include <unordered_set>
 
 #include <nvl/math/interpolation.h>

@@ -98,7 +98,6 @@ HEADERS += \
     skinmixer/skinmixer_blend_animations.h \
     skinmixer/skinmixer_blend_surfaces.h \
     skinmixer/skinmixer_data.h \
-    skinmixer/skinmixer_operation.h \
     skinmixer/skinmixer_select.h \
     skinmixer/skinmixer_utilities.h \
     widgets/skinmixer_manager.h \

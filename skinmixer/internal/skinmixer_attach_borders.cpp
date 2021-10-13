@@ -80,8 +80,9 @@ Mesh attachMeshesByBorders(
     std::unordered_set<FaceId> facesToDelete;
 
     //Find best chains that matches the destination mesh borders
-    mChains.resize(dChains.size());
     std::unordered_set<VertexId> verticesInChains;
+    std::set<std::pair<VertexId, VertexId>> edgesInChains;
+    mChains.resize(dChains.size());
     for (Index chainId = 0; chainId < dChains.size(); ++chainId) {
         const std::vector<VertexId>& dChain = dChains[chainId];
         std::vector<VertexId>& mChain = mChains[chainId];
@@ -97,10 +98,8 @@ Mesh attachMeshesByBorders(
             std::vector<VertexId> componentVertices;
 
             for (const FaceId& fId : component) {
-                if (facesToDelete.find(fId) == facesToDelete.end()) {
-                    for (const VertexId& vId : mesh.face(fId).vertexIds()) {
-                        componentVertices.push_back(vId);
-                    }
+                for (const VertexId& vId : mesh.face(fId).vertexIds()) {
+                    componentVertices.push_back(vId);
                 }
             }
 
@@ -220,8 +219,7 @@ Mesh attachMeshesByBorders(
 
         verticesInChains.insert(mChain.begin(), mChain.end());
 
-        //Get chain edges
-        std::set<std::pair<VertexId, VertexId>> chainEdges;
+        //Save chain edges
         for (Index i = 0; i < mChain.size(); ++i) {
             const Index nextI = (i + 1) % mChain.size();
             VertexId v1 = mChain[i];
@@ -232,15 +230,18 @@ Mesh attachMeshesByBorders(
                 std::swap(v1, v2);
             }
 
-            chainEdges.insert(std::make_pair(v1, v2));
+            edgesInChains.insert(std::make_pair(v1, v2));
         }
+    }
 
-        //Find components splitted by the chain
-        std::vector<std::vector<typename Mesh::FaceId>> chainComponents;
-        std::stack<FaceId> stack;
-        std::vector<bool> visited(mesh.nextFaceId(), false);
-        for (const FaceId& fId : mConnectedComponents[mComponentId]) {
-            if (visited[fId] || facesToDelete.find(fId) != facesToDelete.end()) {
+    //Find components splitted by the chain
+    std::vector<std::vector<typename Mesh::FaceId>> chainComponents;
+    std::stack<FaceId> stack;
+    std::vector<bool> visited(mesh.nextFaceId(), false);
+    for (const Index& cId : mUsedComponents) {
+        const std::vector<FaceId>& connectedComponent = mConnectedComponents[cId];
+        for (const FaceId& fId : connectedComponent) {
+            if (mesh.isFaceDeleted(fId) || visited[fId]) {
                 continue;
             }
 
@@ -253,7 +254,6 @@ Mesh attachMeshesByBorders(
                 stack.pop();
 
                 if (!visited[currentFId]) {
-                    assert(facesToDelete.find(currentFId) == facesToDelete.end());
                     currentComponent.push_back(currentFId);
 
                     const Face& face = mesh.face(currentFId);
@@ -267,10 +267,10 @@ Mesh attachMeshesByBorders(
                             std::swap(v1, v2);
                         }
 
-                        if (chainEdges.find(std::make_pair(v1, v2)) == chainEdges.end()) {
+                        if (edgesInChains.find(std::make_pair(v1, v2)) == edgesInChains.end()) {
                             const FaceId& adjId = mFFAdj[currentFId][k];
 
-                            if (adjId != nvl::MAX_INDEX && !visited[adjId] && facesToDelete.find(adjId) == facesToDelete.end()) {
+                            if (adjId != nvl::MAX_INDEX && !visited[adjId]) {
                                 stack.push(adjId);
                             }
                         }
@@ -282,55 +282,33 @@ Mesh attachMeshesByBorders(
 
             chainComponents.push_back(currentComponent);
         }
-
-        assert(chainComponents.size() == 2);
-
-        //Delete component with less new surface faces
-        Index bestChainComponentToDelete = nvl::MAX_INDEX;
-        double bestChainComponentToDeleteScore = nvl::maxLimitValue<double>();
-        for (Index i = 0; i < chainComponents.size(); ++i) {
-            std::vector<FaceId>& faces = chainComponents[i];
-
-            double score = 0.0;
-            for (const FaceId& fId : faces) {
-                if (newSurfaceFaces.find(fId) != newSurfaceFaces.end()) {
-                    score += 1.0;
-                }
-                const Face& face = mesh.face(fId);
-            }
-
-            if (score < bestChainComponentToDeleteScore) {
-                bestChainComponentToDeleteScore = score;
-                bestChainComponentToDelete = i;
-            }
-        }
-
-        assert(bestChainComponentToDelete < nvl::MAX_INDEX);
-
-        for (const FaceId& fId : chainComponents[bestChainComponentToDelete]) {
-            facesToDelete.insert(fId);
-        }
-
-
-#ifdef SAVE_MESHES_FOR_DEBUG
-        std::vector<FaceId> facesToKeep;
-        for (const Index& cId : mUsedComponents) {
-            const std::vector<FaceId>& connectedComponent = mConnectedComponents[cId];
-            for (const FaceId& fId : connectedComponent) {
-                if (facesToDelete.find(fId) == facesToDelete.end()) {
-                    facesToKeep.push_back(fId);
-                }
-            }
-        }
-
-        Mesh tmpMesh;
-        nvl::meshTransferFaces(mesh, facesToKeep, tmpMesh);
-
-        nvl::meshSaveToFile("results/attaching_1_component_" + std::to_string(chainId) + ".obj", tmpMesh);
-#endif
     }
 
+    //Delete component with less new surface faces
+    for (Index i = 0; i < chainComponents.size(); ++i) {
+        std::vector<FaceId>& chainComponentFaces = chainComponents[i];
 
+#ifdef SAVE_MESHES_FOR_DEBUG
+        Mesh chainComponentMesh;
+        nvl::meshTransferFaces(mesh, chainComponentFaces, chainComponentMesh);
+        nvl::meshSaveToFile("results/attaching_1_component_" + std::to_string(i) + ".obj", chainComponentMesh);
+#endif
+
+        double score = 0.0;
+        for (const FaceId& fId : chainComponentFaces) {
+            if (newSurfaceFaces.find(fId) != newSurfaceFaces.end()) {
+                score += 1.0;
+            }
+        }
+
+        score /= chainComponentFaces.size();
+
+        if (score < 0.5) {
+            for (const FaceId& fId : chainComponentFaces) {
+                facesToDelete.insert(fId);
+            }
+        }
+    }
 
 
 

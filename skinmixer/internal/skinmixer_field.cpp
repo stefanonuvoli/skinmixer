@@ -22,9 +22,9 @@
 #include <igl/fast_winding_number.h>
 #include <igl/winding_number.h>
 
-#define SELECT_VALUE_MIN_THRESHOLD 0.01
-#define SELECT_VALUE_MAX_THRESHOLD 0.99
-#define EXPANSION_VOXELS 20.0
+#define SELECT_VALUE_MIN_THRESHOLD 0.001
+#define SELECT_VALUE_MAX_THRESHOLD 0.999
+#define EXPANSION_VOXELS 10.0
 
 namespace skinmixer {
 namespace internal {
@@ -333,34 +333,43 @@ void getBlendedGrid(
                     const Mesh& mesh2 = models[cId2]->mesh;
 
                     if (pId1 >= 0 && pId2 >= 0 && closedDistance1 < maxDistance && closedDistance1 > -maxDistance && closedDistance2 < maxDistance && closedDistance2 > -maxDistance) {
-                        FaceId originFaceId1 = fieldBirthFace1[pId1];
-                        double selectValue1 = interpolateFaceSelectValue(mesh1, originFaceId1, point, vertexSelectValues1);
 
-                        FaceId originFaceId2 = fieldBirthFace2[pId2];
-                        double selectValue2 = interpolateFaceSelectValue(mesh2, originFaceId2, point, vertexSelectValues2);
-
-                        //Replace operation blending
+                        //Replace operation
                         if (action.operation == OperationType::REPLACE) {
-                            if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < SELECT_VALUE_MAX_THRESHOLD) {
-                                resultValue = closedDistance1;
+                            //Blend mode
+                            if (action.replaceMode == ReplaceMode::BLEND) {
+                                FaceId originFaceId1 = fieldBirthFace1[pId1];
+                                double selectValue1 = interpolateFaceSelectValue(mesh1, originFaceId1, point, vertexSelectValues1);
+
+                                FaceId originFaceId2 = fieldBirthFace2[pId2];
+                                double selectValue2 = interpolateFaceSelectValue(mesh2, originFaceId2, point, vertexSelectValues2);
+
+                                if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < SELECT_VALUE_MAX_THRESHOLD) {
+                                    resultValue = closedDistance1;
+                                }
+                                else if (selectValue1 < SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
+                                    resultValue = closedDistance2;
+                                }
+                                else if (selectValue1 <= SELECT_VALUE_MIN_THRESHOLD && selectValue2 <= SELECT_VALUE_MIN_THRESHOLD) {
+                                    resultValue = 0.5 * closedDistance1 + 0.5 * closedDistance2;
+                                }
+                                else if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
+                                    resultValue = std::min(closedDistance1, closedDistance2);
+                                }
+                                else {
+                                    resultValue =
+                                            (selectValue1 * closedDistance1 + selectValue2 * closedDistance2) /
+                                            (selectValue1 + selectValue2);
+                                }
                             }
-                            else if (selectValue1 < SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
-                                resultValue = closedDistance2;
-                            }
-                            else if (selectValue1 <= SELECT_VALUE_MIN_THRESHOLD && selectValue2 <= SELECT_VALUE_MIN_THRESHOLD) {
-                                resultValue = 0.5 * closedDistance1 + 0.5 * closedDistance2;
-                            }
-                            else if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
-                                resultValue = std::min(closedDistance1, closedDistance2);
-                            }
+                            //Union mode
                             else {
-                                resultValue =
-                                        (selectValue1 * closedDistance1 + selectValue2 * closedDistance2) /
-                                        (selectValue1 + selectValue2);
+                                assert(action.replaceMode == ReplaceMode::UNION);
+                                resultValue = nvl::min(closedDistance1, closedDistance2);
                             }
                         }
 
-                        //Attach operation blending
+                        //Attach operation
                         else if (action.operation == OperationType::ATTACH) {
                             resultValue = nvl::min(closedDistance1, closedDistance2);
                         }

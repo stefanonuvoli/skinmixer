@@ -1,6 +1,5 @@
 #include "skinmixer.h"
 
-#include "skinmixer/skinmixer_operation.h"
 #include "skinmixer/skinmixer_utilities.h"
 #include "skinmixer/skinmixer_select.h"
 #include "skinmixer/skinmixer_blend_skeletons.h"
@@ -18,7 +17,8 @@ namespace skinmixer {
 
 template<class Model>
 std::vector<nvl::Index> mix(
-        SkinMixerData<Model>& data)
+        SkinMixerData<Model>& data,
+        const MixMode& mixMode)
 {
     typedef nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
@@ -39,7 +39,7 @@ std::vector<nvl::Index> mix(
 
     //Blend surface
     start = chrono::steady_clock::now();
-    blendSurfaces(data, newEntries);
+    blendSurfaces(data, newEntries, mixMode);
     std::cout << "Surface blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
 
@@ -87,6 +87,7 @@ nvl::Index replace(
         Model* model2,
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
+        const ReplaceMode& replaceMode,
         const unsigned int functionSmoothingIterations,
         const double rigidity,
         const double hardness1,
@@ -125,6 +126,7 @@ nvl::Index replace(
     action.select2.joint = jointValues2;
     action.rotation2 = vActionRotation;
     action.translation2 = vActionTranslation;
+    action.replaceMode = replaceMode;
 
     nvl::Index actionId = data.addAction(action);
     entry1.relatedActions.push_back(actionId);
