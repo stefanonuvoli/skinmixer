@@ -21,7 +21,7 @@
 #include <nvl/vcglib/vcg_polygon_mesh.h>
 #include <nvl/vcglib/vcg_grid.h>
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
 #include <nvl/models/mesh_io.h>
 #endif
 
@@ -119,7 +119,6 @@ void blendSurfaces(
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
-    typedef typename Mesh::Face Face;
     typedef typename Mesh::Point Point;
     typedef typename Mesh::Scalar Scalar;
     typedef typename nvl::Index Index;
@@ -233,7 +232,7 @@ void blendSurfaces(
         //Get grid
         internal::getClosedGrid(inputMeshes[cId], maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId], bbMin[cId], bbMax[cId]);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + ".obj", inputMeshes[cId]);
         nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + ".obj", closedMeshes[cId]);
 #endif
@@ -257,30 +256,6 @@ void blendSurfaces(
         blendedGrid,
         actionGrid);
 
-    //Extract iso surface mesh
-    blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
-
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
-#endif
-
-    //Rescale back
-    nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
-
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
-#endif
-
-    //Remesh
-    double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
-    blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR);
-
-#ifdef SAVE_MESHES_FOR_DEBUG
-    nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
-    nvl::meshComputeVertexNormalsFromFaceNormals(blendedMesh);
-    nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
-#endif
-
 
 
     if (mixMode == MixMode::RETOPOLOGY) {
@@ -297,6 +272,34 @@ void blendSurfaces(
         std::vector<VertexId> borderVerticesToSmooth; //Vertices to smooth in the boorder
         std::vector<double> borderVerticesToSmoothAlpha; //Weight for vertices to smooth in the boorder
         std::vector<VertexId> innerVerticesToSmooth; //Inner vertices to smooth
+
+
+
+        // --------------------------------------- GET BLENDED MESH ---------------------------------------
+
+        //Extract iso surface mesh
+        blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
+    #endif
+
+        //Rescale back
+        nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
+    #endif
+
+        //Remesh
+        double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
+        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR);
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
+        nvl::meshComputeVertexNormalsFromFaceNormals(blendedMesh);
+        nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
+    #endif
 
 
         // --------------------------------------- GET PRESERVED FACES ---------------------------------------
@@ -318,7 +321,7 @@ void blendSurfaces(
             }
         }
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
         nvl::meshSaveToFile("results/premesh_1_initial.obj", preMesh);
 #endif
@@ -421,7 +424,7 @@ void blendSurfaces(
             }
         }
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
         nvl::meshSaveToFile("results/premesh_3_blended.obj", preMesh);
 #endif
@@ -439,7 +442,7 @@ void blendSurfaces(
 
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/premesh.obj", preMesh);
 #endif
 
@@ -640,14 +643,14 @@ void blendSurfaces(
         //Laplacian adaptive
         nvl::meshLaplacianSmoothing(newMesh, borderVerticesToSmooth, SMOOTHING_BORDER_ITERATIONS, borderVerticesToSmoothAlpha);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/newmesh_4_border_smoothing.obj", newMesh);
 #endif
 
         //Total laplacian
         nvl::meshLaplacianSmoothing(newMesh, innerVerticesToSmooth, SMOOTHING_INNER_ITERATIONS, SMOOTHING_INNER_WEIGHT);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/newmesh.obj", newMesh);
 #endif
 
@@ -661,7 +664,7 @@ void blendSurfaces(
         //Get final mesh
         Mesh quadrangulation;
         resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/quadrangulationmesh.obj", quadrangulation);
 #endif
 
@@ -677,11 +680,36 @@ void blendSurfaces(
         std::vector<std::unordered_set<VertexId>> preservedVertices(cluster.size()); //Preserved vertices
         std::vector<std::unordered_set<VertexId>> morphingVertices(cluster.size()); //Vertices to be morphed
 
-        nvl::VCGGrid<Mesh> vcgGrid(blendedMesh); //Create vcg grid for closest point detection
 
 
+        // --------------------------------------- GET BLENDED MESH ---------------------------------------
 
-        // --------------------------------------- GET RESULT MESH ---------------------------------------
+        //Extract iso surface mesh
+        blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
+    #endif
+
+        //Rescale back
+        nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
+    #endif
+
+        //Remesh
+        double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
+        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR);
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
+        nvl::meshComputeVertexNormalsFromFaceNormals(blendedMesh);
+        nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
+    #endif
+
+
+        // --------------------------------------- PRESERVED FACES ---------------------------------------
 
         //Get preserved faces by select values
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -711,7 +739,7 @@ void blendSurfaces(
         }
 
 
-        //Get preserved faces by select values
+        //Get morphing faces by select values
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Mesh& mesh = models[cId]->mesh;
 
@@ -730,7 +758,7 @@ void blendSurfaces(
             }
         }
 
-        //Find preserved vertices
+        //Find morphing vertices
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Mesh& mesh = models[cId]->mesh;
             for (const FaceId& fId : preservedFaces[cId]) {
@@ -746,6 +774,11 @@ void blendSurfaces(
                 }
             }
         }
+
+
+        // --------------------------------------- GET RESULT MESH ---------------------------------------
+
+        std::vector<std::pair<nvl::Index, VertexId>> resultMorphingBirthVertex; //Birth vertex infos
 
         //Create result mesh
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -766,26 +799,19 @@ void blendSurfaces(
             std::vector<FaceId> tmpBirthFace;
             nvl::meshTransferVerticesWithFaces(mesh, verticesToTransfer, resultMesh, tmpBirthVertex, tmpBirthFace);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
-            nvl::meshSaveToFile("results/resultmesh_1_initial.obj", resultMesh);
-#endif
-
             resultPreBirthVertex.resize(resultMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
             resultPreBirthFace.resize(resultMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+
+            resultMorphingBirthVertex.resize(resultMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+
             for (Index vId = lastVertexId; vId < resultMesh.nextVertexId(); ++vId) {
                 assert(tmpBirthVertex[vId] != nvl::MAX_INDEX);
                 VertexId birthVertexId = tmpBirthVertex[vId];
 
                 //If to be morphed, then move to the closest point
                 if (morphingVertices[cId].find(birthVertexId) != morphingVertices[cId].end()) {
-                    const nvl::Point3d& p = mesh.vertex(birthVertexId).point();
-
-                    nvl::Point3d closestPoint;
-                    vcgGrid.getClosestFace(p, closestPoint);
-
-                    std::cout << p << " " << closestPoint << std::endl;
-
-                    resultMesh.vertex(vId).setPoint(closestPoint);
+                    resultMorphingBirthVertex[vId] = std::make_pair(eId, birthVertexId);
+                    assert(preservedVertices[cId].find(birthVertexId) == preservedVertices[cId].end());
                 }
                 //Vertex is preserved
                 else if (preservedVertices[cId].find(birthVertexId) != preservedVertices[cId].end()) {
@@ -797,9 +823,35 @@ void blendSurfaces(
                 resultPreBirthFace[fId] = std::make_pair(eId, tmpBirthFace[fId]);
             }
         }
-    }   
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+            nvl::meshSaveToFile("results/resultmesh_1_initial.obj", resultMesh);
+#endif
+
+        // --------------------------------------- MORPHING ---------------------------------------
+
+        nvl::VCGGrid<Mesh> vcgGrid(blendedMesh); //Create vcg grid for closest point detection
+        for (Index vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
+            const std::pair<Index,VertexId>& pair = resultMorphingBirthVertex[vId];
+
+            const Index& birthEId = pair.first;
+            const VertexId& birthVertexId = pair.second;
+
+            if (birthEId != nvl::MAX_INDEX) {
+                assert(birthVertexId != nvl::MAX_INDEX);
+
+                const nvl::Point3d& p = resultMesh.vertex(vId).point();
+
+                nvl::Point3d closestPoint;
+                vcgGrid.getClosestFace(p, closestPoint);
+
+                resultMesh.vertex(vId).setPoint(closestPoint);
+            }
+        }
+    }
+
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/resultmesh.obj", resultMesh);
 #endif
 
@@ -1100,7 +1152,7 @@ void blendSurfaces(
     //Create preserved
     preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/premesh.obj", preMesh);
 #endif
 
@@ -1150,7 +1202,6 @@ typename Model::Mesh getPreservedMesh(
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
     typedef typename SkinMixerData<Model>::Entry Entry;
-    typedef typename SkinMixerData<Model>::Action Action;
 
     Mesh preMesh;
     preBirthFace.clear();
@@ -1164,10 +1215,6 @@ typename Model::Mesh getPreservedMesh(
         const Mesh& mesh = model->mesh;
 
         const std::unordered_set<FaceId>& preFacesToKeepSet = preservedFacesPerModel[model];
-
-//        //Find vertices that were already in the border of the original mesh
-//        std::vector<VertexId> borderVertices = nvl::meshBorderVertices(mesh);
-//        std::unordered_set<VertexId> borderVerticesSet(borderVertices.begin(), borderVertices.end());
 
         nvl::Size lastVertexId = preMesh.nextVertexId();
         nvl::Size lastFaceId = preMesh.nextFaceId();
@@ -1249,8 +1296,12 @@ Mesh quadrangulateMesh(
         std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace)
 {
     typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::Vertex Vertex;
     typedef typename Mesh::FaceId FaceId;
+    typedef typename Mesh::Face Face;
+    typedef typename Mesh::MaterialId MaterialId;
 
+    Mesh tmpResult;
     Mesh result;
 
     nvl::VCGTriangleMesh vcgNewMesh;
@@ -1353,28 +1404,58 @@ Mesh quadrangulateMesh(
     nvl::convertVCGMeshToMesh(vcgQuadrangulation, quadrangulation);
     std::vector<nvl::Index> vcgResultBirthVertex;
     std::vector<nvl::Index> vcgResultBirthFace;
-    nvl::convertVCGMeshToMesh(vcgResult, result, vcgResultBirthVertex, vcgResultBirthFace);
+    nvl::convertVCGMeshToMesh(vcgResult, tmpResult, vcgResultBirthVertex, vcgResultBirthFace);
 
-    birthVertex.resize(result.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-    birthFace.resize(result.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-    for (VertexId vId = 0; vId < result.nextVertexId(); vId++) {
-        if (result.isVertexDeleted(vId))
+    std::vector<MaterialId> materialMap(preMesh.nextMaterialId(), nvl::MAX_INDEX);
+
+    birthVertex.resize(tmpResult.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+    birthFace.resize(tmpResult.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+    for (VertexId vId = 0; vId < tmpResult.nextVertexId(); vId++) {
+        if (tmpResult.isVertexDeleted(vId))
             continue;
 
         nvl::Index vcgResultVId = vcgResultBirthVertex[vId];
         int vcgPreMeshVId = vcgPreservedVertexMap[vcgResultVId];
         if (vcgPreMeshVId >= 0) {
-            birthVertex[vId] = preBirthVertex[vcgPreBirthVertex[vcgPreMeshVId]];
+            const VertexId& preMeshVId = vcgPreBirthVertex[vcgPreMeshVId];
+            const Vertex& preVertex = preMesh.vertex(preMeshVId);
+
+            const VertexId newVId = result.addVertex(preVertex);
+
+            birthVertex[vId] = preBirthVertex[preMeshVId];
+        }
+        else {
+            result.addVertex(tmpResult.vertex(vId));
         }
     }
-    for (FaceId fId = 0; fId < result.nextFaceId(); fId++) {
-        if (result.isFaceDeleted(fId))
+
+    for (FaceId fId = 0; fId < tmpResult.nextFaceId(); fId++) {
+        if (tmpResult.isFaceDeleted(fId))
             continue;
 
         nvl::Index vcgResultFId = vcgResultBirthFace[fId];
         int vcgPreMeshFId = vcgPreservedFaceMap[vcgResultFId];
         if (vcgPreMeshFId >= 0) {
-            birthFace[fId] = preBirthFace[vcgPreBirthFace[vcgPreMeshFId]];
+            const FaceId& preMeshFId = vcgPreBirthFace[vcgPreMeshFId];
+            const Face& preFace = preMesh.face(preMeshFId);
+
+            const std::vector<VertexId>& vertexIds = tmpResult.face(fId).vertexIds();
+            FaceId newFId = result.addFace(preFace);
+            result.face(newFId).setVertexIds(vertexIds);
+
+            birthFace[fId] = preBirthFace[preMeshFId];
+
+            MaterialId mId = preFace.materialId();
+            if (mId != nvl::MAX_INDEX) {
+                if (materialMap[mId] == nvl::MAX_INDEX) {
+                    MaterialId newMId = result.addMaterial(preMesh.material(mId));
+                    materialMap[mId] = newMId;
+                }
+                result.face(newFId).setMaterialId(materialMap[mId]);
+            }
+        }
+        else {
+            result.addFace(tmpResult.face(fId));
         }
     }
 

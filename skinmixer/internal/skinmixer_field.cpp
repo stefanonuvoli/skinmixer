@@ -1,6 +1,6 @@
 #include "skinmixer_field.h"
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
 #include <nvl/models/mesh_io.h>
 #endif
 

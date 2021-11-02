@@ -33,7 +33,6 @@ void blendSkinningWeights(
     typedef typename Skeleton::JointId JointId;
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
-    typedef typename Mesh::Face Face;
     typedef typename Mesh::Point Point;
 
     for (const nvl::Index& eId : newEntries) {
@@ -124,7 +123,6 @@ typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
 {
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::Face Face;
-    typedef typename Mesh::Scalar Scalar;
     typedef typename Mesh::Point Point;
     typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
 

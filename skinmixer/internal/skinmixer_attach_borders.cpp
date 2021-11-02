@@ -20,7 +20,7 @@
 #include <numeric>
 #include <gurobi_c++.h>
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
 #include <nvl/models/mesh_io.h>
 #endif
 
@@ -288,7 +288,7 @@ Mesh attachMeshesByBorders(
     for (Index i = 0; i < chainComponents.size(); ++i) {
         std::vector<FaceId>& chainComponentFaces = chainComponents[i];
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         Mesh chainComponentMesh;
         nvl::meshTransferFaces(mesh, chainComponentFaces, chainComponentMesh);
         nvl::meshSaveToFile("results/attaching_1_component_" + std::to_string(i) + ".obj", chainComponentMesh);
@@ -589,7 +589,7 @@ Mesh attachMeshesByBorders(
         }
     }
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/attaching_2_cleaned.obj", newMesh);
 #endif
 
@@ -639,7 +639,7 @@ Mesh attachMeshesByBorders(
     }
 
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/attaching_3_splitted.obj", newMesh);
 #endif
 
@@ -647,7 +647,7 @@ Mesh attachMeshesByBorders(
     std::vector<VertexId> nonCollapsed = nvl::collapseBorders(newMesh, fixedBorderVertices);
     std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
 
-#ifdef SAVE_MESHES_FOR_DEBUG
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/attaching_4_collapsed.obj", newMesh);
 #endif
 

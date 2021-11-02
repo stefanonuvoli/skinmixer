@@ -76,7 +76,6 @@ nvl::Index SkinMixerManager::loadModelFromFile(const std::string& filename)
         Model* model = new Model(tmpModel);
         initializeLoadedModel(model);
 
-        nvl::FilenameInfo fileInfo = nvl::getFilenameInfo(filename);
         return loadModel(model);
     }
     else {
@@ -1165,6 +1164,7 @@ void SkinMixerManager::on_modelLoadButton_clicked()
         loadModelFromFile(str.toStdString());
     }
 
+    vCanvas->updateGL();
     vCanvas->fitScene();
 }
 

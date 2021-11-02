@@ -22,7 +22,6 @@ std::vector<nvl::Index> mix(
 {
     typedef nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
-    typedef typename Model::Mesh Mesh;
 
     chrono::steady_clock::time_point start;
 

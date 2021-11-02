@@ -724,7 +724,7 @@ double skeletonMatchingConfidence(
     else if (!currentSkeleton.isRoot(currentJId) && !targetSkeleton.isRoot(targetJId)) {
         if (targetTopologicalDistance < nvl::maxLimitValue<unsigned int>()) {
             int distanceValue = nvl::abs(static_cast<int>(targetTopologicalDistance) - 1);
-            assert(static_cast<int>(maxTopologicalDistance) > 0 && distanceValue <= maxTopologicalDistance);
+            assert(static_cast<int>(maxTopologicalDistance) > 0 && distanceValue <= static_cast<int>(maxTopologicalDistance));
             topologyScore = 1.0 - (static_cast<double>(distanceValue) / static_cast<double>(maxTopologicalDistance));
         }
         else if (currentSkeleton.isLeaf(currentJId) && targetSkeleton.isLeaf(targetJId)) {

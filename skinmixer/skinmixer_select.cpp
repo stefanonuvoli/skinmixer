@@ -50,7 +50,8 @@ void computeSelectValues(
 
         for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
             if (jointSelectValue[jId] > 0.0 && !nvl::epsEqual(jointSelectValue[jId], 0.0)) {
-                vertexSelectValue[vId] += skinningWeights.weight(vId, jId);
+                const SkinningWeightsScalar& sw = skinningWeights.weight(vId, jId);
+                vertexSelectValue[vId] += static_cast<double>(sw);
             }
         }
 
@@ -160,7 +161,6 @@ void computeAttachSelectValues(
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Model::Skeleton Skeleton;
-    typedef typename Skeleton::JointId JointId;
     typedef typename Model::SkinningWeights SkinningWeights;
 
     const Mesh& mesh1 = model1.mesh;
