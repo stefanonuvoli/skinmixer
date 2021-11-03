@@ -36,8 +36,8 @@ void getClosedGrid(
         Mesh& closedMesh,
         openvdb::FloatGrid::Ptr& closedGrid,
         openvdb::Int32Grid::Ptr& polygonGrid,
-        openvdb::Vec3i& bbMin,
-        openvdb::Vec3i& bbMax)
+        openvdb::math::Coord& bbMin,
+        openvdb::math::Coord& bbMax)
 {
     typedef typename Mesh::Point Point;
 
@@ -46,6 +46,7 @@ void getClosedGrid(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
+    typedef typename openvdb::Vec3f GridVec;
     typedef typename openvdb::math::Transform GridTransform;
     typedef typename GridTransform::Ptr GridTransformPtr;
 
@@ -71,11 +72,11 @@ void getClosedGrid(
     igl::fast_winding_number(V.cast<float>().eval(), F, 2, fwn);
 
     //Minimum and maximum coordinates in the scalar fields
-    bbMin = openvdb::Vec3i(
+    bbMin = GridCoord(
         std::numeric_limits<int>::max(),
         std::numeric_limits<int>::max(),
         std::numeric_limits<int>::max());
-    bbMax = openvdb::Vec3i(
+    bbMax = GridCoord(
         std::numeric_limits<int>::min(),
         std::numeric_limits<int>::min(),
         std::numeric_limits<int>::min());
@@ -84,12 +85,12 @@ void getClosedGrid(
     for (FloatGrid::ValueOnIter iter = signedGrid->beginValueOn(); iter; ++iter) {
         GridCoord coord = iter.getCoord();
 
-        bbMin = openvdb::Vec3i(
+        bbMin = GridCoord(
             std::min(coord.x(), bbMin.x()),
             std::min(coord.y(), bbMin.y()),
             std::min(coord.z(), bbMin.z()));
 
-        bbMax = openvdb::Vec3i(
+        bbMax = GridCoord(
             std::max(coord.x(), bbMax.x()),
             std::max(coord.y(), bbMax.y()),
             std::max(coord.z(), bbMax.z()));
@@ -110,7 +111,7 @@ void getClosedGrid(
         for (int j = bbMin.y(); j < bbMax.y(); j++) {
             for (int k = bbMin.z(); k < bbMax.z(); k++) {
                 GridCoord coord(i,j,k);
-                openvdb::Vec3d openvdbPoint = signedGrid->indexToWorld(coord);
+                GridVec openvdbPoint = signedGrid->indexToWorld(coord);
 
                 Q(currentVoxel, 0) = openvdbPoint.x();
                 Q(currentVoxel, 1) = openvdbPoint.y();
@@ -132,12 +133,12 @@ void getClosedGrid(
             for (int k = bbMin.z(); k < bbMax.z(); k++) {
                 GridCoord coord(i,j,k);
 
-                FloatGrid::ValueType dist = signedAccessor.getValue(coord);
-                assert(dist >= 0);
-
                 int fwn = static_cast<int>(std::round(W(currentVoxel)));
 
                 if (fwn % 2 != 0) {
+                    FloatGrid::ValueType dist = signedAccessor.getValue(coord);
+                    assert(dist >= 0);
+
                     signedAccessor.setValue(coord, -dist);
                 }
 
@@ -169,8 +170,8 @@ void getBlendedGrid(
         const std::vector<openvdb::FloatGrid::Ptr>& closedGrids,
         const std::vector<openvdb::Int32Grid::Ptr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
-        const std::vector<openvdb::Vec3i>& bbMin,
-        const std::vector<openvdb::Vec3i>& bbMax,
+        const std::vector<openvdb::math::Coord>& bbMin,
+        const std::vector<openvdb::math::Coord>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
         openvdb::FloatGrid::Ptr& blendedGrid,
@@ -187,6 +188,7 @@ void getBlendedGrid(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
+    typedef typename openvdb::Vec3f GridVec;
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
     //Minimum and maximum coordinates in the scalar fields
@@ -227,7 +229,7 @@ void getBlendedGrid(
         for (int j = minCoord.y(); j < maxCoord.y(); j++) {
             for (int k = minCoord.z(); k < maxCoord.z(); k++) {
                 GridCoord coord(i, j, k);
-                openvdb::Vec3d openvdbPoint = blendedGrid->indexToWorld(coord);
+                GridVec openvdbPoint = blendedGrid->indexToWorld(coord);
                 Point point(openvdbPoint.x(), openvdbPoint.y(), openvdbPoint.z());
 
                 point = scaleTransform.inverse() * point;

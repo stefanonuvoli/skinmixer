@@ -132,6 +132,7 @@ void blendSurfaces(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
+    typedef typename openvdb::Vec3f GridVec;
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
 
@@ -241,8 +242,16 @@ void blendSurfaces(
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + ".obj", inputMeshes[cId]);
+        Mesh inputScaled = inputMeshes[cId];
+        nvl::meshApplyTransformation(inputScaled, scaleTransform.inverse());
+        nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + "_rescaled.obj", inputScaled);
+
         nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + ".obj", closedMeshes[cId]);
+        Mesh closedScaled = closedMeshes[cId];
+        nvl::meshApplyTransformation(closedScaled, scaleTransform.inverse());
+        nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + "_rescaled.obj", closedScaled);
 #endif
+
     }
 
     //Blend grids
