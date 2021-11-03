@@ -127,6 +127,13 @@ void blendSurfaces(
     typedef typename SkinMixerData<Model>::Action Action;
     typedef typename SkinMixerData<Model>::Entry Entry;
 
+    typedef typename openvdb::FloatGrid FloatGrid;
+    typedef typename FloatGrid::Ptr FloatGridPtr;
+    typedef typename openvdb::Int32Grid IntGrid;
+    typedef typename IntGrid::Ptr IntGridPtr;
+    typedef typename openvdb::math::Coord GridCoord;
+    typedef typename openvdb::math::Transform::Ptr TransformPtr;
+
 
 
     // --------------------------------------- DEFINITION AND PREPROCESSING DATA ---------------------------------------
@@ -151,17 +158,17 @@ void blendSurfaces(
 
     std::vector<Mesh> inputMeshes(cluster.size()); //Input meshes
     std::vector<Mesh> closedMeshes(cluster.size()); //Closed meshes
-    std::vector<internal::FloatGridPtr> closedGrids(cluster.size()); //Closed grids
-    std::vector<internal::IntGridPtr> polygonGrids(cluster.size()); //Polygon grids
-    std::vector<openvdb::Vec3i> bbMin(cluster.size()); //Min bounding box
-    std::vector<openvdb::Vec3i> bbMax(cluster.size()); //Max bounding box
+    std::vector<FloatGridPtr> closedGrids(cluster.size()); //Closed grids
+    std::vector<IntGridPtr> polygonGrids(cluster.size()); //Polygon grids
+    std::vector<GridCoord> bbMin(cluster.size()); //Min bounding box
+    std::vector<GridCoord> bbMax(cluster.size()); //Max bounding box
 
     std::vector<std::unordered_set<FaceId>> fieldFaces(cluster.size()); //Face in the fields
     std::vector<std::vector<VertexId>> fieldBirthVertex(cluster.size()); //Birth vertex for field
     std::vector<std::vector<FaceId>> fieldBirthFace(cluster.size()); //Birth face for field
 
-    internal::FloatGridPtr blendedGrid; //Blended grid
-    internal::IntGridPtr actionGrid; //Action grid
+    FloatGridPtr blendedGrid; //Blended grid
+    IntGridPtr actionGrid; //Action grid
 
     Mesh blendedMesh; //Blended mesh
 
@@ -256,6 +263,14 @@ void blendSurfaces(
         blendedGrid,
         actionGrid);
 
+    IntGrid::ConstAccessor actionAccessor(actionGrid->getConstAccessor());
+    FloatGrid::ConstAccessor blendedAccessor(blendedGrid->getConstAccessor());
+    std::vector<FloatGrid::ConstAccessor> closedAccessors;
+    std::vector<IntGrid::ConstAccessor> polygonAccessors;
+    for (Index cId = 0; cId < cluster.size(); ++cId) {
+        closedAccessors.push_back(closedGrids[cId]->getConstAccessor());
+        polygonAccessors.push_back(polygonGrids[cId]->getConstAccessor());
+    }
 
 
     if (mixMode == MixMode::RETOPOLOGY) {
@@ -335,31 +350,24 @@ void blendSurfaces(
                 const Point& point = blendedMesh.vertex(vId).point();
 
                 Point scaledPoint = scaleTransform * point;
-                openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+                GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-                internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
-                internal::IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+                IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
 
                 assert(bestActionId < nvl::maxLimitValue<int>());
 
                 const Index& actionId = actions[bestActionId];
                 const Action& action = data.action(actionId);
 
-                internal::FloatGrid::ConstAccessor blendedAccessor = blendedGrid->getConstAccessor();
-                internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+                FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
 
                 //Entry 1
                 const Index eId1 = action.entry1;
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                const internal::FloatGridPtr& closedGrid1 = closedGrids[cId1];
-                const internal::FloatGrid::ConstAccessor closedAccessor1 = closedGrid1->getConstAccessor();
-                const internal::FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
-
-                const internal::IntGridPtr& polygonGrid1 = polygonGrids[cId1];
-                const internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrid1->getConstAccessor();
-                const internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
+                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
 
                 if (pId1 >= 0 && std::fabs(closedDistance1 - blendedDistance) > PRESERVE_GAP_THRESHOLD) {
                     preservedFaces[cId1].erase(fieldBirthFace[cId1][pId1]);
@@ -390,13 +398,8 @@ void blendSurfaces(
                 if (eId2 != nvl::MAX_INDEX) {
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const internal::FloatGridPtr& closedGrid2 = closedGrids[cId2];
-                    const internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrid2->getConstAccessor();
-                    const internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
-
-                    const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
-                    const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
-                    const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
                     if (pId2 >= 0 && std::fabs(closedDistance2 - blendedDistance) > PRESERVE_GAP_THRESHOLD) {
                         preservedFaces[cId2].erase(fieldBirthFace[cId2][pId2]);
@@ -467,10 +470,9 @@ void blendSurfaces(
                 const Point& point = blendedMesh.vertex(vId).point();
 
                 Point scaledPoint = scaleTransform * point;
-                openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+                GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-                internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
-                internal::IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+                IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
 
                 assert(bestActionId < nvl::maxLimitValue<int>());
 
@@ -478,8 +480,7 @@ void blendSurfaces(
                 const Action& action = data.action(actionId);
 
 
-                internal::FloatGrid::ConstAccessor blendedAccessor = blendedGrid->getConstAccessor();
-                internal::FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+                FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
 
 
                 //Entry 1
@@ -487,13 +488,8 @@ void blendSurfaces(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                const internal::FloatGridPtr& closedGrid1 = closedGrids[cId1];
-                const internal::FloatGrid::ConstAccessor closedAccessor1 = closedGrid1->getConstAccessor();
-                const internal::FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
-
-                const internal::IntGridPtr& polygonGrid1 = polygonGrids[cId1];
-                const internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrid1->getConstAccessor();
-                const internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
+                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
 
                 if (pId1 >= 0 && preservedFaces[cId1].find(fieldBirthFace[cId1][pId1]) != preservedFaces[cId1].end() && std::fabs(blendedDistance - closedDistance1) <= NEWSURFACE_DISTANCE_THRESHOLD) {
                     isNewSurface = false;
@@ -505,13 +501,8 @@ void blendSurfaces(
                 if (eId2 != nvl::MAX_INDEX) {
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const internal::FloatGridPtr& closedGrid2 = closedGrids[cId2];
-                    const internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrid2->getConstAccessor();
-                    const internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
-
-                    const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
-                    const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
-                    const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
                     if (pId2 >= 0 && preservedFaces[cId2].find(fieldBirthFace[cId2][pId2]) != preservedFaces[cId2].end() && std::fabs(blendedDistance - closedDistance2) <= NEWSURFACE_DISTANCE_THRESHOLD) {
                         isNewSurface = false;
@@ -576,11 +567,9 @@ void blendSurfaces(
             const Point& point = newMesh.vertex(vId).point();
 
             Point scaledPoint = scaleTransform * point;
-            internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+            GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-
-            internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
-            internal::IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+            IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
 
             assert(bestActionId < nvl::maxLimitValue<int>());
 
@@ -594,9 +583,7 @@ void blendSurfaces(
             assert(eId1 != nvl::MAX_INDEX);
             const Index cId1 = clusterMap.at(eId1);
 
-            const internal::IntGridPtr& polygonGrid1 = polygonGrids[cId1];
-            const internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrid1->getConstAccessor();
-            const internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
+            const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
 
             const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
             const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
@@ -614,9 +601,7 @@ void blendSurfaces(
             if (eId2 != nvl::MAX_INDEX) {
                 const Index cId2 = clusterMap.at(eId2);
 
-                const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
-                const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
-                const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
                 const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
                 const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
@@ -882,10 +867,9 @@ void blendSurfaces(
             const Point& point = resultMesh.vertex(vId).point();
 
             Point scaledPoint = scaleTransform * point;
-            internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+            GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-            internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
-            internal::IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+            IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
 
             if (bestActionId < nvl::maxLimitValue<int>()) {
                 const Index& actionId = actions[bestActionId];
@@ -898,13 +882,8 @@ void blendSurfaces(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                const internal::FloatGridPtr& closedGrid1 = closedGrids[cId1];
-                const internal::FloatGrid::ConstAccessor closedAccessor1 = closedGrid1->getConstAccessor();
-                const internal::FloatGrid::ValueType closedDistance1 = closedAccessor1.getValue(coord);
-
-                const internal::IntGridPtr& polygonGrid1 = polygonGrids[cId1];
-                const internal::IntGrid::ConstAccessor polygonAccessor1 = polygonGrid1->getConstAccessor();
-                const internal::IntGrid::ValueType pId1 = polygonAccessor1.getValue(coord);
+                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
 
                 const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
                 const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
@@ -932,13 +911,8 @@ void blendSurfaces(
                     assert(eId2 != nvl::MAX_INDEX);
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const internal::FloatGridPtr& closedGrid2 = closedGrids[cId2];
-                    const internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrid2->getConstAccessor();
-                    const internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
-
-                    const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
-                    const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
-                    const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
                     const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
                     const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
@@ -1033,13 +1007,8 @@ void blendSurfaces(
                     assert(eId2 != nvl::MAX_INDEX);
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const internal::FloatGridPtr& closedGrid2 = closedGrids[cId2];
-                    const internal::FloatGrid::ConstAccessor closedAccessor2 = closedGrid2->getConstAccessor();
-                    const internal::FloatGrid::ValueType closedDistance2 = closedAccessor2.getValue(coord);
-
-                    const internal::IntGridPtr& polygonGrid2 = polygonGrids[cId2];
-                    const internal::IntGrid::ConstAccessor polygonAccessor2 = polygonGrid2->getConstAccessor();
-                    const internal::IntGrid::ValueType pId2 = polygonAccessor2.getValue(coord);
+                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
 //                    const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
                     const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];

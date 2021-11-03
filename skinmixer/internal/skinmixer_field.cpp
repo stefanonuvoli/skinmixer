@@ -34,20 +34,28 @@ void getClosedGrid(
         const Mesh& inputMesh,
         const double& maxDistance,
         Mesh& closedMesh,
-        FloatGridPtr& closedGrid,
-        IntGridPtr& polygonGrid,
+        openvdb::FloatGrid::Ptr& closedGrid,
+        openvdb::Int32Grid::Ptr& polygonGrid,
         openvdb::Vec3i& bbMin,
         openvdb::Vec3i& bbMax)
 {
     typedef typename Mesh::Point Point;
-    typedef typename openvdb::math::Transform::Ptr TransformPtr;
+
+    typedef typename openvdb::FloatGrid FloatGrid;
+    typedef typename FloatGrid::Ptr FloatGridPtr;
+    typedef typename openvdb::Int32Grid IntGrid;
+    typedef typename IntGrid::Ptr IntGridPtr;
+    typedef typename openvdb::math::Coord GridCoord;
+    typedef typename openvdb::math::Transform GridTransform;
+    typedef typename GridTransform::Ptr GridTransformPtr;
+
 
     //Initialize adapter and polygon grid
     OpenVDBAdapter<Mesh> adapter(&inputMesh);
     polygonGrid = IntGrid::create(-1);
 
     //Create unsigned distance field
-    TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(1.0);
+    GridTransformPtr linearTransform = GridTransform::createLinearTransform(1.0);
     FloatGridPtr signedGrid = openvdb::tools::meshToVolume<FloatGrid>(
                 adapter, *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrid.get());
 
@@ -158,41 +166,46 @@ void getBlendedGrid(
         const std::vector<nvl::Index>& actions,
         const std::vector<const Model*>& models,
         const std::vector<std::vector<double>>& vertexSelectValues,
-        const std::vector<FloatGridPtr>& closedGrids,
-        const std::vector<IntGridPtr>& polygonGrids,
+        const std::vector<openvdb::FloatGrid::Ptr>& closedGrids,
+        const std::vector<openvdb::Int32Grid::Ptr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
         const std::vector<openvdb::Vec3i>& bbMin,
         const std::vector<openvdb::Vec3i>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
-        FloatGridPtr& blendedGrid,
-        IntGridPtr& activeActionGrid)
+        openvdb::FloatGrid::Ptr& blendedGrid,
+        openvdb::Int32Grid::Ptr& activeActionGrid)
 {
     typedef nvl::Index Index;
-    typedef typename openvdb::FloatGrid FloatGrid;
-    typedef typename openvdb::Int32Grid IntGrid;
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Point Point;
     typedef typename SkinMixerData<Model>::Action Action;
 
+    typedef typename openvdb::FloatGrid FloatGrid;
+    typedef typename FloatGrid::Ptr FloatGridPtr;
+    typedef typename openvdb::Int32Grid IntGrid;
+    typedef typename IntGrid::Ptr IntGridPtr;
+    typedef typename openvdb::math::Coord GridCoord;
+    typedef typename openvdb::math::Transform::Ptr TransformPtr;
+
     //Minimum and maximum coordinates in the scalar fields
-    openvdb::Vec3i minCoord(
+    GridCoord minCoord(
         std::numeric_limits<int>::max(),
         std::numeric_limits<int>::max(),
         std::numeric_limits<int>::max());
-    openvdb::Vec3i maxCoord(
+    GridCoord maxCoord(
         std::numeric_limits<int>::min(),
         std::numeric_limits<int>::min(),
         std::numeric_limits<int>::min());
 
     for (nvl::Index mId = 0; mId < cluster.size(); ++mId) {
-        minCoord = openvdb::Vec3i(
+        minCoord = GridCoord(
             std::min(minCoord.x(), bbMin[mId].x()),
             std::min(minCoord.y(), bbMin[mId].y()),
             std::min(minCoord.z(), bbMin[mId].z()));
 
-        maxCoord = openvdb::Vec3i(
+        maxCoord = GridCoord(
             std::max(maxCoord.x(), bbMax[mId].x()),
             std::max(maxCoord.y(), bbMax[mId].y()),
             std::max(maxCoord.z(), bbMax[mId].z()));
