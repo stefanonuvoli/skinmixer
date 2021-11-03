@@ -32,7 +32,6 @@ namespace internal {
 template<class Mesh>
 void getClosedGrid(
         const Mesh& inputMesh,
-        const double& scaleFactor,
         const double& maxDistance,
         Mesh& closedMesh,
         FloatGridPtr& closedGrid,
@@ -44,13 +43,13 @@ void getClosedGrid(
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
     //Initialize adapter and polygon grid
-    OpenVDBAdapter<Mesh> adapter(&inputMesh, scaleFactor);
+    OpenVDBAdapter<Mesh> adapter(&inputMesh);
     polygonGrid = IntGrid::create(-1);
 
     //Create unsigned distance field
-    TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(scaleFactor);
+    TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(1.0);
     FloatGridPtr signedGrid = openvdb::tools::meshToVolume<FloatGrid>(
-        adapter, *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrid.get());
+                adapter, *linearTransform, maxDistance, maxDistance, openvdb::tools::MeshToVolumeFlags::UNSIGNED_DISTANCE_FIELD, polygonGrid.get());
 
     //Eigen mesh conversion
     Mesh triangulatedMesh = inputMesh;
@@ -113,23 +112,24 @@ void getClosedGrid(
             }
         }
     }
-
     //Calculate fast winding number
     igl::fast_winding_number(fwn, 2, Q.cast<float>().eval(), W);
 
     //Set the sign
-    FloatGrid::Accessor signedAccessor = signedGrid->getAccessor();
     currentVoxel = 0;
+
+    FloatGrid::Accessor signedAccessor = signedGrid->getAccessor();
     for (int i = bbMin.x(); i < bbMax.x(); i++) {
         for (int j = bbMin.y(); j < bbMax.y(); j++) {
             for (int k = bbMin.z(); k < bbMax.z(); k++) {
                 GridCoord coord(i,j,k);
+
+                FloatGrid::ValueType dist = signedAccessor.getValue(coord);
+                assert(dist >= 0);
+
                 int fwn = static_cast<int>(std::round(W(currentVoxel)));
 
                 if (fwn % 2 != 0) {
-                    FloatGrid::ValueType dist = signedAccessor.getValue(coord);
-                    assert(dist >= 0);
-
                     signedAccessor.setValue(coord, -dist);
                 }
 
@@ -144,7 +144,7 @@ void getClosedGrid(
     signedGrid->clear();
     signedGrid.reset();
 
-    OpenVDBAdapter<Mesh> closedAdapter(&closedMesh, scaleFactor);
+    OpenVDBAdapter<Mesh> closedAdapter(&closedMesh);
 
     closedGrid = openvdb::tools::meshToVolume<FloatGrid>(
         closedAdapter, *linearTransform, maxDistance, maxDistance, 0);
@@ -171,7 +171,6 @@ void getBlendedGrid(
     typedef nvl::Index Index;
     typedef typename openvdb::FloatGrid FloatGrid;
     typedef typename openvdb::Int32Grid IntGrid;
-    typedef typename openvdb::math::Transform::Ptr TransformPtr;
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Point Point;
@@ -199,12 +198,12 @@ void getBlendedGrid(
             std::max(maxCoord.z(), bbMax[mId].z()));
     }
 
+    const nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
+
     Mesh blendedMesh;
 
-    blendedGrid = FloatGrid::create(maxDistance);
-    TransformPtr linearTransform = openvdb::math::Transform::createLinearTransform(scaleFactor);
-    blendedGrid->setTransform(linearTransform);
 
+    blendedGrid = FloatGrid::create(maxDistance);
     FloatGrid::Accessor blendedAccessor = blendedGrid->getAccessor();
 
     activeActionGrid = IntGrid::create(nvl::maxLimitValue<IntGrid::ValueType>());
@@ -217,6 +216,8 @@ void getBlendedGrid(
                 GridCoord coord(i, j, k);
                 openvdb::Vec3d openvdbPoint = blendedGrid->indexToWorld(coord);
                 Point point(openvdbPoint.x(), openvdbPoint.y(), openvdbPoint.z());
+
+                point = scaleTransform.inverse() * point;
 
                 FloatGrid::ValueType resultValue = maxDistance;
 
@@ -407,7 +408,7 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
     std::vector<std::vector<FaceId>> meshFFAdj = nvl::meshFaceFaceAdjacencies(mesh);
     std::vector<std::vector<FaceId>> meshCC = nvl::meshConnectedComponents(mesh, meshFFAdj);
 
-    Scalar maxExpansionDistance = EXPANSION_VOXELS * scaleFactor;
+    Scalar maxExpansionDistance = EXPANSION_VOXELS / scaleFactor;
     if (nvl::epsEqual(maxExpansionDistance, 0.0)) {
         for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
             if (mesh.isFaceDeleted(fId)) {
@@ -439,7 +440,7 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
         std::vector<std::vector<FaceId>> meshFFAdj = nvl::meshFaceFaceAdjacencies(mesh);
         std::vector<std::vector<FaceId>> meshCC = nvl::meshConnectedComponents(mesh, meshFFAdj);
 
-        Scalar maxExpansionDistance = EXPANSION_VOXELS * scaleFactor;
+        Scalar maxExpansionDistance = EXPANSION_VOXELS / scaleFactor;
 
         //Enhance ffadj with closest borders in different components
         std::unordered_set<Index> alreadyMatched;

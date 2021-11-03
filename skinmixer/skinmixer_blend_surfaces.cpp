@@ -136,12 +136,13 @@ void blendSurfaces(
     std::vector<std::pair<nvl::Index, VertexId>> resultPreBirthVertex; //Birth vertex infos
     std::vector<std::pair<nvl::Index, FaceId>> resultPreBirthFace; //Birth face infos
 
+    const double maxDistance = MAX_VOXEL_DISTANCE; //Max distance of the distance field
     double voxelSize = nvl::maxLimitValue<Scalar>(); //Voxel size
     std::unordered_map<Index, Index> clusterMap; //Cluster map
     std::vector<Index> actions; //List of actions
 
     double scaleFactor; //Scale factor
-    const double maxDistance = MAX_VOXEL_DISTANCE; //Max distance in the field
+    nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor); //Scale transform
 
     std::vector<const Model*> models(cluster.size()); //Models
     std::vector<std::vector<double>> vertexSelectValues(cluster.size()); //Vertex select value for each model
@@ -195,7 +196,8 @@ void blendSurfaces(
     }
 
     //Calculate scale factor and transform
-    scaleFactor = voxelSize;
+    scaleFactor = 1.0 / voxelSize;
+    scaleTransform = nvl::Scaling3d(scaleFactor, scaleFactor, scaleFactor);
 
     //Remove duplicate actions
     std::sort(actions.begin(), actions.end());
@@ -218,16 +220,17 @@ void blendSurfaces(
 
         const Entry& entry = data.entry(eId);
         const Model* model = entry.model;
-        const Mesh& mesh = model->mesh;
+        const Mesh& mesh = model->mesh;        
 
         //Find faces in the field
         fieldFaces[cId] = internal::findFieldFaces(mesh, vertexSelectValues[cId], scaleFactor);
 
         //Create mesh to give to the field
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(fieldFaces[cId].begin(), fieldFaces[cId].end()), inputMeshes[cId], fieldBirthVertex[cId], fieldBirthFace[cId]);
+        nvl::meshApplyTransformation(inputMeshes[cId], scaleTransform);
 
         //Get grid
-        internal::getClosedGrid(inputMeshes[cId], scaleFactor, maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId], bbMin[cId], bbMax[cId]);
+        internal::getClosedGrid(inputMeshes[cId], maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId], bbMin[cId], bbMax[cId]);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + ".obj", inputMeshes[cId]);
@@ -278,7 +281,14 @@ void blendSurfaces(
         blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
     #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/blendedMesh_1_non_remeshed.obj", blendedMesh);
+        nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
+    #endif
+
+        //Rescale back
+        nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
     #endif
 
         //Remesh
@@ -324,7 +334,7 @@ void blendSurfaces(
             for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
                 const Point& point = blendedMesh.vertex(vId).point();
 
-                openvdb::math::Vec3d scaledPoint = blendedGrid->worldToIndex(openvdb::Vec3d(point.x(), point.y(), point.z()));
+                Point scaledPoint = scaleTransform * point;
                 openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
                 internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
@@ -456,7 +466,7 @@ void blendSurfaces(
             for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
                 const Point& point = blendedMesh.vertex(vId).point();
 
-                openvdb::math::Vec3d scaledPoint = blendedGrid->worldToIndex(openvdb::Vec3d(point.x(), point.y(), point.z()));
+                Point scaledPoint = scaleTransform * point;
                 openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
                 internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
@@ -565,8 +575,8 @@ void blendSurfaces(
 
             const Point& point = newMesh.vertex(vId).point();
 
-            openvdb::math::Vec3d scaledPoint = blendedGrid->worldToIndex(openvdb::Vec3d(point.x(), point.y(), point.z()));
-            openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+            Point scaledPoint = scaleTransform * point;
+            internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
 
             internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
@@ -678,7 +688,14 @@ void blendSurfaces(
         blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
     #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/blendedMesh_1_non_remeshed.obj", blendedMesh);
+        nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
+    #endif
+
+        //Rescale back
+        nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
     #endif
 
         //Remesh
@@ -864,8 +881,8 @@ void blendSurfaces(
         else {
             const Point& point = resultMesh.vertex(vId).point();
 
-            openvdb::math::Vec3d scaledPoint = blendedGrid->worldToIndex(openvdb::Vec3d(point.x(), point.y(), point.z()));
-            openvdb::math::Coord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+            Point scaledPoint = scaleTransform * point;
+            internal::GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
             internal::IntGrid::ConstAccessor actionAccessor = actionGrid->getConstAccessor();
             internal::IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);

@@ -27,9 +27,8 @@ typedef typename openvdb::math::Coord GridCoord;
 template<class Mesh>
 struct OpenVDBAdapter {
     OpenVDBAdapter() : mesh(nullptr) { }
-    OpenVDBAdapter(const Mesh* mesh, const double scaleFactor) : mesh(mesh), scaleFactor(scaleFactor) { }
+    OpenVDBAdapter(const Mesh* mesh) : mesh(mesh) { }
     const Mesh* mesh;
-    const double scaleFactor;
 
     size_t polygonCount() const { return mesh->faceNumber(); } // Total number of polygons
     size_t pointCount() const { return mesh->vertexNumber(); } // Total number of points
@@ -38,7 +37,7 @@ struct OpenVDBAdapter {
     void getIndexSpacePoint(size_t n, size_t v, openvdb::Vec3d& pos) const {
         const typename Mesh::Vertex& vertex = mesh->vertex(mesh->face(n).vertexId(v));
         const typename Mesh::Point& point = vertex.point();
-        pos = openvdb::Vec3d(point.x() / scaleFactor, point.y() / scaleFactor, point.z() / scaleFactor);
+        pos = openvdb::Vec3d(point.x(), point.y(), point.z());
     }
 };
 
@@ -46,7 +45,6 @@ struct OpenVDBAdapter {
 template<class Mesh>
 void getClosedGrid(
         const Mesh& inputMesh,
-        const double& scaleFactor,
         const double& maxDistance,
         Mesh& closedMesh,
         FloatGridPtr& closedGrid,
