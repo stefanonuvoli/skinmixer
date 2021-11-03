@@ -249,7 +249,7 @@ void blendSurfaces(
         nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + ".obj", closedMeshes[cId]);
         Mesh closedScaled = closedMeshes[cId];
         nvl::meshApplyTransformation(closedScaled, scaleTransform.inverse());
-        nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + "_rescaled.obj", closedScaled);
+        nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + "_rescaled.obj", closedScaled);
 #endif
 
     }
