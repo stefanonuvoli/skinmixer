@@ -46,7 +46,7 @@ void getClosedGrid(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
-    typedef typename openvdb::Vec3f GridVec;
+    typedef typename openvdb::Vec3R GridVec;
     typedef typename openvdb::math::Transform GridTransform;
     typedef typename GridTransform::Ptr GridTransformPtr;
 
@@ -188,7 +188,7 @@ void getBlendedGrid(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
-    typedef typename openvdb::Vec3f GridVec;
+    typedef typename openvdb::Vec3R GridVec;
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
     //Minimum and maximum coordinates in the scalar fields

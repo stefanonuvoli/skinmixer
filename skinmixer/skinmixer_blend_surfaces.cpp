@@ -132,7 +132,7 @@ void blendSurfaces(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
-    typedef typename openvdb::Vec3f GridVec;
+    typedef typename openvdb::Vec3R GridVec;
     typedef typename openvdb::math::Transform::Ptr TransformPtr;
 
 
@@ -273,13 +273,11 @@ void blendSurfaces(
         actionGrid);
 
     IntGrid::ConstAccessor actionAccessor(actionGrid->getConstAccessor());
-    FloatGrid::ConstAccessor blendedAccessor(blendedGrid->getConstAccessor());
-    std::vector<FloatGrid::ConstAccessor> closedAccessors;
     std::vector<IntGrid::ConstAccessor> polygonAccessors;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
-        closedAccessors.push_back(closedGrids[cId]->getConstAccessor());
         polygonAccessors.push_back(polygonGrids[cId]->getConstAccessor());
     }
+
 
 
     if (mixMode == MixMode::RETOPOLOGY) {
@@ -357,26 +355,27 @@ void blendSurfaces(
 
             for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
                 const Point& point = blendedMesh.vertex(vId).point();
-
                 Point scaledPoint = scaleTransform * point;
-                GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-                IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+                GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
+                GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+                IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
                 assert(bestActionId < nvl::maxLimitValue<int>());
 
                 const Index& actionId = actions[bestActionId];
                 const Action& action = data.action(actionId);
 
-                FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+                FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
 
                 //Entry 1
                 const Index eId1 = action.entry1;
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
-                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
+                FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
                 if (pId1 >= 0 && std::fabs(closedDistance1 - blendedDistance) > PRESERVE_GAP_THRESHOLD) {
                     preservedFaces[cId1].erase(fieldBirthFace[cId1][pId1]);
@@ -407,8 +406,8 @@ void blendSurfaces(
                 if (eId2 != nvl::MAX_INDEX) {
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
-                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
+                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                     if (pId2 >= 0 && std::fabs(closedDistance2 - blendedDistance) > PRESERVE_GAP_THRESHOLD) {
                         preservedFaces[cId2].erase(fieldBirthFace[cId2][pId2]);
@@ -477,11 +476,12 @@ void blendSurfaces(
 
             for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
                 const Point& point = blendedMesh.vertex(vId).point();
-
                 Point scaledPoint = scaleTransform * point;
-                GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-                IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+                GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
+                GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+                IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
                 assert(bestActionId < nvl::maxLimitValue<int>());
 
@@ -489,7 +489,7 @@ void blendSurfaces(
                 const Action& action = data.action(actionId);
 
 
-                FloatGrid::ValueType blendedDistance = blendedAccessor.getValue(coord);
+                FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
 
 
                 //Entry 1
@@ -497,8 +497,8 @@ void blendSurfaces(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
-                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
+                FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
                 if (pId1 >= 0 && preservedFaces[cId1].find(fieldBirthFace[cId1][pId1]) != preservedFaces[cId1].end() && std::fabs(blendedDistance - closedDistance1) <= NEWSURFACE_DISTANCE_THRESHOLD) {
                     isNewSurface = false;
@@ -510,8 +510,8 @@ void blendSurfaces(
                 if (eId2 != nvl::MAX_INDEX) {
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
-                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
+                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                     if (pId2 >= 0 && preservedFaces[cId2].find(fieldBirthFace[cId2][pId2]) != preservedFaces[cId2].end() && std::fabs(blendedDistance - closedDistance2) <= NEWSURFACE_DISTANCE_THRESHOLD) {
                         isNewSurface = false;
@@ -574,11 +574,12 @@ void blendSurfaces(
                 continue;
 
             const Point& point = newMesh.vertex(vId).point();
-
             Point scaledPoint = scaleTransform * point;
-            GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-            IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+            GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
+            GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+            IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
             assert(bestActionId < nvl::maxLimitValue<int>());
 
@@ -592,7 +593,7 @@ void blendSurfaces(
             assert(eId1 != nvl::MAX_INDEX);
             const Index cId1 = clusterMap.at(eId1);
 
-            const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
+            const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
             const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
             const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
@@ -610,7 +611,7 @@ void blendSurfaces(
             if (eId2 != nvl::MAX_INDEX) {
                 const Index cId2 = clusterMap.at(eId2);
 
-                const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
+                const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                 const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
                 const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
@@ -874,11 +875,12 @@ void blendSurfaces(
         }
         else {
             const Point& point = resultMesh.vertex(vId).point();
-
             Point scaledPoint = scaleTransform * point;
-            GridCoord coord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
 
-            IntGrid::ValueType bestActionId = actionAccessor.getValue(coord);
+            GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
+            GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+
+            IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
             if (bestActionId < nvl::maxLimitValue<int>()) {
                 const Index& actionId = actions[bestActionId];
@@ -891,8 +893,8 @@ void blendSurfaces(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
-                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
+                FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
                 const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
                 const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
@@ -920,8 +922,8 @@ void blendSurfaces(
                     assert(eId2 != nvl::MAX_INDEX);
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
-                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
+                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                     const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
                     const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
@@ -1016,8 +1018,8 @@ void blendSurfaces(
                     assert(eId2 != nvl::MAX_INDEX);
                     const Index cId2 = clusterMap.at(eId2);
 
-                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
-                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
+                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
 //                    const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
                     const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
