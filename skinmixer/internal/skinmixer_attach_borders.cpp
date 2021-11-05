@@ -590,7 +590,7 @@ Mesh attachMeshesByBorders(
     }
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-    nvl::meshSaveToFile("results/attaching_2_cleaned.obj", newMesh);
+    nvl::meshSaveToFile("results/newMesh_1_cleaned.obj", newMesh);
 #endif
 
     std::vector<std::vector<FaceId>> meshVFAdj = nvl::meshVertexFaceAdjacencies(newMesh);
@@ -640,7 +640,7 @@ Mesh attachMeshesByBorders(
 
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-    nvl::meshSaveToFile("results/attaching_3_splitted.obj", newMesh);
+    nvl::meshSaveToFile("results/newMesh_2_splitted.obj", newMesh);
 #endif
 
 
@@ -648,7 +648,7 @@ Mesh attachMeshesByBorders(
     std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-    nvl::meshSaveToFile("results/attaching_4_collapsed.obj", newMesh);
+    nvl::meshSaveToFile("results/newMesh_3_collapsed.obj", newMesh);
 #endif
 
     if (!nonCollapsed.empty()) {

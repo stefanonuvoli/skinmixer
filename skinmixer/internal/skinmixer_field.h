@@ -20,25 +20,57 @@ namespace internal {
 
 template<class Mesh>
 struct OpenVDBAdapter {
-    OpenVDBAdapter() : mesh(nullptr) { }
-    OpenVDBAdapter(const Mesh* mesh) : mesh(mesh) { }
-    const Mesh* mesh;
 
-    size_t polygonCount() const { return mesh->faceNumber(); } // Total number of polygons
-    size_t pointCount() const { return mesh->vertexNumber(); } // Total number of points
-    size_t vertexCount(size_t n) const { return mesh->face(n).vertexNumber(); } // Vertex count for polygon n
+public:
+    OpenVDBAdapter() {
+
+    }
+
+    OpenVDBAdapter(const Mesh& mesh) {
+        this->setMesh(mesh, 1.0);
+    }
+
+    OpenVDBAdapter(const Mesh& mesh, const double& scaleFactor) {
+        this->setMesh(mesh, scaleFactor);
+    }
+
+    void setMesh(const Mesh& mesh) {
+        this->setMesh(mesh, 1.0);
+    }
+
+    void setMesh(const Mesh& mesh, const double& scaleFactor) {
+        typedef typename Mesh::Face Face;
+        typedef typename Mesh::Vertex Vertex;
+        typedef typename Mesh::Point Point;
+
+        for (const Vertex& vertex : mesh.vertices()) {
+            const Point& p = vertex.point();
+            this->vertices.push_back(openvdb::Vec3d(p.x() / scaleFactor, p.y() / scaleFactor, p.z() / scaleFactor));
+        }
+        for (const Face& face : mesh.faces()) {
+            this->faces.push_back(face.vertexIds());
+        }
+    }
+
+
+    size_t polygonCount() const { return this->faces.size(); } // Total number of polygons
+    size_t pointCount() const { return this->vertices.size(); } // Total number of points
+    size_t vertexCount(size_t n) const { return this->faces[n].size(); } // Vertex count for polygon n
     // Return position pos in local grid index space for polygon n and vertex v
     void getIndexSpacePoint(size_t n, size_t v, openvdb::Vec3d& pos) const {
-        const typename Mesh::Vertex& vertex = mesh->vertex(mesh->face(n).vertexId(v));
-        const typename Mesh::Point& point = vertex.point();
-        pos = openvdb::Vec3d(point.x(), point.y(), point.z());
+        pos = this->vertices[this->faces[n][v]];
     }
+
+private:
+    std::vector<openvdb::Vec3R> vertices;
+    std::vector<std::vector<nvl::Index>> faces;
 };
 
 
 template<class Mesh>
 void getClosedGrid(
         const Mesh& inputMesh,
+        const double& scaleFactor,
         const double& maxDistance,
         Mesh& closedMesh,
         openvdb::FloatGrid::Ptr& closedGrid,

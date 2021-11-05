@@ -15,6 +15,7 @@
 #include <nvl/models/mesh_borders.h>
 #include <nvl/models/mesh_transfer.h>
 #include <nvl/models/mesh_smoothing.h>
+#include <nvl/models/mesh_differentiation.h>
 
 #include <nvl/vcglib/vcg_convert.h>
 #include <nvl/vcglib/vcg_triangle_mesh.h>
@@ -119,9 +120,11 @@ void blendSurfaces(
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
+    typedef typename Mesh::FaceNormal FaceNormal;
     typedef typename Mesh::Point Point;
     typedef typename Mesh::Scalar Scalar;
     typedef typename nvl::Index Index;
+    typedef typename nvl::Vector3d Vector;
     typedef typename SkinMixerData<Model>::BirthInfo::VertexInfo VertexInfo;
     typedef typename SkinMixerData<Model>::SelectInfo SelectInfo;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -133,24 +136,24 @@ void blendSurfaces(
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
     typedef typename openvdb::Vec3R GridVec;
-    typedef typename openvdb::math::Transform::Ptr TransformPtr;
-
+    typedef typename openvdb::math::Transform GridTransform;
+    typedef typename GridTransform::Ptr GridTransformPtr;
 
 
     // --------------------------------------- DEFINITION AND PREPROCESSING DATA ---------------------------------------
 
 
     Mesh& resultMesh = resultEntry.model->mesh; //Resulting mesh
-    std::vector<std::pair<nvl::Index, VertexId>> resultPreBirthVertex; //Birth vertex infos
-    std::vector<std::pair<nvl::Index, FaceId>> resultPreBirthFace; //Birth face infos
+    std::vector<std::pair<Index, VertexId>> resultPreBirthVertex; //Birth vertex infos
+    std::vector<std::pair<Index, FaceId>> resultPreBirthFace; //Birth face infos
 
-    const double maxDistance = MAX_VOXEL_DISTANCE; //Max distance of the distance field
+    double maxDistance; //Max distance of the distance field
     double voxelSize = nvl::maxLimitValue<Scalar>(); //Voxel size
+
     std::unordered_map<Index, Index> clusterMap; //Cluster map
     std::vector<Index> actions; //List of actions
 
     double scaleFactor; //Scale factor
-    nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor); //Scale transform
 
     std::vector<const Model*> models(cluster.size()); //Models
     std::vector<std::vector<double>> vertexSelectValues(cluster.size()); //Vertex select value for each model
@@ -204,8 +207,8 @@ void blendSurfaces(
     }
 
     //Calculate scale factor and transform
-    scaleFactor = 1.0 / voxelSize;
-    scaleTransform = nvl::Scaling3d(scaleFactor, scaleFactor, scaleFactor);
+    scaleFactor = voxelSize;
+    maxDistance = MAX_VOXEL_DISTANCE * scaleFactor;
 
     //Remove duplicate actions
     std::sort(actions.begin(), actions.end());
@@ -235,21 +238,13 @@ void blendSurfaces(
 
         //Create mesh to give to the field
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(fieldFaces[cId].begin(), fieldFaces[cId].end()), inputMeshes[cId], fieldBirthVertex[cId], fieldBirthFace[cId]);
-        nvl::meshApplyTransformation(inputMeshes[cId], scaleTransform);
 
         //Get grid
-        internal::getClosedGrid(inputMeshes[cId], maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId], bbMin[cId], bbMax[cId]);
+        internal::getClosedGrid(inputMeshes[cId], scaleFactor, maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId], bbMin[cId], bbMax[cId]);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + ".obj", inputMeshes[cId]);
-        Mesh inputScaled = inputMeshes[cId];
-        nvl::meshApplyTransformation(inputScaled, scaleTransform.inverse());
-        nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + "_rescaled.obj", inputScaled);
-
         nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + ".obj", closedMeshes[cId]);
-        Mesh closedScaled = closedMeshes[cId];
-        nvl::meshApplyTransformation(closedScaled, scaleTransform.inverse());
-        nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + "_rescaled.obj", closedScaled);
 #endif
 
     }
@@ -279,7 +274,6 @@ void blendSurfaces(
     }
 
 
-
     if (mixMode == MixMode::RETOPOLOGY) {
 
         // --------------------------------------- DEFINITION OF VARIABLES ---------------------------------------
@@ -288,8 +282,8 @@ void blendSurfaces(
         Mesh newMesh; //New surface mesh
 
         std::vector<std::unordered_set<FaceId>> preservedFaces(cluster.size()); //Preserved faces
-        std::vector<std::pair<nvl::Index, VertexId>> preBirthVertex; //Preserved mesh birth vertices
-        std::vector<std::pair<nvl::Index, FaceId>> preBirthFace; //Preserved mesh birth faces
+        std::vector<std::pair<Index, VertexId>> preBirthVertex; //Preserved mesh birth vertices
+        std::vector<std::pair<Index, FaceId>> preBirthFace; //Preserved mesh birth faces
 
         std::vector<VertexId> borderVerticesToSmooth; //Vertices to smooth in the boorder
         std::vector<double> borderVerticesToSmoothAlpha; //Weight for vertices to smooth in the boorder
@@ -303,14 +297,7 @@ void blendSurfaces(
         blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
     #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
-    #endif
-
-        //Rescale back
-        nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
-
-    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
+        nvl::meshSaveToFile("results/blendedMesh_1_non_remeshed.obj", blendedMesh);
     #endif
 
         //Remesh
@@ -355,14 +342,13 @@ void blendSurfaces(
 
             for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
                 const Point& point = blendedMesh.vertex(vId).point();
-                Point scaledPoint = scaleTransform * point;
-
-                GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
-                GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+                const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
+                const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
+                const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
 
                 IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
-                assert(bestActionId < nvl::maxLimitValue<int>());
+                assert(bestActionId >= 0);
 
                 const Index& actionId = actions[bestActionId];
                 const Action& action = data.action(actionId);
@@ -476,14 +462,13 @@ void blendSurfaces(
 
             for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
                 const Point& point = blendedMesh.vertex(vId).point();
-                Point scaledPoint = scaleTransform * point;
-
-                GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
-                GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+                const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
+                const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
+                const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
 
                 IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
-                assert(bestActionId < nvl::maxLimitValue<int>());
+                assert(bestActionId >= 0);
 
                 const Index& actionId = actions[bestActionId];
                 const Action& action = data.action(actionId);
@@ -574,14 +559,13 @@ void blendSurfaces(
                 continue;
 
             const Point& point = newMesh.vertex(vId).point();
-            Point scaledPoint = scaleTransform * point;
-
-            GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
-            GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+            const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
+            const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
+            const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
 
             IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
-            assert(bestActionId < nvl::maxLimitValue<int>());
+            assert(bestActionId >= 0);
 
             const Index& actionId = actions[bestActionId];
             const Action& action = data.action(actionId);
@@ -683,14 +667,7 @@ void blendSurfaces(
         blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
     #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/blendedMesh_1_non_rescaled.obj", blendedMesh);
-    #endif
-
-        //Rescale back
-        nvl::meshApplyTransformation(blendedMesh, scaleTransform.inverse());
-
-    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/blendedMesh_2_non_remeshed.obj", blendedMesh);
+        nvl::meshSaveToFile("results/blendedMesh_1_non_remeshed.obj", blendedMesh);
     #endif
 
         //Remesh
@@ -773,7 +750,7 @@ void blendSurfaces(
 
         // --------------------------------------- GET RESULT MESH ---------------------------------------
 
-        std::vector<std::pair<nvl::Index, VertexId>> resultMorphingBirthVertex; //Birth vertex infos
+        std::vector<std::pair<Index, VertexId>> resultMorphingBirthVertex; //Birth vertex infos
 
         //Create result mesh
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -820,27 +797,233 @@ void blendSurfaces(
         }
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-            nvl::meshSaveToFile("results/resultmesh_1_initial.obj", resultMesh);
+        nvl::meshSaveToFile("results/morphing_0_initial.obj", resultMesh);
 #endif
 
         // --------------------------------------- MORPHING ---------------------------------------
 
+        //Get field for gradient
+        const double maxVoxelDistance = maxDistance / scaleFactor + nvl::EPSILON;
+
+        internal::OpenVDBAdapter<Mesh> gradientAdapter(blendedMesh, scaleFactor);
+
+        GridTransformPtr linearTransform = GridTransform::createLinearTransform(scaleFactor);
+        FloatGridPtr gradientGrid = openvdb::tools::meshToVolume<FloatGrid>(
+            gradientAdapter, *linearTransform, maxVoxelDistance, maxVoxelDistance, 0);
+
+        FloatGrid::ConstAccessor gradientAccessor(gradientGrid->getConstAccessor());
+
+        //Differential coordinates
+        const std::vector<std::vector<VertexId>> resultVVAdj = nvl::meshVertexVertexAdjacencies(resultMesh);
+
+        const int morphingIterations = 10;
+        const double gradientWeight = 0.5;
+        const double dcWeight = 0.5;
+        for (int it = 0; it < morphingIterations; ++it) {            
+            std::vector<Vector> resultDC = nvl::meshDifferentialCoordinates(resultMesh, resultVVAdj);
+
+            for (Index vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
+                if (resultMesh.isVertexDeleted(vId))
+                    continue;
+
+                const std::pair<Index,VertexId>& pair = resultMorphingBirthVertex[vId];
+
+                const Index& birthEId = pair.first;
+                const VertexId& birthVertexId = pair.second;
+
+                if (birthEId != nvl::MAX_INDEX) {
+                    assert(birthVertexId != nvl::MAX_INDEX);
+
+                    const Point& point = resultMesh.vertex(vId).point();
+                    const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
+                    const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
+                    const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
+
+                    FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
+
+                    openvdb::math::Vec3d vdbGradient = openvdb::math::ISGradient<openvdb::math::CD_2ND>::result(gradientAccessor, vdbCoord);
+
+                    Vector gradient(vdbGradient.x(), vdbGradient.y(), vdbGradient.z());
+                    gradient.normalize();
+
+                    gradient = -gradient * blendedDistance * gradientWeight;
+
+                    Point newPoint = point + gradient;
+                    resultMesh.vertex(vId).setPoint(newPoint);
+                }
+            }
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+            nvl::meshSaveToFile("results/morphing_" + std::to_string(it + 1) + ".obj", resultMesh);
+#endif
+
+            for (Index vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
+                if (resultMesh.isVertexDeleted(vId))
+                    continue;
+
+                const std::pair<Index,VertexId>& pair = resultMorphingBirthVertex[vId];
+
+                const Index& birthEId = pair.first;
+                const VertexId& birthVertexId = pair.second;
+
+                if (birthEId != nvl::MAX_INDEX) {
+                    assert(birthVertexId != nvl::MAX_INDEX);
+
+                    const Point& point = resultMesh.vertex(vId).point();
+
+                    //Calculate delta
+                    Point delta = Point::Zero();
+                    const std::vector<VertexId>& neighbors = resultVVAdj[vId];
+                    for(const int& neighborId : neighbors) {
+                        const Point& neighborPoint = resultMesh.vertex(neighborId).point();
+                        delta += neighborPoint;
+                    }
+                    delta /= neighbors.size();
+
+                    //Calculate point with differential coordinates
+                    Point dcPoint = resultDC[vId] + delta;
+
+                    //Calculate new point
+                    Point newPoint = (1 - dcWeight) * point + dcWeight * dcPoint;
+
+                    resultMesh.vertex(vId).setPoint(newPoint);
+                }
+            }
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+            nvl::meshSaveToFile("results/morphing_" + std::to_string(it + 1) + "_dc.obj", resultMesh);
+#endif
+        }
+
+        gradientGrid->clear();
+        gradientGrid.reset();
+
+        nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
+        nvl::meshComputeVertexNormalsFromFaceNormals(blendedMesh);
         nvl::VCGGrid<Mesh> vcgGrid(blendedMesh); //Create vcg grid for closest point detection
         for (Index vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
+            if (resultMesh.isVertexDeleted(vId))
+                continue;
+
             const std::pair<Index,VertexId>& pair = resultMorphingBirthVertex[vId];
 
             const Index& birthEId = pair.first;
             const VertexId& birthVertexId = pair.second;
+            const Index& birthCId = clusterMap[birthEId];
 
             if (birthEId != nvl::MAX_INDEX) {
                 assert(birthVertexId != nvl::MAX_INDEX);
 
-                const nvl::Point3d& p = resultMesh.vertex(vId).point();
+                Index bestCId = nvl::maxLimitValue<Index>();
+                double bestSelectValue = nvl::minLimitValue<double>();
 
-                nvl::Point3d closestPoint;
-                vcgGrid.getClosestFace(p, closestPoint);
+                const Point& point = resultMesh.vertex(vId).point();
+                const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
+                const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
+                const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
 
-                resultMesh.vertex(vId).setPoint(closestPoint);
+                IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
+
+                assert(bestActionId >= 0);
+
+                const Index& actionId = actions[bestActionId];
+                const Action& action = data.action(actionId);
+
+                const Index eId1 = action.entry1;
+                assert(eId1 != nvl::MAX_INDEX);
+                const Index cId1 = clusterMap.at(eId1);
+
+                const Mesh& mesh1 = models[cId1]->mesh;
+
+                const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
+                const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
+
+                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
+
+                FaceId originFaceId1 = fieldBirthFace1[pId1];
+                double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, vertexSelectValues1);
+
+                if (pId1 >= 0) {
+                    bestCId = cId1;
+                    bestSelectValue = selectValue1;
+                }
+
+                if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+                    const Index eId2 = action.entry2;
+                    assert(eId2 != nvl::MAX_INDEX);
+                    const Index cId2 = clusterMap.at(eId2);
+
+                    const Mesh& mesh2 = models[cId2]->mesh;
+
+                    const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
+                    const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
+
+                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
+
+                    if (pId1 >= 0 && pId2 >= 0) {
+                        if (action.operation == OperationType::REPLACE) {
+                            FaceId originFaceId2 = fieldBirthFace2[pId2];
+                            double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, vertexSelectValues2);
+
+                            if (selectValue2 > selectValue1) {
+                                bestCId = cId2;
+                                bestSelectValue = selectValue2;
+                            }
+                        }
+                    }
+                }
+
+                assert(bestCId != nvl::maxLimitValue<Index>());
+
+                bool inflate = bestCId == birthCId;
+
+                Point closestPoint;
+                FaceId closestFaceId = vcgGrid.getClosestFace(point, closestPoint);
+
+                FaceNormal normal = blendedMesh.face(closestFaceId).normal();
+                normal.normalize();
+
+                const double inflateStep = voxelSize / 2.0;
+//                const double inflateDistance = std::max(inflateStep * 0.1, (bestSelectValue > 0.5 ? 1.0 - (bestSelectValue - 0.5) / (1.0 - 0.5) * inflateStep : inflateStep * 0.1));
+
+                Point newPoint = closestPoint;
+                if (!inflate) {
+                    normal = -normal;
+                }
+
+                newPoint = closestPoint + inflateStep * normal;
+//                newPoint = closestPoint + inflateDistance * inflateStep * normal;
+
+                resultMesh.vertex(vId).setPoint(newPoint);
+
+
+
+
+//                const Point& point = resultMesh.vertex(vId).point();
+
+//                const double& selectValue = vertexSelectValues[birthCId][birthVertexId];
+
+//                Point closestPoint;
+//                FaceId closestFaceId = vcgGrid.getClosestFace(point, closestPoint);
+
+//                FaceNormal normal = blendedMesh.face(closestFaceId).normal();
+//                normal.normalize();
+
+//                const double inflateStep = voxelSize / 2.0;
+
+
+//                bool inflate = selectValue >= 0.5;
+//                double inflateDistance = 1.0 - ((std::fabs(selectValue - 0.5) - 0.5) / (0.5 - 0.0));
+
+//                Point newPoint = closestPoint;
+//                if (!inflate) {
+//                    normal = -normal;
+//                }
+
+////                newPoint = closestPoint + inflateStep * normal;
+//                newPoint = closestPoint + inflateDistance * inflateStep * normal;
+
+//                resultMesh.vertex(vId).setPoint(newPoint);
             }
         }
     }
@@ -861,8 +1044,8 @@ void blendSurfaces(
 
         std::vector<VertexInfo>& vertexInfo = resultEntry.birth.vertex[vId];
 
-        nvl::Index birthEId = resultPreBirthVertex[vId].first;
-        nvl::Index birthVId = resultPreBirthVertex[vId].second;
+        Index birthEId = resultPreBirthVertex[vId].first;
+        Index birthVId = resultPreBirthVertex[vId].second;
 
         if (birthEId != nvl::MAX_INDEX) {
             VertexInfo info;
@@ -875,14 +1058,13 @@ void blendSurfaces(
         }
         else {
             const Point& point = resultMesh.vertex(vId).point();
-            Point scaledPoint = scaleTransform * point;
-
-            GridVec vdbPoint(scaledPoint.x(), scaledPoint.y(), scaledPoint.z());
-            GridCoord vdbCoord(std::round(scaledPoint.x()), std::round(scaledPoint.y()), std::round(scaledPoint.z()));
+            const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
+            const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
+            const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
 
             IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
-            if (bestActionId < nvl::maxLimitValue<int>()) {
+            if (bestActionId >= 0) {
                 const Index& actionId = actions[bestActionId];
                 const Action& action = data.action(actionId);
 
@@ -1078,6 +1260,21 @@ void blendSurfaces(
         }
     }
 
+
+    actionGrid->clear();
+    actionGrid.reset();
+
+    blendedGrid->clear();
+    blendedGrid.reset();
+
+    for (Index cId = 0; cId < cluster.size(); ++cId) {
+        polygonGrids[cId]->clear();
+        polygonGrids[cId].reset();
+
+        closedGrids[cId]->clear();
+        closedGrids[cId].reset();
+    }
+
 #else
 
     //Create grid for each model
@@ -1106,7 +1303,6 @@ void blendSurfaces(
 
         //Transfer vertices to keep in the current mesh
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(fieldFaces[cId].begin(), fieldFaces[cId].end()), inputMeshes[cId], fieldBirthVertex[cId], fieldBirthFace[cId]);
-        nvl::meshApplyTransformation(inputMeshes[cId], scaleTransform);
     }
 
 
@@ -1139,8 +1335,8 @@ void blendSurfaces(
 
     //Get final mesh
     Mesh quadrangulation;
-    std::vector<std::pair<nvl::Index, VertexId>> resultPreBirthVertex;
-    std::vector<std::pair<nvl::Index, FaceId>> resultPreBirthFace;
+    std::vector<std::pair<Index, VertexId>> resultPreBirthVertex;
+    std::vector<std::pair<Index, FaceId>> resultPreBirthFace;
     resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
 
 
@@ -1152,8 +1348,8 @@ void blendSurfaces(
 
         std::vector<VertexInfo>& vertexInfo = resultEntry.birth.vertex[vId];
 
-        nvl::Index birthEId = resultPreBirthVertex[vId].first;
-        nvl::Index birthVId = resultPreBirthVertex[vId].second;
+        Index birthEId = resultPreBirthVertex[vId].first;
+        Index birthVId = resultPreBirthVertex[vId].second;
 
         assert(birthEId != nvl::MAX_INDEX);
         VertexInfo info;
@@ -1280,6 +1476,7 @@ Mesh quadrangulateMesh(
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Face Face;
     typedef typename Mesh::MaterialId MaterialId;
+    typedef typename nvl::Index Index;
 
     Mesh tmpResult;
     Mesh result;
@@ -1382,8 +1579,8 @@ Mesh quadrangulateMesh(
                 vcgPreservedVertexMap, vcgPreservedFaceMap);
 
     nvl::convertVCGMeshToMesh(vcgQuadrangulation, quadrangulation);
-    std::vector<nvl::Index> vcgResultBirthVertex;
-    std::vector<nvl::Index> vcgResultBirthFace;
+    std::vector<Index> vcgResultBirthVertex;
+    std::vector<Index> vcgResultBirthFace;
     nvl::convertVCGMeshToMesh(vcgResult, tmpResult, vcgResultBirthVertex, vcgResultBirthFace);
 
     std::vector<MaterialId> materialMap(preMesh.nextMaterialId(), nvl::MAX_INDEX);
@@ -1394,7 +1591,7 @@ Mesh quadrangulateMesh(
         if (tmpResult.isVertexDeleted(vId))
             continue;
 
-        nvl::Index vcgResultVId = vcgResultBirthVertex[vId];
+        Index vcgResultVId = vcgResultBirthVertex[vId];
         int vcgPreMeshVId = vcgPreservedVertexMap[vcgResultVId];
         if (vcgPreMeshVId >= 0) {
             const VertexId& preMeshVId = vcgPreBirthVertex[vcgPreMeshVId];
@@ -1413,7 +1610,7 @@ Mesh quadrangulateMesh(
         if (tmpResult.isFaceDeleted(fId))
             continue;
 
-        nvl::Index vcgResultFId = vcgResultBirthFace[fId];
+        Index vcgResultFId = vcgResultBirthFace[fId];
         int vcgPreMeshFId = vcgPreservedFaceMap[vcgResultFId];
         if (vcgPreMeshFId >= 0) {
             const FaceId& preMeshFId = vcgPreBirthFace[vcgPreMeshFId];
