@@ -215,8 +215,6 @@ void getBlendedGrid(
             std::max(maxCoord.z(), bbMax[mId].z()));
     }
 
-    const nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
-
     Mesh blendedMesh;
 
 
@@ -244,8 +242,6 @@ void getBlendedGrid(
                 GridVec openvdbPoint = blendedGrid->indexToWorld(coord);
                 Point point(openvdbPoint.x(), openvdbPoint.y(), openvdbPoint.z());
 
-                point = scaleTransform.inverse() * point;
-
                 FloatGrid::ValueType resultValue = maxDistance;
 
                 //Find best action
@@ -264,7 +260,7 @@ void getBlendedGrid(
 
                     double actionScore = nvl::maxLimitValue<double>();
                     if (pId1 >= 0) {
-                        FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
+                        const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
 
                         const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
 
@@ -283,7 +279,7 @@ void getBlendedGrid(
                             const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
                             if (pId2 >= 0) {
-                                FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
+                                const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
 
                                 const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
                                 const Mesh& mesh2 = models[cId2]->mesh;
@@ -317,7 +313,7 @@ void getBlendedGrid(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
+                const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
 
                 if (action.operation == OperationType::REMOVE || action.operation == OperationType::DETACH) {
                     resultValue = closedDistance1;
@@ -336,7 +332,7 @@ void getBlendedGrid(
                     const Index cId2 = clusterMap.at(eId2);
 
 
-                    FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
+                    const FloatGrid::ValueType closedDistance2 = closedAccessors[cId2].getValue(coord);
                     const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
 
                     const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];

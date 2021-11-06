@@ -353,14 +353,14 @@ void blendSurfaces(
                 const Index& actionId = actions[bestActionId];
                 const Action& action = data.action(actionId);
 
-                FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
+                const FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
 
                 //Entry 1
                 const Index eId1 = action.entry1;
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
+                const FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
                 const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
                 if (pId1 >= 0 && std::fabs(closedDistance1 - blendedDistance) > PRESERVE_GAP_THRESHOLD) {
@@ -392,7 +392,7 @@ void blendSurfaces(
                 if (eId2 != nvl::MAX_INDEX) {
                     const Index cId2 = clusterMap.at(eId2);
 
-                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
                     const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                     if (pId2 >= 0 && std::fabs(closedDistance2 - blendedDistance) > PRESERVE_GAP_THRESHOLD) {
@@ -423,7 +423,7 @@ void blendSurfaces(
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
-        nvl::meshSaveToFile("results/premesh_3_blended.obj", preMesh);
+        nvl::meshSaveToFile("results/premesh_2_erased_faces.obj", preMesh);
 #endif
 
 
@@ -474,7 +474,7 @@ void blendSurfaces(
                 const Action& action = data.action(actionId);
 
 
-                FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
+                const FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
 
 
                 //Entry 1
@@ -482,7 +482,7 @@ void blendSurfaces(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
+                const FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
                 const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
                 if (pId1 >= 0 && preservedFaces[cId1].find(fieldBirthFace[cId1][pId1]) != preservedFaces[cId1].end() && std::fabs(blendedDistance - closedDistance1) <= NEWSURFACE_DISTANCE_THRESHOLD) {
@@ -495,7 +495,7 @@ void blendSurfaces(
                 if (eId2 != nvl::MAX_INDEX) {
                     const Index cId2 = clusterMap.at(eId2);
 
-                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
                     const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                     if (pId2 >= 0 && preservedFaces[cId2].find(fieldBirthFace[cId2][pId2]) != preservedFaces[cId2].end() && std::fabs(blendedDistance - closedDistance2) <= NEWSURFACE_DISTANCE_THRESHOLD) {
@@ -623,7 +623,7 @@ void blendSurfaces(
         nvl::meshLaplacianSmoothing(newMesh, borderVerticesToSmooth, SMOOTHING_BORDER_ITERATIONS, borderVerticesToSmoothAlpha);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/newmesh_4_border_smoothing.obj", newMesh);
+        nvl::meshSaveToFile("results/newMesh_4_border_smoothing.obj", newMesh);
 #endif
 
         //Total laplacian
@@ -839,7 +839,7 @@ void blendSurfaces(
                     const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
                     const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
 
-                    FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
+                    const FloatGrid::ValueType blendedDistance = openvdb::tools::QuadraticSampler::sample(blendedGrid->tree(), vdbPoint);
 
                     openvdb::math::Vec3d vdbGradient = openvdb::math::ISGradient<openvdb::math::CD_2ND>::result(gradientAccessor, vdbCoord);
 
@@ -1075,7 +1075,7 @@ void blendSurfaces(
                 assert(eId1 != nvl::MAX_INDEX);
                 const Index cId1 = clusterMap.at(eId1);
 
-                FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
+                const FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
                 const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
                 const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
@@ -1104,7 +1104,7 @@ void blendSurfaces(
                     assert(eId2 != nvl::MAX_INDEX);
                     const Index cId2 = clusterMap.at(eId2);
 
-                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
                     const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
                     const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
@@ -1200,7 +1200,7 @@ void blendSurfaces(
                     assert(eId2 != nvl::MAX_INDEX);
                     const Index cId2 = clusterMap.at(eId2);
 
-                    FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
+                    const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
                     const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
 //                    const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
