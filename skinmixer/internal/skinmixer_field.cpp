@@ -36,9 +36,7 @@ void getClosedGrid(
         const double& maxDistance,
         Mesh& closedMesh,
         openvdb::FloatGrid::Ptr& closedGrid,
-        openvdb::Int32Grid::Ptr& polygonGrid,
-        openvdb::math::Coord& bbMin,
-        openvdb::math::Coord& bbMax)
+        openvdb::Int32Grid::Ptr& polygonGrid)
 {
     typedef typename Mesh::Point Point;    
 
@@ -47,6 +45,7 @@ void getClosedGrid(
     typedef typename openvdb::Int32Grid IntGrid;
     typedef typename openvdb::math::Coord GridCoord;
     typedef typename openvdb::Vec3R GridVec;
+    typedef typename openvdb::CoordBBox GridBBox;
     typedef typename openvdb::math::Transform GridTransform;
     typedef typename GridTransform::Ptr GridTransformPtr;
 
@@ -72,81 +71,96 @@ void getClosedGrid(
     igl::FastWindingNumberBVH fwn;
     igl::fast_winding_number(V.cast<float>().eval(), F, 2, fwn);
 
-    //Minimum and maximum coordinates in the scalar fields
-    bbMin = GridCoord(
-        std::numeric_limits<int>::max(),
-        std::numeric_limits<int>::max(),
-        std::numeric_limits<int>::max());
-    bbMax = GridCoord(
-        std::numeric_limits<int>::min(),
-        std::numeric_limits<int>::min(),
-        std::numeric_limits<int>::min());
+    Eigen::MatrixXd Q; //Fast winding number input
+    Eigen::VectorXf W; //Fast winding number output
+
 
     //Min and max values
-    for (FloatGrid::ValueOnIter iter = signedGrid->beginValueOn(); iter; ++iter) {
-        GridCoord coord = iter.getCoord();
+    GridBBox bbox;
 
-        bbMin = GridCoord(
-            std::min(coord.x(), bbMin.x()),
-            std::min(coord.y(), bbMin.y()),
-            std::min(coord.z(), bbMin.z()));
-
-        bbMax = GridCoord(
-            std::max(coord.x(), bbMax.x()),
-            std::max(coord.y(), bbMax.y()),
-            std::max(coord.z(), bbMax.z()));
+    //Get bbox of active values
+    for (FloatGrid::ValueOnCIter iter = signedGrid->cbeginValueOn(); iter; ++iter) {
+        if (iter.isVoxelValue()) {
+            GridCoord coord = iter.getCoord();
+            bbox.expand(coord);
+        }
     }
 
-    //Fast winding number input
-    Eigen::MatrixXd Q;
-    Eigen::VectorXf W;
+    //Set active the values inside the bbox
+    unsigned int valueNumber = 0; //Number of active values
+    for (FloatGrid::ValueAllIter iter = signedGrid->beginValueAll(); iter; ++iter) {
+        if (iter.isValueOn()) {
+            valueNumber++;
+        }
+        else {
+            GridCoord coord;
 
-    //Resize by number of voxels
-    const unsigned int numberVoxels = (bbMax.x() - bbMin.x()) * (bbMax.y() - bbMin.y()) * (bbMax.z() - bbMin.z());
-    Q.resize(numberVoxels, 3);
+            if (iter.isVoxelValue()) {
+                coord = iter.getCoord();
+            }
+            else {
+                GridBBox bbox;
+                iter.getBoundingBox(bbox);
+                GridVec center = bbox.getCenter();
 
-    //Fill fast winding number structure
-    unsigned int currentVoxel = 0;
+                coord = GridCoord(center.x(), center.y(), center.z());
+            }
 
-    for (int i = bbMin.x(); i < bbMax.x(); i++) {
-        for (int j = bbMin.y(); j < bbMax.y(); j++) {
-            for (int k = bbMin.z(); k < bbMax.z(); k++) {
-                GridCoord coord(i,j,k);
-                GridVec vdbPoint = signedGrid->indexToWorld(coord);
-
-                Q(currentVoxel, 0) = vdbPoint.x();
-                Q(currentVoxel, 1) = vdbPoint.y();
-                Q(currentVoxel, 2) = vdbPoint.z();
-
-                currentVoxel++;
+            if (bbox.isInside(coord)) {
+                iter.setActiveState(true);
+                valueNumber++;
             }
         }
     }
+
+    //Resize fwn input matrix
+    Q.resize(valueNumber, 3);
+
+    unsigned int currentValue;
+
+    //Fill fast winding number structure
+    currentValue = 0;
+    for (FloatGrid::ValueOnCIter iter = signedGrid->cbeginValueOn(); iter.test(); ++iter) {
+        GridCoord coord;
+
+        if (iter.isVoxelValue()) {
+            coord = iter.getCoord();
+        }
+        else {
+            GridBBox tileBBox;
+            iter.getBoundingBox(tileBBox);
+            GridVec center = tileBBox.getCenter();
+            coord = GridCoord(center.x(), center.y(), center.z());
+        }
+
+        GridVec vdbPoint = signedGrid->indexToWorld(coord);
+
+        Q(currentValue, 0) = vdbPoint.x();
+        Q(currentValue, 1) = vdbPoint.y();
+        Q(currentValue, 2) = vdbPoint.z();
+
+        currentValue++;
+    }
+    assert(currentValue == valueNumber);
+
     //Calculate fast winding number
     igl::fast_winding_number(fwn, 2, Q.cast<float>().eval(), W);
 
     //Set the sign
-    currentVoxel = 0;
+    currentValue = 0;
+    for (FloatGrid::ValueOnIter iter = signedGrid->beginValueOn(); iter.test(); ++iter) {
+        int fwn = static_cast<int>(std::round(W(currentValue)));
 
-    FloatGrid::Accessor signedAccessor = signedGrid->getAccessor();
-    for (int i = bbMin.x(); i < bbMax.x(); i++) {
-        for (int j = bbMin.y(); j < bbMax.y(); j++) {
-            for (int k = bbMin.z(); k < bbMax.z(); k++) {
-                GridCoord coord(i,j,k);
+        if (fwn % 2 != 0) {
+            const FloatGrid::ValueType& dist = *iter;
+            assert(dist >= 0);
 
-                int fwn = static_cast<int>(std::round(W(currentVoxel)));
-
-                if (fwn % 2 != 0) {
-                    FloatGrid::ValueType dist = signedAccessor.getValue(coord);
-                    assert(dist >= 0);
-
-                    signedAccessor.setValue(coord, -dist);
-                }
-
-                currentVoxel++;
-            }
+            iter.setValue(-dist);
         }
+
+        currentValue++;
     }
+    assert(currentValue == valueNumber);
 
     //Create openvdb mesh
     closedMesh = convertGridToMesh<Mesh>(signedGrid, true);
@@ -171,12 +185,10 @@ void getBlendedGrid(
         const std::vector<openvdb::FloatGrid::Ptr>& closedGrids,
         const std::vector<openvdb::Int32Grid::Ptr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
-        const std::vector<openvdb::math::Coord>& bbMin,
-        const std::vector<openvdb::math::Coord>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
         openvdb::FloatGrid::Ptr& blendedGrid,
-        openvdb::Int32Grid::Ptr& activeActionGrid)
+        openvdb::Int32Grid::Ptr& actionGrid)
 {
     typedef nvl::Index Index;
     typedef typename Model::Mesh Mesh;
@@ -190,42 +202,20 @@ void getBlendedGrid(
     typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
     typedef typename openvdb::Vec3R GridVec;
+    typedef typename openvdb::CoordBBox GridBBox;
     typedef typename openvdb::math::Transform GridTransform;
     typedef typename GridTransform::Ptr GridTransformPtr;
 
-    //Minimum and maximum coordinates in the scalar fields
-    GridCoord minCoord(
-        std::numeric_limits<int>::max(),
-        std::numeric_limits<int>::max(),
-        std::numeric_limits<int>::max());
-    GridCoord maxCoord(
-        std::numeric_limits<int>::min(),
-        std::numeric_limits<int>::min(),
-        std::numeric_limits<int>::min());
-
-    for (nvl::Index mId = 0; mId < cluster.size(); ++mId) {
-        minCoord = GridCoord(
-            std::min(minCoord.x(), bbMin[mId].x()),
-            std::min(minCoord.y(), bbMin[mId].y()),
-            std::min(minCoord.z(), bbMin[mId].z()));
-
-        maxCoord = GridCoord(
-            std::max(maxCoord.x(), bbMax[mId].x()),
-            std::max(maxCoord.y(), bbMax[mId].y()),
-            std::max(maxCoord.z(), bbMax[mId].z()));
-    }
-
     Mesh blendedMesh;
-
 
     blendedGrid = FloatGrid::create(maxDistance);
     GridTransformPtr linearTransform = GridTransform::createLinearTransform(scaleFactor);
     blendedGrid->setTransform(linearTransform);
 
-    activeActionGrid = IntGrid::create(-1);
+    actionGrid = IntGrid::create(-1);
 
     FloatGrid::Accessor blendedAccessor = blendedGrid->getAccessor();
-    IntGrid::Accessor actionAccessor = activeActionGrid->getAccessor();
+    IntGrid::Accessor actionAccessor = actionGrid->getAccessor();
 
     std::vector<IntGrid::ConstAccessor> polygonAccessors;
     std::vector<FloatGrid::ConstAccessor> closedAccessors;
@@ -234,11 +224,24 @@ void getBlendedGrid(
         closedAccessors.push_back(closedGrids[cId]->getConstAccessor());
     }
 
-    //Blend grids
-    for (int i = minCoord.x(); i < maxCoord.x(); i++) {
-        for (int j = minCoord.y(); j < maxCoord.y(); j++) {
-            for (int k = minCoord.z(); k < maxCoord.z(); k++) {
-                GridCoord coord(i, j, k);
+    for (nvl::Index cId = 0; cId < cluster.size(); ++cId) {
+        for (FloatGrid::ValueOnCIter iter = closedGrids[cId]->cbeginValueOn(); iter.test(); ++iter) {
+            std::vector<GridCoord> coords;
+
+            if (iter.isVoxelValue()) {
+                coords.push_back(iter.getCoord());
+            } else {
+                GridBBox bbox;
+                iter.getBoundingBox(bbox);
+                for (const GridCoord& coord : bbox) {
+                    coords.push_back(coord);
+                }
+            }
+
+            for (const GridCoord& coord : coords) {
+                if (actionAccessor.getValue(coord) != -1)
+                    continue;
+
                 GridVec openvdbPoint = blendedGrid->indexToWorld(coord);
                 Point point(openvdbPoint.x(), openvdbPoint.y(), openvdbPoint.z());
 
@@ -398,6 +401,9 @@ void getBlendedGrid(
             }
         }
     }
+
+    blendedGrid->pruneGrid();
+    actionGrid->pruneGrid();
 }
 
 template<class Mesh>

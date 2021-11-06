@@ -74,9 +74,7 @@ void getClosedGrid(
         const double& maxDistance,
         Mesh& closedMesh,
         openvdb::FloatGrid::Ptr& closedGrid,
-        openvdb::Int32Grid::Ptr& polygonGrid,
-        openvdb::math::Coord& bbMin,
-        openvdb::math::Coord& bbMax);
+        openvdb::Int32Grid::Ptr& polygonGrid);
 
 template<class Model>
 void getBlendedGrid(
@@ -89,8 +87,6 @@ void getBlendedGrid(
         const std::vector<openvdb::FloatGrid::Ptr>& closedGrids,
         const std::vector<openvdb::Int32Grid::Ptr>& polygonGrids,
         const std::vector<std::vector<typename Model::Mesh::FaceId>>& fieldBirthFace,
-        const std::vector<openvdb::math::Coord>& bbMin,
-        const std::vector<openvdb::math::Coord>& bbMax,
         const double& scaleFactor,
         const double& maxDistance,
         openvdb::FloatGrid::Ptr& blendedGrid,

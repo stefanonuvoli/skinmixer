@@ -16,6 +16,7 @@
 #include <nvl/models/mesh_transfer.h>
 #include <nvl/models/mesh_smoothing.h>
 #include <nvl/models/mesh_differentiation.h>
+#include <nvl/models/mesh_normals.h>
 
 #include <nvl/vcglib/vcg_convert.h>
 #include <nvl/vcglib/vcg_triangle_mesh.h>
@@ -164,8 +165,6 @@ void blendSurfaces(
     std::vector<Mesh> closedMeshes(cluster.size()); //Closed meshes
     std::vector<FloatGridPtr> closedGrids(cluster.size()); //Closed grids
     std::vector<IntGridPtr> polygonGrids(cluster.size()); //Polygon grids
-    std::vector<GridCoord> bbMin(cluster.size()); //Min bounding box
-    std::vector<GridCoord> bbMax(cluster.size()); //Max bounding box
 
     std::vector<std::unordered_set<FaceId>> fieldFaces(cluster.size()); //Face in the fields
     std::vector<std::vector<VertexId>> fieldBirthVertex(cluster.size()); //Birth vertex for field
@@ -240,7 +239,7 @@ void blendSurfaces(
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(fieldFaces[cId].begin(), fieldFaces[cId].end()), inputMeshes[cId], fieldBirthVertex[cId], fieldBirthFace[cId]);
 
         //Get grid
-        internal::getClosedGrid(inputMeshes[cId], scaleFactor, maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId], bbMin[cId], bbMax[cId]);
+        internal::getClosedGrid(inputMeshes[cId], scaleFactor, maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId]);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + ".obj", inputMeshes[cId]);
@@ -260,8 +259,6 @@ void blendSurfaces(
         closedGrids,
         polygonGrids,
         fieldBirthFace,
-        bbMin,
-        bbMax,
         scaleFactor,
         maxDistance,
         blendedGrid,
