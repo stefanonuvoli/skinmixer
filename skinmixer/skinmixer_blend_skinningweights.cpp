@@ -59,8 +59,8 @@ void blendSkinningWeights(
                 double weight = 0.0;
                 double sumSelectValues = 0;
 
-                for (VertexInfo vertexInfo : vertexInfos) {
-                    for (JointInfo jointInfo : jointInfos) {
+                for (const VertexInfo& vertexInfo : vertexInfos) {
+                    for (const JointInfo& jointInfo : jointInfos) {
                         assert (jointInfo.jId != nvl::MAX_INDEX);
 
                         if (jointInfo.eId != vertexInfo.eId) {
