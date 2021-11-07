@@ -43,6 +43,7 @@
 
 #define NEWSURFACE_DISTANCE_THRESHOLD 0.001
 #define NEWSURFACE_REMESHING_FACTOR 0.8
+#define NEWSURFACE_REMESHING_ITERATIONS 10
 
 #define PRESERVE_GAP_THRESHOLD 0.01
 #define PRESERVE_REGULARIZATION_ITERATIONS 2
@@ -141,8 +142,20 @@ void blendSurfaces(
     typedef typename GridTransform::Ptr GridTransformPtr;
 
 
+#ifdef STEP_TIMES
+    chrono::steady_clock::time_point start;
+    long duration;
+    long totalDuration = 0;
+#endif
+
+
+
     // --------------------------------------- DEFINITION AND PREPROCESSING DATA ---------------------------------------
 
+#ifdef STEP_TIMES
+    start = chrono::steady_clock::now();
+    std::cout << "Initialization... ";
+#endif
 
     Mesh& resultMesh = resultEntry.model->mesh; //Resulting mesh
     std::vector<std::pair<Index, VertexId>> resultPreBirthVertex; //Birth vertex infos
@@ -213,14 +226,24 @@ void blendSurfaces(
     std::sort(actions.begin(), actions.end());
     actions.erase(std::unique(actions.begin(), actions.end()), actions.end());
 
+#ifdef STEP_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
 
 
 #ifndef PREVIEW
 
-
-
-
     // --------------------------------------- GET GRIDS AND BLENDED GRID ---------------------------------------
+
+
+#ifdef STEP_TIMES
+    start = chrono::steady_clock::now();
+    std::cout << "Get fields... ";
+#endif
 
     //Create grid for each model
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -240,13 +263,30 @@ void blendSurfaces(
 
         //Get grid
         internal::getClosedGrid(inputMeshes[cId], scaleFactor, maxDistance, closedMeshes[cId], closedGrids[cId], polygonGrids[cId]);
+    }
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+    for (Index cId = 0; cId < cluster.size(); ++cId) {
         nvl::meshSaveToFile("results/field_input_" + std::to_string(cId) + ".obj", inputMeshes[cId]);
         nvl::meshSaveToFile("results/field_closed_" + std::to_string(cId) + ".obj", closedMeshes[cId]);
+    }
 #endif
 
-    }
+#ifdef STEP_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
+
+
+
+
+#ifdef STEP_TIMES
+    start = chrono::steady_clock::now();
+    std::cout << "Blend fields... ";
+#endif
 
     //Blend grids
     internal::getBlendedGrid(
@@ -263,6 +303,15 @@ void blendSurfaces(
         maxDistance,
         blendedGrid,
         actionGrid);
+
+#ifdef STEP_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
+
 
     IntGrid::ConstAccessor actionAccessor(actionGrid->getConstAccessor());
     std::vector<IntGrid::ConstAccessor> polygonAccessors;
@@ -290,25 +339,56 @@ void blendSurfaces(
 
         // --------------------------------------- GET BLENDED MESH ---------------------------------------
 
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Extract isosurface... ";
+#endif
         //Extract iso surface mesh
         blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
-    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/blendedMesh_1_non_remeshed.obj", blendedMesh);
-    #endif
+#endif
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Remesh blended mesh... ";
+#endif
         //Remesh
         double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
-        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR);
+        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR, NEWSURFACE_REMESHING_ITERATIONS);
 
-    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
         nvl::meshComputeVertexNormalsFromFaceNormals(blendedMesh);
         nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
-    #endif
+#endif
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
 
 
         // --------------------------------------- GET PRESERVED FACES ---------------------------------------
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Get initial preserved faces... ";
+#endif
 
         //Get preserved faces by select values
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -330,6 +410,22 @@ void blendSurfaces(
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
         nvl::meshSaveToFile("results/premesh_1_initial.obj", preMesh);
+#endif
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Erase faces from preserved mesh... ";
 #endif
 
         //Erase preserved faces where the blended grid is different from the original distances
@@ -423,6 +519,20 @@ void blendSurfaces(
         nvl::meshSaveToFile("results/premesh_2_erased_faces.obj", preMesh);
 #endif
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Regularize preserved mesh... ";
+#endif
 
         //Regularization
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -434,10 +544,29 @@ void blendSurfaces(
             }
         }
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Extract preserved mesh... ";
+#endif
+
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/premesh.obj", preMesh);
+#endif
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
 #endif
 
 
@@ -447,6 +576,11 @@ void blendSurfaces(
         // --------------------------------------- BORDER ATTACHING ---------------------------------------
 
 
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Mark new surface faces... ";
+#endif
 
         //Fill faces to keep in the blended mesh
         std::unordered_set<FaceId> newSurfaceFaces;
@@ -507,6 +641,20 @@ void blendSurfaces(
             }
         }
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Attaching borders... ";
+#endif
+
         //Find non snappable vertices in the preserved mesh
         std::unordered_set<VertexId> preNonSnappableVertices;
         for (const Index eId : cluster) {
@@ -535,6 +683,12 @@ void blendSurfaces(
         std::unordered_set<VertexId> preSnappedVertices;
         newMesh = internal::attachMeshesByBorders(blendedMesh, preMesh, preNonSnappableVertices, newSurfaceFaces, newSnappedVertices, preSnappedVertices);
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
 
 
 
@@ -543,6 +697,12 @@ void blendSurfaces(
 
 
         // --------------------------------------- SMOOTHING ---------------------------------------
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Smoothing... ";
+#endif
 
 
         //Select vertices to smooth
@@ -631,19 +791,43 @@ void blendSurfaces(
 #endif
 
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
 
 
 
         // --------------------------------------- QUADRANGULATION ---------------------------------------
 
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Computing quadrangulation... ";
+#endif
 
         //Get final mesh
         Mesh quadrangulation;
         resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
+
+
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/resultmesh.obj", resultMesh);
+#endif
+
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/quadrangulationmesh.obj", quadrangulation);
 #endif
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
     }
     else {
         assert(mixMode == MixMode::MORPHING);
@@ -660,6 +844,11 @@ void blendSurfaces(
 
         // --------------------------------------- GET BLENDED MESH ---------------------------------------
 
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Extract isosurface... ";
+#endif
+
         //Extract iso surface mesh
         blendedMesh = internal::convertGridToMesh<Mesh>(blendedGrid, true);
 
@@ -667,9 +856,24 @@ void blendSurfaces(
         nvl::meshSaveToFile("results/blendedMesh_1_non_remeshed.obj", blendedMesh);
     #endif
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Remesh blended mesh... ";
+#endif
+
         //Remesh
         double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
-        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR);
+        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR, NEWSURFACE_REMESHING_ITERATIONS);
 
     #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
@@ -677,8 +881,23 @@ void blendSurfaces(
         nvl::meshSaveToFile("results/blendedMesh.obj", blendedMesh);
     #endif
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
 
         // --------------------------------------- PRESERVED FACES ---------------------------------------
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Get initial preserved faces... ";
+#endif
+
 
         //Get preserved faces by select values
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -696,7 +915,20 @@ void blendSurfaces(
                 }
             }
         }
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
 
+
+
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Regularize preserved mesh... ";
+#endif
         //Regularization
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Mesh& mesh = models[cId]->mesh;
@@ -707,6 +939,23 @@ void blendSurfaces(
             }
         }
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+
+        // --------------------------------------- GET RESULT MESH ---------------------------------------
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Get result mesh.. " << std::endl;
+#endif
 
         //Get morphing faces by select values
         for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -744,8 +993,6 @@ void blendSurfaces(
             }
         }
 
-
-        // --------------------------------------- GET RESULT MESH ---------------------------------------
 
         std::vector<std::pair<Index, VertexId>> resultMorphingBirthVertex; //Birth vertex infos
 
@@ -797,7 +1044,25 @@ void blendSurfaces(
         nvl::meshSaveToFile("results/morphing_0_initial.obj", resultMesh);
 #endif
 
+
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
         // --------------------------------------- MORPHING ---------------------------------------
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Morphing... ";
+#endif
+
 
         //Get field for gradient
         const double maxVoxelDistance = maxDistance / scaleFactor + nvl::EPSILON;
@@ -894,6 +1159,23 @@ void blendSurfaces(
 
         gradientGrid->clear();
         gradientGrid.reset();
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+        // --------------------------------------- REPROJECT AND INFLATE/DEFLATE ---------------------------------------
+
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Reproject and inflate/deflate... ";
+#endif
 
         nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
         nvl::meshComputeVertexNormalsFromFaceNormals(blendedMesh);
@@ -1023,14 +1305,27 @@ void blendSurfaces(
 //                resultMesh.vertex(vId).setPoint(newPoint);
             }
         }
-    }
 
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/resultmesh.obj", resultMesh);
 #endif
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+    }
+
+
+
     // --------------------------------------- BIRTH INFOS ---------------------------------------
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Get birth info... ";
+#endif
 
     //Compute and fill the birth infos
     resultEntry.birth.entries = cluster;
@@ -1257,6 +1552,23 @@ void blendSurfaces(
         }
     }
 
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+
+
+    // --------------------------------------- CLEAN GRIDS ---------------------------------------
+
+#ifdef STEP_TIMES
+    start = chrono::steady_clock::now();
+    std::cout << "Clean grids... ";
+#endif
+
 
     actionGrid->clear();
     actionGrid.reset();
@@ -1271,6 +1583,15 @@ void blendSurfaces(
         closedGrids[cId]->clear();
         closedGrids[cId].reset();
     }
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
 
 #else
 
@@ -1358,6 +1679,13 @@ void blendSurfaces(
         vertexInfo.push_back(info);
     }
 #endif
+
+
+
+#ifdef GLOBAL_TIMES
+    std::cout << "-> Total duration: " << totalDuration << " ms" << std::endl;
+#endif
+
 }
 
 namespace internal {
@@ -1523,7 +1851,7 @@ Mesh quadrangulateMesh(
     //Get patch decomposition of the new surface
     std::vector<std::vector<size_t>> newSurfacePartitions;
     std::vector<std::vector<size_t>> newSurfaceCorners;
-    std::vector<int> newSurfaceLabel = QuadRetopology::patchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 1.0, true, false, true);
+    std::vector<int> newSurfaceLabel = QuadRetopology::patchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 2.0, true, false, true);
 
     //Get chart data
     QuadRetopology::ChartData chartData = QuadRetopology::computeChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);

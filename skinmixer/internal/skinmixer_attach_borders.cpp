@@ -645,13 +645,13 @@ Mesh attachMeshesByBorders(
 
 
     std::vector<VertexId> nonCollapsed = nvl::collapseBorders(newMesh, fixedBorderVertices);
-    std::cout << nonCollapsed.size() << " vertices non collapsed." << std::endl;
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/newMesh_3_collapsed.obj", newMesh);
 #endif
 
     if (!nonCollapsed.empty()) {
+        std::cout << std::endl << "*** WARNING: " << nonCollapsed.size() << " vertices non collapsed." << std::endl;
         //TODO!!
     }
 

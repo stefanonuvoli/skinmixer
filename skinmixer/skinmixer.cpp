@@ -23,7 +23,11 @@ std::vector<nvl::Index> mix(
     typedef nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
 
+#ifdef GLOBAL_TIMES
     chrono::steady_clock::time_point start;
+    long duration;
+    long totalDuration = 0;
+#endif
 
     for (Entry entry : data.entries()) {
         if (entry.relatedActions.size() > 0) {
@@ -36,27 +40,73 @@ std::vector<nvl::Index> mix(
 
     std::vector<Index> newEntries;
 
-    //Blend surface
+#ifdef GLOBAL_TIMES
     start = chrono::steady_clock::now();
-    blendSurfaces(data, newEntries, mixMode);
-    std::cout << "Surface blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+    std::cout << std::endl << "--------- SURFACE BLENDING ---------" << std::endl;
+#endif
 
+    //Blend surface
+    blendSurfaces(data, newEntries, mixMode);
+
+#ifdef GLOBAL_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << ">>>>> SURFACE BLENDING: " << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
+
+#ifdef GLOBAL_TIMES
+    start = chrono::steady_clock::now();
+    std::cout << std::endl << "--------- SKELETON BLENDING ---------" << std::endl;
+#endif
 
     //Blend skeleton
-    start = chrono::steady_clock::now();
     blendSkeletons(data, newEntries);
-    std::cout << "Skeleton blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
+#ifdef GLOBAL_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << ">>>>> SKELETON BLENDING: " << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
+
+#ifdef GLOBAL_TIMES
+    start = chrono::steady_clock::now();
+    std::cout << std::endl << "--------- SKINNING WEIGHT BLENDING ---------" << std::endl;
+#endif
 
     //Blend skinning weights
-    start = chrono::steady_clock::now();
     blendSkinningWeights(data, newEntries);
-    std::cout << "Skinning weight blended in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
 
-    //Blend skinning weights
+#ifdef GLOBAL_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << ">>>>> SKINNING WEIGHT: " << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
+
+#ifdef GLOBAL_TIMES
     start = chrono::steady_clock::now();
+    std::cout << std::endl << "--------- INITIALIZE ANIMATION WEIGHTS ---------" << std::endl;
+#endif
+
+    //Initialize animation weights
     initializeAnimationWeights(data, newEntries);
-    std::cout << "Animation weight initialized in " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << " ms" << std::endl;
+
+#ifdef GLOBAL_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << ">>>>> INITIALIZE ANIMATION WEIGHTS: " << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
+
+
+#ifdef GLOBAL_TIMES
+    std::cout << std::endl << "TOTAL DURATION: " << totalDuration << " ms" << std::endl;
+#endif
+
 
 
     data.clearActions();
