@@ -37,13 +37,16 @@
 #define MAX_VOXEL_DISTANCE 30.0
 
 #define SMOOTHING_THRESHOLD 0.8
-#define SMOOTHING_BORDER_ITERATIONS 20
-#define SMOOTHING_INNER_ITERATIONS 10
-#define SMOOTHING_INNER_WEIGHT 0.7
+#define SMOOTHING_BORDER_ITERATIONS 30
+#define SMOOTHING_INNER_ITERATIONS 15
+#define SMOOTHING_INNER_WEIGHT 0.8
 
 #define NEWSURFACE_DISTANCE_THRESHOLD 0.001
 #define NEWSURFACE_REMESHING_FACTOR 0.8
-#define NEWSURFACE_REMESHING_ITERATIONS 10
+#define NEWSURFACE_REMESHING_ITERATIONS 3
+
+#define NEWMESH_REMESHING_FACTOR 0.8
+#define NEWMESH_REMESHING_ITERATIONS 5
 
 #define PRESERVE_GAP_THRESHOLD 0.01
 #define PRESERVE_REGULARIZATION_ITERATIONS 2
@@ -365,8 +368,8 @@ void blendSurfaces(
         std::cout << "Remesh blended mesh... ";
 #endif
         //Remesh
-        double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
-        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR, NEWSURFACE_REMESHING_ITERATIONS);
+        double blendedEdgeSize = nvl::meshAverageEdgeLength(blendedMesh);
+        blendedMesh = nvl::isotropicRemeshing(blendedMesh, blendedEdgeSize * NEWSURFACE_REMESHING_FACTOR, NEWSURFACE_REMESHING_ITERATIONS, true);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
@@ -560,7 +563,7 @@ void blendSurfaces(
         preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/premesh.obj", preMesh);
+        nvl::meshSaveToFile("results/preMesh.obj", preMesh);
 #endif
 
 #ifdef STEP_TIMES
@@ -695,7 +698,6 @@ void blendSurfaces(
 
 
 
-
         // --------------------------------------- SMOOTHING ---------------------------------------
 
 
@@ -780,14 +782,14 @@ void blendSurfaces(
         nvl::meshLaplacianSmoothing(newMesh, borderVerticesToSmooth, SMOOTHING_BORDER_ITERATIONS, borderVerticesToSmoothAlpha);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/newMesh_4_border_smoothing.obj", newMesh);
+        nvl::meshSaveToFile("results/newMesh_4_smoothing.obj", newMesh);
 #endif
 
         //Total laplacian
         nvl::meshLaplacianSmoothing(newMesh, innerVerticesToSmooth, SMOOTHING_INNER_ITERATIONS, SMOOTHING_INNER_WEIGHT);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/newmesh.obj", newMesh);
+        nvl::meshSaveToFile("results/newMesh.obj", newMesh);
 #endif
 
 
@@ -816,11 +818,11 @@ void blendSurfaces(
 
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/resultmesh.obj", resultMesh);
+        nvl::meshSaveToFile("results/resultMesh.obj", resultMesh);
 #endif
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/quadrangulationmesh.obj", quadrangulation);
+        nvl::meshSaveToFile("results/quadrangulationMesh.obj", quadrangulation);
 #endif
 
 #ifdef STEP_TIMES
@@ -873,7 +875,7 @@ void blendSurfaces(
 
         //Remesh
         double edgeSize = nvl::meshAverageEdgeLength(blendedMesh);
-        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR, NEWSURFACE_REMESHING_ITERATIONS);
+        blendedMesh = nvl::isotropicRemeshing(blendedMesh, edgeSize * NEWSURFACE_REMESHING_FACTOR, NEWSURFACE_REMESHING_ITERATIONS, true);
 
     #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshComputeFaceNormalsSVDFitting(blendedMesh);
@@ -915,6 +917,8 @@ void blendSurfaces(
                 }
             }
         }
+
+
 #ifdef STEP_TIMES
         duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
         std::cout << duration << " ms" << std::endl;
@@ -954,7 +958,7 @@ void blendSurfaces(
 
 #ifdef STEP_TIMES
         start = chrono::steady_clock::now();
-        std::cout << "Get result mesh.. " << std::endl;
+        std::cout << "Get result mesh... ";
 #endif
 
         //Get morphing faces by select values
@@ -1203,58 +1207,60 @@ void blendSurfaces(
 
                 IntGrid::ValueType bestActionId = actionAccessor.getValue(vdbCoord);
 
-                assert(bestActionId >= 0);
+                bool inflate = false;
 
-                const Index& actionId = actions[bestActionId];
-                const Action& action = data.action(actionId);
+                if (bestActionId >= 0) {
+                    const Index& actionId = actions[bestActionId];
+                    const Action& action = data.action(actionId);
 
-                const Index eId1 = action.entry1;
-                assert(eId1 != nvl::MAX_INDEX);
-                const Index cId1 = clusterMap.at(eId1);
+                    const Index eId1 = action.entry1;
+                    assert(eId1 != nvl::MAX_INDEX);
+                    const Index cId1 = clusterMap.at(eId1);
 
-                const Mesh& mesh1 = models[cId1]->mesh;
+                    const Mesh& mesh1 = models[cId1]->mesh;
 
-                const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
-                const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
+                    const std::vector<double>& vertexSelectValues1 = vertexSelectValues[cId1];
+                    const std::vector<FaceId>& fieldBirthFace1 = fieldBirthFace[cId1];
 
-                const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
+                    const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
 
-                FaceId originFaceId1 = fieldBirthFace1[pId1];
-                double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, vertexSelectValues1);
+                    FaceId originFaceId1 = fieldBirthFace1[pId1];
+                    double selectValue1 = internal::interpolateFaceSelectValue(mesh1, originFaceId1, point, vertexSelectValues1);
 
-                if (pId1 >= 0) {
-                    bestCId = cId1;
-                    bestSelectValue = selectValue1;
-                }
+                    if (pId1 >= 0) {
+                        bestCId = cId1;
+                        bestSelectValue = selectValue1;
+                    }
 
-                if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-                    const Index eId2 = action.entry2;
-                    assert(eId2 != nvl::MAX_INDEX);
-                    const Index cId2 = clusterMap.at(eId2);
+                    if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+                        const Index eId2 = action.entry2;
+                        assert(eId2 != nvl::MAX_INDEX);
+                        const Index cId2 = clusterMap.at(eId2);
 
-                    const Mesh& mesh2 = models[cId2]->mesh;
+                        const Mesh& mesh2 = models[cId2]->mesh;
 
-                    const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
-                    const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
+                        const std::vector<double>& vertexSelectValues2 = vertexSelectValues[cId2];
+                        const std::vector<FaceId>& fieldBirthFace2 = fieldBirthFace[cId2];
 
-                    const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
+                        const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
 
-                    if (pId1 >= 0 && pId2 >= 0) {
-                        if (action.operation == OperationType::REPLACE) {
-                            FaceId originFaceId2 = fieldBirthFace2[pId2];
-                            double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, vertexSelectValues2);
+                        if (pId1 >= 0 && pId2 >= 0) {
+                            if (action.operation == OperationType::REPLACE) {
+                                FaceId originFaceId2 = fieldBirthFace2[pId2];
+                                double selectValue2 = internal::interpolateFaceSelectValue(mesh2, originFaceId2, point, vertexSelectValues2);
 
-                            if (selectValue2 > selectValue1) {
-                                bestCId = cId2;
-                                bestSelectValue = selectValue2;
+                                if (selectValue2 > selectValue1) {
+                                    bestCId = cId2;
+                                    bestSelectValue = selectValue2;
+                                }
                             }
                         }
                     }
+
+                    if (bestCId != nvl::maxLimitValue<Index>()) {
+                        inflate = bestCId == birthCId;
+                    }
                 }
-
-                assert(bestCId != nvl::maxLimitValue<Index>());
-
-                bool inflate = bestCId == birthCId;
 
                 Point closestPoint;
                 FaceId closestFaceId = vcgGrid.getClosestFace(point, closestPoint);
@@ -1308,7 +1314,7 @@ void blendSurfaces(
 
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-    nvl::meshSaveToFile("results/resultmesh.obj", resultMesh);
+    nvl::meshSaveToFile("results/resultMesh.obj", resultMesh);
 #endif
 
 #ifdef STEP_TIMES
@@ -1647,7 +1653,7 @@ void blendSurfaces(
     preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-    nvl::meshSaveToFile("results/premesh.obj", preMesh);
+    nvl::meshSaveToFile("results/preMesh.obj", preMesh);
 #endif
 
 
@@ -1851,7 +1857,7 @@ Mesh quadrangulateMesh(
     //Get patch decomposition of the new surface
     std::vector<std::vector<size_t>> newSurfacePartitions;
     std::vector<std::vector<size_t>> newSurfaceCorners;
-    std::vector<int> newSurfaceLabel = QuadRetopology::patchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, true, 2.0, true, false, true);
+    std::vector<int> newSurfaceLabel = QuadRetopology::patchDecomposition(vcgNewMesh, vcgPreMesh, newSurfacePartitions, newSurfaceCorners, false, 2.0, true, false, true);
 
     //Get chart data
     QuadRetopology::ChartData chartData = QuadRetopology::computeChartData(vcgNewMesh, newSurfaceLabel, newSurfaceCorners);
