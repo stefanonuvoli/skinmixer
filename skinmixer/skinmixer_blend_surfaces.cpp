@@ -1268,7 +1268,7 @@ void blendSurfaces(
                 FaceNormal normal = blendedMesh.face(closestFaceId).normal();
                 normal.normalize();
 
-                const double inflateStep = voxelSize / 2.0;
+                const double inflateStep = voxelSize / 10.0;
 //                const double inflateDistance = std::max(inflateStep * 0.1, (bestSelectValue > 0.5 ? 1.0 - (bestSelectValue - 0.5) / (1.0 - 0.5) * inflateStep : inflateStep * 0.1));
 
                 Point newPoint = closestPoint;
