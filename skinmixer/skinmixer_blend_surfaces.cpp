@@ -83,41 +83,6 @@ Mesh quadrangulateMesh(
 template<class Model>
 void blendSurfaces(
         SkinMixerData<Model>& data,
-        std::vector<nvl::Index>& resultEntryIds,
-        const MixMode& mixMode)
-{
-    typedef typename Model::Mesh Mesh;
-    typedef typename nvl::Index Index;
-    typedef typename SkinMixerData<Model>::Action Action;
-    typedef typename SkinMixerData<Model>::Entry Entry;
-
-    //TODO CLUSTERS FOR MULTIPLE MODELS
-
-    //Find cluster
-    std::vector<nvl::Index> cluster;
-    for (const Action& action : data.actions()) {
-        cluster.push_back(action.entry1);
-        if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-            cluster.push_back(action.entry2);
-        }
-    }
-    std::sort(cluster.begin(), cluster.end());
-    cluster.erase(std::unique(cluster.begin(), cluster.end()), cluster.end());
-
-    //New model
-    Model* resultModel = new Model();
-    Mesh& resultMesh = resultModel->mesh;
-
-    Index resultEntryId = data.addEntry(resultModel);
-    Entry& resultEntry = data.entry(resultEntryId);
-    resultEntryIds.push_back(resultEntryId);
-
-    blendSurfaces(data, cluster, resultEntry, mixMode);
-}
-
-template<class Model>
-void blendSurfaces(
-        SkinMixerData<Model>& data,
         std::vector<nvl::Index> cluster,
         typename SkinMixerData<Model>::Entry& resultEntry,
         const MixMode& mixMode)
@@ -208,7 +173,7 @@ void blendSurfaces(
         models[cId] = model;
 
         //Vertex select values
-        SelectInfo globalSelectInfo = data.computeGlobalSelectInfo(cId);
+        SelectInfo globalSelectInfo = data.computeGlobalSelectInfo(eId);
         vertexSelectValues[cId] = globalSelectInfo.vertex;
 
         //Find faces in the field
@@ -1192,7 +1157,7 @@ void blendSurfaces(
 
             const Index& birthEId = pair.first;
             const VertexId& birthVertexId = pair.second;
-            const Index& birthCId = clusterMap[birthEId];
+            const Index& birthCId = clusterMap.at(birthEId);
 
             if (birthEId != nvl::MAX_INDEX) {
                 assert(birthVertexId != nvl::MAX_INDEX);

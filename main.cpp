@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
 
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer texture/timmy/timmy.rig");
     skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer texture/crypto/crypto.rig");
+
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Timmy/timmy.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Crypto/crypto.rig");
 

@@ -6,6 +6,7 @@
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/closest_point.h>
 #include <nvl/math/barycentric_interpolation.h>
+#include <nvl/math/inverse_map.h>
 
 namespace skinmixer {
 
@@ -23,43 +24,88 @@ typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
 template<class Model>
 void blendSkinningWeights(
         SkinMixerData<Model>& data,
-        const std::vector<nvl::Index>& newEntries)
+        std::vector<nvl::Index> cluster,
+        typename SkinMixerData<Model>::Entry& resultEntry)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::BirthInfo::VertexInfo VertexInfo;
     typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
     typedef typename Model::SkinningWeights SkinningWeights;
+    typedef typename SkinningWeights::Scalar SkinningWeightsScalar;
     typedef typename Model::Skeleton Skeleton;
     typedef typename Skeleton::JointId JointId;
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::Point Point;
+    typedef nvl::Index Index;
 
-    for (const nvl::Index& eId : newEntries) {
-        Entry& entry = data.entry(eId);
+    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
 
-        Model* targetModel = entry.model;
-        SkinningWeights& targetSkinningWeights = targetModel->skinningWeights;
-        Mesh& targetMesh = targetModel->mesh;
-        Skeleton& targetSkeleton = targetModel->skeleton;
+    Model* targetModel = resultEntry.model;
+    SkinningWeights& targetSkinningWeights = targetModel->skinningWeights;
+    Mesh& targetMesh = targetModel->mesh;
+    Skeleton& targetSkeleton = targetModel->skeleton;
 
-        targetModel->initializeSkinningWeights();
+    targetModel->initializeSkinningWeights();
 
-        for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
-            if (targetMesh.isVertexDeleted(vId))
-                continue;
+    std::vector<std::vector<JointId>> preJointMap(cluster.size());
+    for (Index cId = 0; cId < cluster.size(); ++cId) {
+        Entry& birthEntry = data.entry(cluster[cId]);
+        preJointMap[cId].resize(birthEntry.model->skeleton.jointNumber(), nvl::MAX_INDEX);
+    }
 
-            const std::vector<VertexInfo>& vertexInfos = entry.birth.vertex[vId];
+    for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+        const std::vector<JointInfo>& jointInfos = resultEntry.birth.joint[jId];
 
-            const Point& point = targetMesh.vertex(vId).point();
+        for (const JointInfo& jointInfo : jointInfos) {
+            if (jointInfo.confidence == 1.0) {
+                const Index& cId = clusterMap[jointInfo.eId];
 
-            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-                const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+                assert(jointInfo.jId != nvl::MAX_INDEX);
+                assert(preJointMap[cId][jointInfo.jId] == nvl::MAX_INDEX);
 
-                double weight = 0.0;
-                double sumSelectValues = 0;
+                preJointMap[cId][jointInfo.jId] = jId;
+            }
+        }
+    }
 
-                for (const VertexInfo& vertexInfo : vertexInfos) {
+    for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
+        if (targetMesh.isVertexDeleted(vId))
+            continue;
+
+        const std::vector<VertexInfo>& vertexInfos = resultEntry.birth.vertex[vId];
+
+        for (const VertexInfo& vertexInfo : vertexInfos) {
+            const Entry& currentEntry = data.entry(vertexInfo.eId);
+            const Model* currentModel = currentEntry.model;
+            const Mesh& currentMesh = currentModel->mesh;
+            const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
+
+            if (vertexInfo.vId != nvl::MAX_INDEX) {
+                const Index& cId = clusterMap[vertexInfo.eId];
+
+                assert(vertexInfo.weight == 1.0);
+
+                const std::vector<Index>& nonZeros = currentSkinningWeights.nonZeroWeights(vertexInfo.vId);
+                for (const Index& jId : nonZeros) {
+                    if (preJointMap[cId][jId] != nvl::MAX_INDEX) {
+                        const SkinningWeightsScalar& sw = currentSkinningWeights.weight(vertexInfo.vId, jId);
+
+                        assert(preJointMap[cId][jId] != nvl::MAX_INDEX);
+                        if (sw > nvl::EPSILON) {
+                            targetSkinningWeights.weight(vId, preJointMap[cId][jId]) += sw;
+                        }
+                    }
+                }
+            }
+            else {
+                const Point& point = targetMesh.vertex(vId).point();
+
+                for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+
+                    const std::vector<JointInfo>& jointInfos = resultEntry.birth.joint[jId];
+
+                    SkinningWeightsScalar sw = 0.0;
                     for (const JointInfo& jointInfo : jointInfos) {
                         assert (jointInfo.jId != nvl::MAX_INDEX);
 
@@ -67,48 +113,43 @@ void blendSkinningWeights(
                             continue;
                         }
 
-                        const Entry& currentEntry = data.entry(vertexInfo.eId);
-                        const Model* currentModel = currentEntry.model;
-                        const Mesh& currentMesh = currentModel->mesh;
-                        const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
+                        SkinningWeightsScalar interpolatedWeight = internal::interpolateSkinningWeightOnFace(currentMesh, currentSkinningWeights, jointInfo.jId, vertexInfo.closestFaceId, point);
 
-                        if (vertexInfo.vId != nvl::MAX_INDEX) {
-                            weight += vertexInfo.weight * currentSkinningWeights.weight(vertexInfo.vId, jointInfo.jId);
-                            sumSelectValues += vertexInfo.weight;
-                        }
-                        else {
-                            double interpolatedWeight = internal::interpolateSkinningWeightOnFace(currentMesh, currentSkinningWeights, jointInfo.jId, vertexInfo.closestFaceId, point);
+                        sw += vertexInfo.weight * interpolatedWeight;
+                    }
 
-                            weight += vertexInfo.weight * interpolatedWeight;
-                            sumSelectValues += vertexInfo.weight;
-                        }
+                    if (sw > nvl::EPSILON) {
+                        targetSkinningWeights.weight(vId, jId) += sw;
                     }
                 }
-
-                if (sumSelectValues > 0 && weight > nvl::EPSILON) {
-                    targetSkinningWeights.setWeight(vId, jId, targetSkinningWeights.weight(vId, jId) + weight);
-                }
-
             }
         }
-
-        for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
-            if (targetMesh.isVertexDeleted(vId))
-                continue;
-
-            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-                if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 0.0)) {
-                    targetSkinningWeights.setWeight(vId, jId, 0.0);
-                }
-                else if (nvl::epsEqual(targetSkinningWeights.weight(vId, jId), 1.0)) {
-                    targetSkinningWeights.setWeight(vId, jId, 1.0);
-                }
-            }
-        }
-
-        targetSkinningWeights.updateNonZeros();
-        nvl::modelNormalizeSkinningWeights(*targetModel);
     }
+
+    targetSkinningWeights.updateNonZeros();
+
+    nvl::modelNormalizeSkinningWeights(*targetModel);
+
+    for (VertexId vId = 0; vId < targetMesh.nextVertexId(); ++vId) {
+        if (targetMesh.isVertexDeleted(vId))
+            continue;
+
+        const std::vector<Index>& nonZeros = targetSkinningWeights.nonZeroWeights(vId);
+        for (const Index& jId : nonZeros) {
+            SkinningWeightsScalar& weight = targetSkinningWeights.weight(vId, jId);
+            assert(weight >= 0.0 && weight <= 1.0);
+
+            if (nvl::epsEqual(weight, 0.0)) {
+                weight = 0.0;
+            }
+            else if (nvl::epsEqual(weight, 1.0)) {
+                weight = 1.0;
+            }
+        }
+    }
+
+    targetSkinningWeights.updateNonZeros();
+
 }
 
 namespace internal {
@@ -131,19 +172,31 @@ typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
 
     std::vector<Point> polygon(face.vertexNumber());
     std::vector<SkinningWeightsScalar> values(face.vertexNumber());
+
+    bool isZero = true;
     for (VertexId j = 0; j < face.vertexNumber(); ++j) {
         const VertexId& vId = face.vertexId(j);
 
         polygon[j] = mesh.vertex(vId).point();
         values[j] = skinningWeights.weight(vId, jointId);
+
+        if (values[j] > nvl::EPSILON) {
+            isZero = false;
+        }
     }
 
-    //Interpolation on polygon using barycenter subdivision
-    SkinningWeightsScalar value = nvl::barycentricInterpolationBarycenterSubdivision(
-        polygon,
-        point,
-        values,
-        true);
+    SkinningWeightsScalar value;
+    if (isZero) {
+        value = 0.0;
+    }
+    else {
+        //Interpolation on polygon using barycenter subdivision
+        value = nvl::barycentricInterpolationBarycenterSubdivision(
+            polygon,
+            point,
+            values,
+            true);
+    }
 
     return value;
 }

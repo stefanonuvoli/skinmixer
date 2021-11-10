@@ -38,7 +38,8 @@ std::vector<Frame> calculateDerivatives(const std::vector<Frame>& frames);
 template<class Model>
 void initializeAnimationWeights(
         SkinMixerData<Model>& data,
-        const std::vector<nvl::Index>& newEntries)
+        std::vector<nvl::Index> cluster,
+        typename SkinMixerData<Model>::Entry& resultEntry)
 {
     typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::Entry Entry;
@@ -46,65 +47,62 @@ void initializeAnimationWeights(
     typedef typename Model::Skeleton Skeleton;
     typedef typename Skeleton::JointId JointId;
 
-    for (const Index& eId : newEntries) {
-        Entry& entry = data.entry(eId);
+    NVL_SUPPRESS_UNUSEDVARIABLE(data);
 
-        Model* targetModel = entry.model;
-        Skeleton& targetSkeleton = targetModel->skeleton;
+    Model* targetModel = resultEntry.model;
+    Skeleton& targetSkeleton = targetModel->skeleton;
 
-        std::vector<Index>& birthEntries = entry.birth.entries;
-        std::vector<Index>& animationsIds = entry.blendingAnimationIds;
-        std::vector<Index>& animationsModes = entry.blendingAnimationModes;
-        std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
+    std::vector<Index>& animationsIds = resultEntry.blendingAnimationIds;
+    std::vector<Index>& animationsModes = resultEntry.blendingAnimationModes;
+    std::vector<std::vector<double>>& animationWeights = resultEntry.blendingAnimationWeights;
 
-        animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(birthEntries.size(), 0.0));
+    animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(cluster.size(), 0.0));
 
-        std::vector<Index> clusterMap = nvl::inverseMap(birthEntries);
-        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-            const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
+    for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+        const std::vector<JointInfo>& jointInfos = resultEntry.birth.joint[jId];
 
-            JointId parentId = targetSkeleton.parentId(jId);
+        JointId parentId = targetSkeleton.parentId(jId);
 
-            int numConfidence = 0;
+        int numConfidence = 0;
+        for (JointInfo jointInfo : jointInfos) {
+            assert(jointInfo.jId != nvl::MAX_INDEX);
+            assert(jointInfo.eId != nvl::MAX_INDEX);
+            assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
+
+            const Index& cId = clusterMap[jointInfo.eId];
+
+            if (jointInfo.confidence == 1.0) {
+                animationWeights[jId][cId] = 1.0;
+                numConfidence++;
+            }
+        }
+        if (numConfidence > 1) {
             for (JointInfo jointInfo : jointInfos) {
                 assert(jointInfo.jId != nvl::MAX_INDEX);
                 assert(jointInfo.eId != nvl::MAX_INDEX);
                 assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
+                assert(parentId != nvl::MAX_INDEX);
 
                 const Index& cId = clusterMap[jointInfo.eId];
 
-                if (jointInfo.confidence == 1.0) {
-                    animationWeights[jId][cId] = 1.0;
-                    numConfidence++;
-                }
-            }
-            if (numConfidence > 1) {
-                for (JointInfo jointInfo : jointInfos) {
-                    assert(jointInfo.jId != nvl::MAX_INDEX);
-                    assert(jointInfo.eId != nvl::MAX_INDEX);
-                    assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
-                    assert(parentId != nvl::MAX_INDEX);
+                const std::vector<JointInfo>& parentJointInfos = resultEntry.birth.joint[parentId];
 
-                    const Index& cId = clusterMap[jointInfo.eId];
+                for (JointInfo parentJointInfo : parentJointInfos) {
+                    const Index& parentCId = clusterMap[parentJointInfo.eId];
 
-                    const std::vector<JointInfo>& parentJointInfos = entry.birth.joint[parentId];
-
-                    for (JointInfo parentJointInfo : parentJointInfos) {
-                        const Index& parentCId = clusterMap[parentJointInfo.eId];
-
-                        if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1.0 && parentCId == cId) {
-                            animationWeights[jId][cId] = 0.0;
-                        }
+                    if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1.0 && parentCId == cId) {
+                        animationWeights[jId][cId] = 0.0;
                     }
                 }
             }
-
-            nvl::normalize(animationWeights[jId]);
         }
 
-        animationsModes.resize(birthEntries.size(), BLEND_ANIMATION_FIXED);
-        animationsIds.resize(birthEntries.size(), BLEND_ANIMATION_NONE);
+        nvl::normalize(animationWeights[jId]);
     }
+
+    animationsModes.resize(cluster.size(), BLEND_ANIMATION_FIXED);
+    animationsIds.resize(cluster.size(), BLEND_ANIMATION_NONE);
 }
 
 template<class Model>

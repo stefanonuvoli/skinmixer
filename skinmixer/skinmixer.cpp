@@ -11,6 +11,8 @@
 #include <nvl/models/model_deformation.h>
 #include <nvl/models/mesh_normals.h>
 
+#include <nvl/structures/disjoint_set.h>
+
 #include <chrono>
 
 namespace skinmixer {
@@ -20,7 +22,9 @@ std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data,
         const MixMode& mixMode)
 {
-    typedef nvl::Index Index;
+    typedef typename Model::Mesh Mesh;
+    typedef typename nvl::Index Index;
+    typedef typename SkinMixerData<Model>::Action Action;
     typedef typename SkinMixerData<Model>::Entry Entry;
 
 #ifdef GLOBAL_TIMES
@@ -29,6 +33,7 @@ std::vector<nvl::Index> mix(
     long totalDuration = 0;
 #endif
 
+    //Deform models
     for (Entry entry : data.entries()) {
         if (entry.relatedActions.size() > 0) {
             data.computeDeformation(entry);
@@ -38,76 +43,106 @@ std::vector<nvl::Index> mix(
         }
     }
 
+    //Resulting entries
     std::vector<Index> newEntries;
 
+
+    //Find clusters
+    nvl::DisjointSet<Index> ds;
+    for (const Action& action : data.actions()) {
+         ds.insert(action.entry1);
+        if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+            ds.insert(action.entry2);
+            ds.merge(action.entry1, action.entry2);
+        }
+    }
+    std::vector<std::vector<Index>> clusters = ds.computeSets();
+
+    for (const std::vector<Index>& cluster : clusters) {
+        std::cout << std::endl << "--------- Cluster: ";
+        for (Index cId : cluster) {
+            std::cout << cId << " ";
+        }
+        std::cout << "---------" << std::endl << std::endl;
+
+        //New model
+        Model* resultModel = new Model();
+        Mesh& resultMesh = resultModel->mesh;
+
+        Index newEntryId = data.addEntry(resultModel);
+        Entry& resultEntry = data.entry(newEntryId);
+
+        newEntries.push_back(newEntryId);
+
 #ifdef GLOBAL_TIMES
-    start = chrono::steady_clock::now();
-    std::cout << std::endl << "--------- SURFACE BLENDING ---------" << std::endl;
+        start = chrono::steady_clock::now();
+        std::cout << std::endl << "*** SURFACE BLENDING ***" << std::endl;
 #endif
 
-    //Blend surface
-    blendSurfaces(data, newEntries, mixMode);
+        //Blend surface
+        blendSurfaces(data, cluster, resultEntry, mixMode);
 
 #ifdef GLOBAL_TIMES
-    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
-    std::cout << ">>>>> SURFACE BLENDING: " << duration << " ms" << std::endl;
-    totalDuration += duration;
-#endif
-
-
-
-#ifdef GLOBAL_TIMES
-    start = chrono::steady_clock::now();
-    std::cout << std::endl << "--------- SKELETON BLENDING ---------" << std::endl;
-#endif
-
-    //Blend skeleton
-    blendSkeletons(data, newEntries);
-
-#ifdef GLOBAL_TIMES
-    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
-    std::cout << ">>>>> SKELETON BLENDING: " << duration << " ms" << std::endl;
-    totalDuration += duration;
-#endif
-
-
-
-#ifdef GLOBAL_TIMES
-    start = chrono::steady_clock::now();
-    std::cout << std::endl << "--------- SKINNING WEIGHT BLENDING ---------" << std::endl;
-#endif
-
-    //Blend skinning weights
-    blendSkinningWeights(data, newEntries);
-
-#ifdef GLOBAL_TIMES
-    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
-    std::cout << ">>>>> SKINNING WEIGHT: " << duration << " ms" << std::endl;
-    totalDuration += duration;
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << ">>>>> SURFACE BLENDING: " << duration << " ms" << std::endl;
+        totalDuration += duration;
 #endif
 
 
 
 #ifdef GLOBAL_TIMES
-    start = chrono::steady_clock::now();
-    std::cout << std::endl << "--------- INITIALIZE ANIMATION WEIGHTS ---------" << std::endl;
+        start = chrono::steady_clock::now();
+        std::cout << std::endl << "*** SKELETON BLENDING ***" << std::endl;
 #endif
 
-    //Initialize animation weights
-    initializeAnimationWeights(data, newEntries);
+        //Blend skeleton
+        blendSkeletons(data, cluster, resultEntry);
 
 #ifdef GLOBAL_TIMES
-    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
-    std::cout << ">>>>> INITIALIZE ANIMATION WEIGHTS: " << duration << " ms" << std::endl;
-    totalDuration += duration;
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << ">>>>> SKELETON BLENDING: " << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+#ifdef GLOBAL_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << std::endl << "*** SKINNING WEIGHT BLENDING ***" << std::endl;
+#endif
+
+        //Blend skinning weights
+        blendSkinningWeights(data, cluster, resultEntry);
+
+#ifdef GLOBAL_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << ">>>>> SKINNING WEIGHT: " << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+
+
+#ifdef GLOBAL_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << std::endl << "*** INITIALIZE ANIMATION WEIGHTS ***" << std::endl;
+#endif
+
+        //Initialize animation weights
+        initializeAnimationWeights(data, cluster, resultEntry);
+
+#ifdef GLOBAL_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << ">>>>> INITIALIZE ANIMATION WEIGHTS: " << duration << " ms" << std::endl;
+        totalDuration += duration;
 #endif
 
 
 #ifdef GLOBAL_TIMES
-    std::cout << std::endl << "TOTAL DURATION: " << totalDuration << " ms" << std::endl;
+        std::cout << std::endl << "TOTAL DURATION: " << totalDuration << " ms" << std::endl;
 #endif
 
-
+        std::cout << std::endl;
+    }
 
     data.clearActions();
 
@@ -148,6 +183,7 @@ nvl::Index replace(
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
+    typedef typename nvl::Index Index;
 
     Entry& entry1 = data.entryFromModel(model1);
     Entry& entry2 = data.entryFromModel(model2);
@@ -177,7 +213,7 @@ nvl::Index replace(
     action.translation2 = vActionTranslation;
     action.replaceMode = replaceMode;
 
-    nvl::Index actionId = data.addAction(action);
+    Index actionId = data.addAction(action);
     entry1.relatedActions.push_back(actionId);
     entry2.relatedActions.push_back(actionId);
 
@@ -201,6 +237,7 @@ nvl::Index attach(
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
+    typedef typename nvl::Index Index;
 
     Entry& entry1 = data.entryFromModel(model1);
     Entry& entry2 = data.entryFromModel(model2);
@@ -228,7 +265,7 @@ nvl::Index attach(
     action.rotation2 = vActionRotation;
     action.translation2 = vActionTranslation;
 
-    nvl::Index actionId = data.addAction(action);
+    Index actionId = data.addAction(action);
     entry1.relatedActions.push_back(actionId);
     entry2.relatedActions.push_back(actionId);
 
@@ -247,6 +284,7 @@ nvl::Index remove(
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
+    typedef typename nvl::Index Index;
 
     Entry& entry = data.entryFromModel(model);
 
@@ -264,7 +302,7 @@ nvl::Index remove(
     action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
 
-    nvl::Index actionId = data.addAction(action);
+    Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);
 
     return actionId;
@@ -282,6 +320,7 @@ nvl::Index detach(
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
+    typedef typename nvl::Index Index;
 
     Entry& entry = data.entryFromModel(model);
 
@@ -299,7 +338,7 @@ nvl::Index detach(
     action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
 
-    nvl::Index actionId = data.addAction(action);
+    Index actionId = data.addAction(action);
     entry.relatedActions.push_back(actionId);
 
     return actionId;

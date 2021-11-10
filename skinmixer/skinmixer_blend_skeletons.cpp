@@ -49,7 +49,8 @@ double skeletonMatchingConfidence(
 template<class Model>
 void blendSkeletons(
         SkinMixerData<Model>& data,
-        const std::vector<nvl::Index>& newEntries)
+        std::vector<nvl::Index> cluster,
+        typename SkinMixerData<Model>::Entry& resultEntry)
 {
     typedef typename nvl::Index Index;
 
@@ -66,297 +67,329 @@ void blendSkeletons(
     typedef typename Skeleton::Scalar Scalar;
     typedef typename nvl::Point3<Scalar> Point;
 
-    for (const nvl::Index& eId : newEntries) {
-        Entry& entry = data.entry(eId);
 
-        Model* targetModel = entry.model;
-        Skeleton& targetSkeleton = targetModel->skeleton;
+    Model* targetModel = resultEntry.model;
+    Skeleton& targetSkeleton = targetModel->skeleton;
 
-        std::vector<Index>& birthEntries = entry.birth.entries;
+    std::vector<std::vector<JointId>> jointMap(data.entryNumber());
 
-        std::vector<std::vector<JointId>> jointMap(data.entryNumber());
+    std::vector<std::unordered_set<JointId>> jointToBeMerged(data.entryNumber());
 
-        std::vector<std::unordered_set<JointId>> jointToBeMerged(data.entryNumber());
+    std::vector<std::set<JointId>> keptJoints(data.entryNumber());
+    std::vector<std::set<JointId>> nonKeptJoints(data.entryNumber());
 
-        std::vector<std::set<JointId>> keptJoints(data.entryNumber());
-        std::vector<std::set<JointId>> nonKeptJoints(data.entryNumber());
+    std::vector<std::unordered_set<JointId>> matchedJoints(data.entryNumber());
+    std::vector<std::unordered_set<JointId>> perfectMatchedJoints(data.entryNumber());
+    std::vector<std::unordered_set<JointId>> seedJoints(data.entryNumber());
 
-        std::vector<std::unordered_set<JointId>> matchedJoints(data.entryNumber());
-        std::vector<std::unordered_set<JointId>> perfectMatchedJoints(data.entryNumber());
-        std::vector<std::unordered_set<JointId>> seedJoints(data.entryNumber());
+    for (const nvl::Index& birthEId : cluster) {
+        const Entry& currentEntry = data.entry(birthEId);
 
-        for (const nvl::Index& birthEId : birthEntries) {
+        SelectInfo select = data.computeGlobalSelectInfo(birthEId);
+
+        Model* currentModel = currentEntry.model;
+        Skeleton& currentSkeleton = currentModel->skeleton;
+
+        //Get joints to be retrieved using the select values
+        for (JointId jId = 0; jId < currentSkeleton.jointNumber(); jId++) {
+            if (select.joint[jId] > 0.0 && !nvl::epsEqual(select.joint[jId], 0.0)) {
+                keptJoints[birthEId].insert(jId);
+            }
+            else {
+                nonKeptJoints[birthEId].insert(jId);
+            }
+        }
+
+        //Get merge set
+        for (const Index& aId : currentEntry.relatedActions) {
+            const Action& action = data.action(aId);
+
+            if (action.entry1 == birthEId) {
+                if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+                    jointToBeMerged[action.entry1].insert(action.joint1);
+                }
+                seedJoints[action.entry1].insert(action.joint1);
+            }
+            else if (action.entry2 == birthEId) {
+                if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+                    jointToBeMerged[action.entry2].insert(action.joint2);
+                }
+                seedJoints[action.entry2].insert(action.joint2);
+            }
+        }
+
+        jointMap[birthEId] = std::vector<JointId>(currentSkeleton.jointNumber(), nvl::MAX_INDEX);
+    }
+
+    for (const nvl::Index& birthEId : cluster) {
+        const Entry& currentEntry = data.entry(birthEId);
+
+        Model* currentModel = currentEntry.model;
+        Skeleton& currentSkeleton = currentModel->skeleton;
+    }
+
+
+    std::vector<std::set<JointId>> remainingAssignedJoints = keptJoints;
+
+    bool keptDone;
+
+    do {
+        keptDone = true;
+
+        for (const nvl::Index& birthEId : cluster) {
             const Entry& currentEntry = data.entry(birthEId);
+            const Model* currentModel = currentEntry.model;
+            const Skeleton& currentSkeleton = currentModel->skeleton;
 
-            SelectInfo select = data.computeGlobalSelectInfo(birthEId);
+            typename std::set<JointId>::iterator it = remainingAssignedJoints[birthEId].begin();
+            while (it != remainingAssignedJoints[birthEId].end()) {
+                JointId jId = *it;
 
-            Model* currentModel = currentEntry.model;
-            Skeleton& currentSkeleton = currentModel->skeleton;
+                assert(jointMap[birthEId][jId] == nvl::MAX_INDEX);
+                assert(keptJoints[birthEId].find(jId) != keptJoints[birthEId].end() && remainingAssignedJoints[birthEId].find(jId) != remainingAssignedJoints[birthEId].end());
 
-            //Get joints to be retrieved using the select values
-            for (JointId jId = 0; jId < currentSkeleton.jointNumber(); jId++) {
-                if (select.joint[jId] > 0.0 && !nvl::epsEqual(select.joint[jId], 0.0)) {
-                    keptJoints[birthEId].insert(jId);
+                keptDone = false;
+
+                const Joint& joint = currentSkeleton.joint(jId);
+                JointId parentId = currentSkeleton.parentId(jId);
+
+                JointId newJId = nvl::MAX_INDEX;
+                if (parentId == nvl::MAX_INDEX || (keptJoints[birthEId].find(parentId) == keptJoints[birthEId].end() && jointToBeMerged[birthEId].find(jId) == jointToBeMerged[birthEId].end())) {
+                    newJId = targetSkeleton.addRoot(joint);
+                }
+                else if (parentId != nvl::MAX_INDEX && jointMap[birthEId][parentId] != nvl::MAX_INDEX) {
+                    const Joint& joint = currentSkeleton.joint(jId);
+                    newJId = targetSkeleton.addChild(jointMap[birthEId][parentId], joint);
+                }
+
+                if (newJId != nvl::MAX_INDEX) {
+                    jointMap[birthEId][jId] = newJId;
+                    matchedJoints[birthEId].insert(newJId);
+                    perfectMatchedJoints[birthEId].insert(newJId);
+
+                    assert(resultEntry.birth.joint.size() == newJId);
+                    resultEntry.birth.joint.push_back(std::vector<JointInfo>());
+
+                    JointInfo jInfo;
+                    jInfo.eId = birthEId;
+                    jInfo.jId = jId;
+                    jInfo.confidence = 1.0;
+                    resultEntry.birth.joint[newJId].push_back(jInfo);
+
+                    Transformation transformation = joint.restPose();
+
+                    //Find the and handle merge joints
+                    for (const Index& aId : currentEntry.relatedActions) {
+                        const Action& action = data.action(aId);
+
+                        if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+                            JointInfo actionJInfo;
+                            actionJInfo.eId = nvl::MAX_INDEX;
+                            actionJInfo.jId = nvl::MAX_INDEX;
+                            actionJInfo.confidence = 1.0;
+
+                            if (action.entry1 == birthEId && action.joint1 == jId) {
+                                actionJInfo.eId = action.entry2;
+                                actionJInfo.jId = action.joint2;
+                            }
+                            else if (action.entry2 == birthEId && action.joint2 == jId) {
+                                actionJInfo.eId = action.entry1;
+                                actionJInfo.jId = action.joint1;
+                            }
+
+                            //Case merge joint
+                            if (actionJInfo.jId != nvl::MAX_INDEX) {
+                                jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
+
+                                resultEntry.birth.joint[newJId].push_back(actionJInfo);
+
+                                transformation = data.entry(action.entry1).model->skeleton.joint(action.joint1).restPose();
+
+                                remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
+                                matchedJoints[actionJInfo.eId].insert(newJId);
+                                perfectMatchedJoints[actionJInfo.eId].insert(newJId);
+
+                                resultEntry.birth.mergeJoints.push_back(newJId);
+                            }
+                        }
+                    }
+
+                    targetSkeleton.joint(newJId).setRestPose(transformation);
+
+                    remainingAssignedJoints[birthEId].erase(it++);
                 }
                 else {
-                    nonKeptJoints[birthEId].insert(jId);
+                    ++it;
                 }
             }
-
-            //Get merge set
-            for (const Index& aId : currentEntry.relatedActions) {
-                const Action& action = data.action(aId);
-
-                if (action.entry1 == birthEId) {
-                    if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-                        jointToBeMerged[action.entry1].insert(action.joint1);
-                    }
-                    seedJoints[action.entry1].insert(action.joint1);
-                }
-                else if (action.entry2 == birthEId) {
-                    if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-                        jointToBeMerged[action.entry2].insert(action.joint2);
-                    }
-                    seedJoints[action.entry2].insert(action.joint2);
-                }
-            }
-
-            jointMap[birthEId] = std::vector<JointId>(currentSkeleton.jointNumber(), nvl::MAX_INDEX);
         }
-
-        for (const nvl::Index& birthEId : birthEntries) {
-            const Entry& currentEntry = data.entry(birthEId);
-
-            Model* currentModel = currentEntry.model;
-            Skeleton& currentSkeleton = currentModel->skeleton;
-        }
+    }
+    while (!keptDone);
 
 
-        std::vector<std::set<JointId>> remainingAssignedJoints = keptJoints;
+    //Compute paths
+    internal::SkeletonPaths<Skeleton> targetPaths(targetSkeleton);
+    std::unordered_map<nvl::Index, internal::SkeletonPaths<Skeleton>> birthPaths;
+    for (const nvl::Index& birthEId : cluster) {
+        const Entry& currentEntry = data.entry(birthEId);
+        Model* currentModel = currentEntry.model;
+        Skeleton& currentSkeleton = currentModel->skeleton;
+        internal::SkeletonPaths<Skeleton> paths(currentSkeleton);
+        birthPaths.insert(std::make_pair(birthEId, paths));
+    }
 
-        bool keptDone;
+    for (const nvl::Index& birthEId : cluster) {
+        const Entry& currentEntry = data.entry(birthEId);
+        Model* currentModel = currentEntry.model;
+        Skeleton& currentSkeleton = currentModel->skeleton;
+        std::vector<JointId>& currentMap = jointMap[birthEId];
+        internal::SkeletonPaths<Skeleton>& currentPaths = birthPaths[birthEId];
 
-        do {
-            keptDone = true;
+        std::set<JointId> remainingJoints = nonKeptJoints[birthEId];
 
-            for (const nvl::Index& birthEId : birthEntries) {
-                const Entry& currentEntry = data.entry(birthEId);
-                const Model* currentModel = currentEntry.model;
-                const Skeleton& currentSkeleton = currentModel->skeleton;
+        while (!remainingJoints.empty()) {
+            double bestConfidence = nvl::minLimitValue<double>();
+            double bestScore = nvl::minLimitValue<double>();
+            JointId bestCurrentJoint = nvl::MAX_INDEX;
+            JointId bestTargetJoint = nvl::MAX_INDEX;
 
-                typename std::set<JointId>::iterator it = remainingAssignedJoints[birthEId].begin();
-                while (it != remainingAssignedJoints[birthEId].end()) {
-                    JointId jId = *it;
+            for (JointId assignedJId = 0; assignedJId < currentSkeleton.jointNumber(); ++assignedJId) {
+                if (remainingJoints.find(assignedJId) != remainingJoints.end())
+                    continue;
 
-                    assert(jointMap[birthEId][jId] == nvl::MAX_INDEX);
-                    assert(keptJoints[birthEId].find(jId) != keptJoints[birthEId].end() && remainingAssignedJoints[birthEId].find(jId) != remainingAssignedJoints[birthEId].end());
+                const JointId& assignedParentId = currentSkeleton.parentId(assignedJId);
 
-                    keptDone = false;
 
-                    const Joint& joint = currentSkeleton.joint(jId);
-                    JointId parentId = currentSkeleton.parentId(jId);
 
-                    JointId newJId = nvl::MAX_INDEX;
-                    if (parentId == nvl::MAX_INDEX || (keptJoints[birthEId].find(parentId) == keptJoints[birthEId].end() && jointToBeMerged[birthEId].find(jId) == jointToBeMerged[birthEId].end())) {
-                        newJId = targetSkeleton.addRoot(joint);
+                //Handle parents
+                if (remainingJoints.find(assignedParentId) != remainingJoints.end()) {
+                    assert(currentMap[assignedParentId] == nvl::MAX_INDEX);
+                    assert(nonKeptJoints[birthEId].find(assignedParentId) != nonKeptJoints[birthEId].end() && remainingJoints.find(assignedParentId) != remainingJoints.end());
+
+                    JointId currentJId = assignedParentId;
+
+
+
+                    //Find candidates (parents)
+                    std::vector<JointId> candidates;
+                    std::vector<unsigned int> candidateDistance;
+
+                    JointId candidateJoint = currentMap[assignedJId];
+
+                    unsigned int maxTopologicalDistance = 0;
+                    candidates.push_back(candidateJoint);
+                    candidateDistance.push_back(maxTopologicalDistance);
+
+                    while (!targetSkeleton.isRoot(candidateJoint)) {
+                        candidateJoint = targetSkeleton.parentId(candidateJoint);
+                        candidates.push_back(candidateJoint);
+
+                        maxTopologicalDistance++;
+                        candidateDistance.push_back(maxTopologicalDistance);
                     }
-                    else if (parentId != nvl::MAX_INDEX && jointMap[birthEId][parentId] != nvl::MAX_INDEX) {
-                        const Joint& joint = currentSkeleton.joint(jId);
-                        newJId = targetSkeleton.addChild(jointMap[birthEId][parentId], joint);
-                    }
 
-                    if (newJId != nvl::MAX_INDEX) {
-                        jointMap[birthEId][jId] = newJId;
-                        matchedJoints[birthEId].insert(newJId);
-                        perfectMatchedJoints[birthEId].insert(newJId);
+                    maxTopologicalDistance = std::max(static_cast<unsigned int>(1), maxTopologicalDistance);
 
-                        assert(entry.birth.joint.size() == newJId);
-                        entry.birth.joint.push_back(std::vector<JointInfo>());
 
-                        JointInfo jInfo;
-                        jInfo.eId = birthEId;
-                        jInfo.jId = jId;
-                        jInfo.confidence = 1.0;
-                        entry.birth.joint[newJId].push_back(jInfo);
+                    for (Index candidateId = 0; candidateId < candidates.size(); ++candidateId) { //Compute each candidate
+                        const JointId& targetJId = candidates[candidateId];
+                        const unsigned int& targetTopologicalDistance = candidateDistance[candidateId];
 
-                        Transformation transformation = joint.restPose();
+                        Point currentPivotPoint = currentSkeleton.joint(assignedJId).restPose() * Point::Zero();
+                        Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).restPose() * nvl::Point3d::Zero();
 
-                        //Find the and handle merge joints
-                        for (const Index& aId : currentEntry.relatedActions) {
-                            const Action& action = data.action(aId);
+                        double confidence = internal::skeletonMatchingConfidence(
+                                    currentSkeleton,
+                                    targetSkeleton,
+                                    currentJId,
+                                    targetJId,
+                                    targetPaths,
+                                    currentPaths,
+                                    targetTopologicalDistance,
+                                    maxTopologicalDistance,
+                                    currentPivotPoint,
+                                    targetPivotPoint);
 
-                            if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-                                JointInfo actionJInfo;
-                                actionJInfo.eId = nvl::MAX_INDEX;
-                                actionJInfo.jId = nvl::MAX_INDEX;
-                                actionJInfo.confidence = 1.0;
+                        double matchedScore = internal::skeletonMatchingMatchedScore(
+                                    matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
+                                    perfectMatchedJoints[birthEId].find(targetJId) == perfectMatchedJoints[birthEId].end());
 
-                                if (action.entry1 == birthEId && action.joint1 == jId) {
-                                    actionJInfo.eId = action.entry2;
-                                    actionJInfo.jId = action.joint2;
-                                }
-                                else if (action.entry2 == birthEId && action.joint2 == jId) {
-                                    actionJInfo.eId = action.entry1;
-                                    actionJInfo.jId = action.joint1;
-                                }
+                        double score = confidence + matchedScore;
 
-                                //Case merge joint
-                                if (actionJInfo.jId != nvl::MAX_INDEX) {
-                                    jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
-
-                                    entry.birth.joint[newJId].push_back(actionJInfo);
-
-                                    transformation = data.entry(action.entry1).model->skeleton.joint(action.joint1).restPose();
-
-                                    remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
-                                    matchedJoints[actionJInfo.eId].insert(newJId);
-                                    perfectMatchedJoints[actionJInfo.eId].insert(newJId);
-
-                                    entry.birth.mergeJoints.push_back(newJId);
-                                }
-                            }
+                        if (score >= bestScore) {
+                            bestCurrentJoint = currentJId;
+                            bestTargetJoint = targetJId;
+                            bestConfidence = confidence;
+                            bestScore = score;
                         }
-
-                        targetSkeleton.joint(newJId).setRestPose(transformation);
-
-                        remainingAssignedJoints[birthEId].erase(it++);
-                    }
-                    else {
-                        ++it;
                     }
                 }
-            }
-        }
-        while (!keptDone);
 
 
-        //Compute paths
-        internal::SkeletonPaths<Skeleton> targetPaths(targetSkeleton);
-        std::unordered_map<nvl::Index, internal::SkeletonPaths<Skeleton>> birthPaths;
-        for (const nvl::Index& birthEId : birthEntries) {
-            const Entry& currentEntry = data.entry(birthEId);
-            Model* currentModel = currentEntry.model;
-            Skeleton& currentSkeleton = currentModel->skeleton;
-            internal::SkeletonPaths<Skeleton> paths(currentSkeleton);
-            birthPaths.insert(std::make_pair(birthEId, paths));
-        }
 
-        for (const nvl::Index& birthEId : birthEntries) {
-            const Entry& currentEntry = data.entry(birthEId);
-            Model* currentModel = currentEntry.model;
-            Skeleton& currentSkeleton = currentModel->skeleton;
-            std::vector<JointId>& currentMap = jointMap[birthEId];
-            internal::SkeletonPaths<Skeleton>& currentPaths = birthPaths[birthEId];
 
-            std::set<JointId> remainingJoints = nonKeptJoints[birthEId];
 
-            while (!remainingJoints.empty()) {
-                double bestConfidence = nvl::minLimitValue<double>();
-                double bestScore = nvl::minLimitValue<double>();
-                JointId bestCurrentJoint = nvl::MAX_INDEX;
-                JointId bestTargetJoint = nvl::MAX_INDEX;
+                //Handle children
+                for (JointId currentChildId : currentSkeleton.children(assignedJId)) {
 
-                for (JointId assignedJId = 0; assignedJId < currentSkeleton.jointNumber(); ++assignedJId) {
-                    if (remainingJoints.find(assignedJId) != remainingJoints.end())
+                    if (remainingJoints.find(currentChildId) == remainingJoints.end())
                         continue;
 
-                    const JointId& assignedParentId = currentSkeleton.parentId(assignedJId);
+                    assert(currentMap[currentChildId] == nvl::MAX_INDEX);
+                    assert(nonKeptJoints[birthEId].find(currentChildId) != nonKeptJoints[birthEId].end() && remainingJoints.find(currentChildId) != remainingJoints.end());
 
+                    std::vector<JointId> candidates = nvl::skeletonJointDescendants(targetSkeleton, currentMap[assignedJId]);
+                    candidates.push_back(currentMap[assignedJId]);
+                    std::vector<unsigned int> distanceFromAssignedJoint = nvl::skeletonJointDistance(targetSkeleton, currentMap[assignedJId]);
 
+                    unsigned int maxTopologicalDistance = 1;
+                    for (const JointId& candidate : candidates) {
+                        maxTopologicalDistance = std::max(distanceFromAssignedJoint[candidate], maxTopologicalDistance);
+                    }
+                    JointId currentJId = currentChildId;
 
-                    //Handle parents
-                    if (remainingJoints.find(assignedParentId) != remainingJoints.end()) {
-                        assert(currentMap[assignedParentId] == nvl::MAX_INDEX);
-                        assert(nonKeptJoints[birthEId].find(assignedParentId) != nonKeptJoints[birthEId].end() && remainingJoints.find(assignedParentId) != remainingJoints.end());
+                    for (Index candidateId = 0; candidateId < candidates.size(); ++candidateId) { //Compute each candidate
+                        const JointId& targetJId = candidates[candidateId];
+                        const int& targetTopologicalDistance = distanceFromAssignedJoint[targetJId];
 
-                        JointId currentJId = assignedParentId;
+                        Point currentPivotPoint = currentSkeleton.joint(assignedJId).restPose() * Point::Zero();
+                        Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).restPose() * nvl::Point3d::Zero();
 
+                        double confidence = internal::skeletonMatchingConfidence(
+                                    currentSkeleton,
+                                    targetSkeleton,
+                                    currentJId,
+                                    targetJId,
+                                    targetPaths,
+                                    currentPaths,
+                                    targetTopologicalDistance,
+                                    maxTopologicalDistance,
+                                    currentPivotPoint,
+                                    targetPivotPoint);
 
+                        double matchedScore = internal::skeletonMatchingMatchedScore(
+                                    matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
+                                    perfectMatchedJoints[birthEId].find(targetJId) == perfectMatchedJoints[birthEId].end());
 
-                        //Find candidates (parents)
-                        std::vector<JointId> candidates;
-                        std::vector<unsigned int> candidateDistance;
+                        double score = confidence + matchedScore;
 
-                        JointId candidateJoint = currentMap[assignedJId];
-
-                        unsigned int maxTopologicalDistance = 0;
-                        candidates.push_back(candidateJoint);
-                        candidateDistance.push_back(maxTopologicalDistance);
-
-                        while (!targetSkeleton.isRoot(candidateJoint)) {
-                            candidateJoint = targetSkeleton.parentId(candidateJoint);
-                            candidates.push_back(candidateJoint);
-
-                            maxTopologicalDistance++;
-                            candidateDistance.push_back(maxTopologicalDistance);
-                        }
-
-                        maxTopologicalDistance = std::max(static_cast<unsigned int>(1), maxTopologicalDistance);
-
-
-                        for (Index candidateId = 0; candidateId < candidates.size(); ++candidateId) { //Compute each candidate
-                            const JointId& targetJId = candidates[candidateId];
-                            const unsigned int& targetTopologicalDistance = candidateDistance[candidateId];
-
-                            Point currentPivotPoint = currentSkeleton.joint(assignedJId).restPose() * Point::Zero();
-                            Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).restPose() * nvl::Point3d::Zero();
-
-                            double confidence = internal::skeletonMatchingConfidence(
-                                        currentSkeleton,
-                                        targetSkeleton,
-                                        currentJId,
-                                        targetJId,
-                                        targetPaths,
-                                        currentPaths,
-                                        targetTopologicalDistance,
-                                        maxTopologicalDistance,
-                                        currentPivotPoint,
-                                        targetPivotPoint);
-
-                            double matchedScore = internal::skeletonMatchingMatchedScore(
-                                        matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
-                                        perfectMatchedJoints[birthEId].find(targetJId) == perfectMatchedJoints[birthEId].end());
-
-                            double score = confidence + matchedScore;
-
-                            if (score >= bestScore) {
-                                bestCurrentJoint = currentJId;
-                                bestTargetJoint = targetJId;
-                                bestConfidence = confidence;
-                                bestScore = score;
-                            }
+                        if (score >= bestScore) {
+                            bestCurrentJoint = currentJId;
+                            bestTargetJoint = targetJId;
+                            bestConfidence = confidence;
+                            bestScore = score;
                         }
                     }
+                }
+            }
 
 
+            //Case not connected component
+            if (bestConfidence == nvl::minLimitValue<double>()) {
 
-
-
-                    //Handle children
-                    for (JointId currentChildId : currentSkeleton.children(assignedJId)) {
-
-                        if (remainingJoints.find(currentChildId) == remainingJoints.end())
-                            continue;
-
-                        assert(currentMap[currentChildId] == nvl::MAX_INDEX);
-                        assert(nonKeptJoints[birthEId].find(currentChildId) != nonKeptJoints[birthEId].end() && remainingJoints.find(currentChildId) != remainingJoints.end());
-
-                        std::vector<JointId> candidates = nvl::skeletonJointDescendants(targetSkeleton, currentMap[assignedJId]);
-                        candidates.push_back(currentMap[assignedJId]);
-                        std::vector<unsigned int> distanceFromAssignedJoint = nvl::skeletonJointDistance(targetSkeleton, currentMap[assignedJId]);
-
-                        unsigned int maxTopologicalDistance = 1;
-                        for (const JointId& candidate : candidates) {
-                            maxTopologicalDistance = std::max(distanceFromAssignedJoint[candidate], maxTopologicalDistance);
-                        }
-                        JointId currentJId = currentChildId;
-
-                        for (Index candidateId = 0; candidateId < candidates.size(); ++candidateId) { //Compute each candidate
-                            const JointId& targetJId = candidates[candidateId];
-                            const int& targetTopologicalDistance = distanceFromAssignedJoint[targetJId];
-
-                            Point currentPivotPoint = currentSkeleton.joint(assignedJId).restPose() * Point::Zero();
-                            Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).restPose() * nvl::Point3d::Zero();
+                for (JointId currentJId = 0; currentJId < currentSkeleton.jointNumber(); ++currentJId) {
+                    if (remainingJoints.find(currentJId) != remainingJoints.end()) {
+                        for (JointId targetJId = 0; targetJId < targetSkeleton.jointNumber(); ++targetJId) {
 
                             double confidence = internal::skeletonMatchingConfidence(
                                         currentSkeleton,
@@ -365,10 +398,10 @@ void blendSkeletons(
                                         targetJId,
                                         targetPaths,
                                         currentPaths,
-                                        targetTopologicalDistance,
-                                        maxTopologicalDistance,
-                                        currentPivotPoint,
-                                        targetPivotPoint);
+                                        nvl::maxLimitValue<unsigned int>(),
+                                        nvl::maxLimitValue<unsigned int>(),
+                                        Point::Zero(),
+                                        Point::Zero());
 
                             double matchedScore = internal::skeletonMatchingMatchedScore(
                                         matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
@@ -385,203 +418,24 @@ void blendSkeletons(
                         }
                     }
                 }
-
-
-                //Case not connected component
-                if (bestConfidence == nvl::minLimitValue<double>()) {
-
-                    for (JointId currentJId = 0; currentJId < currentSkeleton.jointNumber(); ++currentJId) {
-                        if (remainingJoints.find(currentJId) != remainingJoints.end()) {
-                            for (JointId targetJId = 0; targetJId < targetSkeleton.jointNumber(); ++targetJId) {
-
-                                double confidence = internal::skeletonMatchingConfidence(
-                                            currentSkeleton,
-                                            targetSkeleton,
-                                            currentJId,
-                                            targetJId,
-                                            targetPaths,
-                                            currentPaths,
-                                            nvl::maxLimitValue<unsigned int>(),
-                                            nvl::maxLimitValue<unsigned int>(),
-                                            Point::Zero(),
-                                            Point::Zero());
-
-                                double matchedScore = internal::skeletonMatchingMatchedScore(
-                                            matchedJoints[birthEId].find(targetJId) == matchedJoints[birthEId].end(),
-                                            perfectMatchedJoints[birthEId].find(targetJId) == perfectMatchedJoints[birthEId].end());
-
-                                double score = confidence + matchedScore;
-
-                                if (score >= bestScore) {
-                                    bestCurrentJoint = currentJId;
-                                    bestTargetJoint = targetJId;
-                                    bestConfidence = confidence;
-                                    bestScore = score;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                assert(bestConfidence > nvl::minLimitValue<double>());
-                currentMap[bestCurrentJoint] = bestTargetJoint;
-                matchedJoints[birthEId].insert(bestTargetJoint);
-
-                assert(!entry.birth.joint[bestTargetJoint].empty());
-                JointInfo jInfo;
-                jInfo.eId = birthEId;
-                jInfo.jId = bestCurrentJoint;
-                jInfo.confidence = std::min(0.9999, bestConfidence);
-                entry.birth.joint[bestTargetJoint].push_back(jInfo);
-
-                remainingJoints.erase(bestCurrentJoint);
             }
-            for (JointId jId = 0; jId < currentSkeleton.jointNumber(); ++jId) {
-                assert(currentMap[jId] != nvl::MAX_INDEX);
-            }
+
+            assert(bestConfidence > nvl::minLimitValue<double>());
+            currentMap[bestCurrentJoint] = bestTargetJoint;
+            matchedJoints[birthEId].insert(bestTargetJoint);
+
+            assert(!resultEntry.birth.joint[bestTargetJoint].empty());
+            JointInfo jInfo;
+            jInfo.eId = birthEId;
+            jInfo.jId = bestCurrentJoint;
+            jInfo.confidence = std::min(0.9999, bestConfidence);
+            resultEntry.birth.joint[bestTargetJoint].push_back(jInfo);
+
+            remainingJoints.erase(bestCurrentJoint);
         }
-
-//        for (const nvl::Index& birthEId : birthEntries) {
-//            const Entry& currentEntry = data.entry(birthEId);
-//            Model* currentModel = currentEntry.model;
-//            Skeleton& currentSkeleton = currentModel->skeleton;
-
-//            std::set<JointId> remainingJoints = nonKeptJoints[birthEId];
-
-//            while (!remainingJoints.empty()) {
-//                double bestScore = nvl::minLimitValue<double>();
-//                JointId bestCurrentJoint = nvl::MAX_INDEX;
-//                JointId bestTargetJoint = nvl::MAX_INDEX;
-
-//                for (const JointId& currentJId : remainingJoints) {
-//                    assert(currentMap[currentJId] == nvl::MAX_INDEX);
-//                    assert(nonKeptJoints[birthEId].find(currentJId) != nonKeptJoints[birthEId].end() && remainingJoints.find(currentJId) != remainingJoints.end());
-
-//                    const Joint& currentJoint = currentSkeleton.joint(currentJId);
-
-//                    for (JointId targetJId = 0; targetJId < targetSkeleton.jointNumber(); ++targetJId) {
-//                        const Joint& targetJoint = targetSkeleton.joint(targetJId);
-
-//                        JointId currentParentId = currentSkeleton.parentId(currentJId);
-//                        JointId targetParentId = targetSkeleton.parentId(targetJId);
-
-
-//                        double parentDirectionScore;
-//                        if (currentParentId == nvl::MAX_INDEX && targetParentId == nvl::MAX_INDEX) {
-//                            parentDirectionScore = 1.0;
-//                        }
-//                        else if (currentParentId != nvl::MAX_INDEX && targetParentId != nvl::MAX_INDEX) {
-//                            nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentParentId).restPose() * nvl::Point3d::Zero() - currentJoint.restPose() * nvl::Point3d::Zero();
-//                            currentParentDirection.normalize();
-//                            nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetParentId).restPose() * nvl::Point3d::Zero() - targetJoint.restPose() * nvl::Point3d::Zero();
-//                            targetParentDirection.normalize();
-//                            parentDirectionScore = (currentParentDirection.dot(targetParentDirection) + 1) / 2.0;
-//                        }
-//                        else {
-//                            parentDirectionScore = 0.0;
-//                        }
-
-//                        double childrenDirectionScore;
-//                        if (currentSkeleton.children(currentJId).empty() && targetSkeleton.children(targetJId).empty()) {
-//                            childrenDirectionScore = 1.0;
-//                        }
-//                        else if (!currentSkeleton.children(currentJId).empty() && !targetSkeleton.children(targetJId).empty()) {
-//                            nvl::Vector3d currentChildrenDirection(0.0, 0.0, 0.0);
-//                            for (JointId childId : currentSkeleton.children(currentJId)) {
-//                                currentChildrenDirection += (currentJoint.restPose() * nvl::Point3d::Zero() - currentSkeleton.joint(childId).restPose() * nvl::Point3d::Zero());
-//                            }
-//                            currentChildrenDirection /= currentSkeleton.children(currentJId).size();
-//                            currentChildrenDirection.normalize();
-
-//                            nvl::Vector3d targetChildrenDirection(0.0, 0.0, 0.0);
-//                            for (JointId childId : targetSkeleton.children(targetJId)) {
-//                                targetChildrenDirection += (targetJoint.restPose() * nvl::Point3d::Zero() - targetSkeleton.joint(childId).restPose() * nvl::Point3d::Zero());
-//                            }
-//                            targetChildrenDirection /= targetSkeleton.children(targetJId).size();
-//                            targetChildrenDirection.normalize();
-
-//                            childrenDirectionScore = (currentChildrenDirection.dot(targetChildrenDirection) + 1) / 2.0;
-//                        }
-//                        else {
-//                            childrenDirectionScore = 0.0;
-//                        }
-
-//                        double directionScore = parentDirectionScore * 0.5 + childrenDirectionScore * 0.5;
-
-
-
-//                        double parentTopologyScore;
-//                        if (currentParentId == nvl::MAX_INDEX && targetParentId == nvl::MAX_INDEX) {
-//                            parentTopologyScore = 1.0;
-//                        }
-//                        else if (currentParentId != nvl::MAX_INDEX && targetParentId != nvl::MAX_INDEX && currentMap[currentParentId] == targetParentId) {
-//                            parentTopologyScore = 1.0;
-//                        }
-//                        else {
-//                            parentTopologyScore = 0.0;
-//                        }
-
-//                        double childrenTopologyScore;
-//                        if (currentSkeleton.children(currentJId).empty() && targetSkeleton.children(targetJId).empty()) {
-//                            childrenTopologyScore = 1.0;
-//                        }
-//                        else if (!currentSkeleton.children(currentJId).empty() && !targetSkeleton.children(targetJId).empty()) {
-//                            childrenTopologyScore = 0.0;
-
-//                            for (JointId currentChildId : currentSkeleton.children(currentJId)) {
-//                                double childValue = 0.0;
-//                                for (JointId targetChildId : targetSkeleton.children(targetJId)) {
-//                                    if (currentMap[currentChildId] == targetChildId) {
-//                                        childValue = 1.0;
-//                                    }
-//                                }
-//                                childrenTopologyScore += childValue;
-//                            }
-
-//                            childrenTopologyScore /= currentSkeleton.children(currentJId).size();
-//                        }
-//                        else {
-//                            childrenTopologyScore = 0.0;
-//                        }
-
-//                        double topologyScore = parentTopologyScore * 0.5 + childrenTopologyScore * 0.5;
-
-
-
-
-//                        double matchedScore = (matchedJoint[birthEId].find(targetJId) == matchedJoint[birthEId].end() ? 1.0 : 0.0);
-
-
-
-
-//                        assert(directionScore >= 0 - nvl::EPSILON && directionScore <= 1 + nvl::EPSILON);
-//                        assert(topologyScore >= 0 - nvl::EPSILON && topologyScore <= 1 + nvl::EPSILON);
-//                        assert(matchedWeight >= 0 - nvl::EPSILON && matchedWeight <= 1 + nvl::EPSILON);
-
-//                        double score = directionWeight * directionScore + topologyWeight * topologyScore + matchedScore * matchedWeight;
-//                        assert(score >= 0 && score <= 1);
-//                        if (score >= bestScore) {
-//                            bestCurrentJoint = currentJId;
-//                            bestTargetJoint = targetJId;
-//                            bestScore = score;
-//                        }
-//                    }
-//                }
-
-//                assert(bestScore > nvl::minLimitValue<double>());
-//                currentMap[bestCurrentJoint] = bestTargetJoint;
-//                matchedJoint[birthEId].insert(bestTargetJoint);
-
-//                assert(!entry.birth.joint[bestTargetJoint].empty());
-//                JointInfo jInfo;
-//                jInfo.eId = birthEId;
-//                jInfo.jId = bestCurrentJoint;
-//                jInfo.confidence = std::min(0.9999, bestScore);
-//                entry.birth.joint[bestTargetJoint].push_back(jInfo);
-
-//                remainingJoints.erase(bestCurrentJoint);
-//            }
-//        }
+        for (JointId jId = 0; jId < currentSkeleton.jointNumber(); ++jId) {
+            assert(currentMap[jId] != nvl::MAX_INDEX);
+        }
     }
 }
 
