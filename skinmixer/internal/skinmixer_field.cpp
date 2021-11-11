@@ -79,37 +79,33 @@ void getClosedGrid(
     GridBBox bbox;
 
     //Get bbox of active values
+    unsigned int valueNumber = 0; //Number of active values
     for (FloatGrid::ValueOnCIter iter = signedGrid->cbeginValueOn(); iter; ++iter) {
         if (iter.isVoxelValue()) {
             GridCoord coord = iter.getCoord();
             bbox.expand(coord);
+            valueNumber++;
         }
     }
 
     //Set active the values inside the bbox
-    unsigned int valueNumber = 0; //Number of active values
-    for (FloatGrid::ValueAllIter iter = signedGrid->beginValueAll(); iter; ++iter) {
-        if (iter.isValueOn()) {
-            valueNumber++;
+    for (FloatGrid::ValueOffIter iter = signedGrid->beginValueOff(); iter; ++iter) {
+        GridCoord coord;
+
+        if (iter.isVoxelValue()) {
+            coord = iter.getCoord();
         }
         else {
-            GridCoord coord;
+            GridBBox tileBBox;
+            iter.getBoundingBox(tileBBox);
+            GridVec center = tileBBox.getCenter();
 
-            if (iter.isVoxelValue()) {
-                coord = iter.getCoord();
-            }
-            else {
-                GridBBox bbox;
-                iter.getBoundingBox(bbox);
-                GridVec center = bbox.getCenter();
+            coord = GridCoord(center.x(), center.y(), center.z());
+        }
 
-                coord = GridCoord(center.x(), center.y(), center.z());
-            }
-
-            if (bbox.isInside(coord)) {
-                iter.setActiveState(true);
-                valueNumber++;
-            }
+        if (bbox.isInside(coord)) {
+            iter.setActiveState(true);
+            valueNumber++;
         }
     }
 

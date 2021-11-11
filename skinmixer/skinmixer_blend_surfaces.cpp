@@ -1044,13 +1044,14 @@ void blendSurfaces(
 
         FloatGrid::ConstAccessor gradientAccessor(gradientGrid->getConstAccessor());
 
-        //Differential coordinates
+
         const std::vector<std::vector<VertexId>> resultVVAdj = nvl::meshVertexVertexAdjacencies(resultMesh);
 
         const int morphingIterations = 10;
         const double gradientWeight = 0.5;
         const double dcWeight = 0.5;
-        for (int it = 0; it < morphingIterations; ++it) {            
+        for (int it = 0; it < morphingIterations; ++it) {
+            //Differential coordinates
             std::vector<Vector> resultDC = nvl::meshDifferentialCoordinates(resultMesh, resultVVAdj);
 
             for (Index vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
