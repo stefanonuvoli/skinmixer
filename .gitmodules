@@ -1,0 +1,9 @@
+[submodule "libs/vcglib"]
+	path = libs/vcglib
+	url = https://github.com/cnr-isti-vclab/vcglib
+[submodule "libs/nuvolib"]
+	path = libs/nuvolib
+	url = https://github.com/stefanonuvoli/nuvolib
+[submodule "libs/libigl"]
+	path = libs/libigl
+	url = https://github.com/libigl/libigl
