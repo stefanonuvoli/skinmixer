@@ -38,7 +38,7 @@ macx {
 include(configuration.pri)
 
 #nuvolib (it includes vcglib, libigl, eigen, libqglviewer ...)
-include($$NUVOLIB_PATH/nuvolib/nuvolib.pri)
+include($$NUVOLIB_PATH/nuvolib.pri)
 
 #Quad retopology
 include($$QUADRETOPOLOGY_PATH/quadretopology.pri)

@@ -1567,6 +1567,17 @@ void blendSurfaces(
 
 #else
 
+
+    Mesh preMesh; //Preserved mesh
+    Mesh newMesh; //New surface mesh
+
+    std::vector<std::unordered_set<FaceId>> preservedFaces(cluster.size()); //Preserved faces
+    std::vector<std::pair<Index, VertexId>> preBirthVertex; //Preserved mesh birth vertices
+    std::vector<std::pair<Index, FaceId>> preBirthFace; //Preserved mesh birth faces
+
+
+
+
     //Create grid for each model
     for (Index cId = 0; cId < cluster.size(); ++cId) {
         const Index& eId = cluster[cId];
@@ -1581,7 +1592,7 @@ void blendSurfaces(
         models[cId] = model;
 
         //Vertex select values
-        SelectInfo globalSelectInfo = data.computeGlobalSelectInfo(cId);
+        SelectInfo globalSelectInfo = data.computeGlobalSelectInfo(eId);
         vertexSelectValues[cId] = globalSelectInfo.vertex;
 
         //Find faces in the field
@@ -1625,12 +1636,11 @@ void blendSurfaces(
 
     //Get final mesh
     Mesh quadrangulation;
-    std::vector<std::pair<Index, VertexId>> resultPreBirthVertex;
-    std::vector<std::pair<Index, FaceId>> resultPreBirthFace;
     resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
 
 
     //Compute and fill the birth infos
+    resultEntry.birth.entries = cluster;
     resultEntry.birth.vertex.resize(resultMesh.nextVertexId());
     for (VertexId vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
         if (resultMesh.isVertexDeleted(vId))

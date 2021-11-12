@@ -1,7 +1,7 @@
 ############################ CONFIGURATION ############################
 
 DEFINES += GLOBAL_TIMES
-#DEFINES += STEP_TIMES
+DEFINES += STEP_TIMES
 #DEFINES += SKINMIXER_DEBUG_SAVE_MESHES
 #DEFINES += QUADRETOPOLOGY_DEBUG_SAVE_MESHES
 #DEFINES += ASSERT_FOR_NUMBER_SIDES
@@ -22,7 +22,6 @@ QUADRETOPOLOGY_PATH = $$PWD/libs/quadretopology
 #External libraries
 LIBIGL_PATH = $$PWD/libs/libigl
 VCGLIB_PATH = $$PWD/libs/vcglib
-STB_PATH = $$PWD/libs/stb
 OPENVDB_PATH = /usr/local/lib/
 
 GUROBI_PATH = /opt/gurobi903/linux64

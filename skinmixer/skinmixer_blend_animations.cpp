@@ -8,8 +8,9 @@
 #include <nvl/models/animation_algorithms.h>
 #include <iostream>
 
-#define KEYFRAME_SELECTION_VERBOSITY
+//#define KEYFRAME_SELECTION_VERBOSITY
 #define DUPLICATE_KEYFRAME_TO_BLEND nvl::MAX_INDEX - 1
+#define KEYFRAME_WINDOW_SIZE 1
 
 namespace skinmixer {
 
@@ -21,17 +22,34 @@ typename Frame::Transformation computeMappedTransformation(
         const std::vector<JointId>& mappedJoints,
         const std::vector<double>& mappedJointConfidence);
 
+
+template<class Frame, class JointId>
+std::vector<typename Frame::Transformation> computeWindowTransformations(
+        const std::vector<Frame>& frames,
+        const nvl::Index& fId,
+        const unsigned int& windowSize,
+        const std::vector<JointId>& mappedJoints,
+        const std::vector<double>& mappedJointConfidence);
+
+
+
 template<class T>
 double transformationSimilarityScore(
-        const T& fixedInterpolatedTransformation,
-        const T& candidateInterpolatedTransformation,
-        const T& fixedDerivativeTransformation,
-        const T& candidateDerivativeTransformation);
+        const std::vector<T>& transformations1,
+        const std::vector<T>& transformations2,
+        const std::vector<double>& weights);
+
+template<class T>
+double transformationSimilarity(
+        const T& t1,
+        const T& t2);
+
+template<class Q>
+double quaternionSimilarity(
+        const Q& q1,
+        const Q& q2);
 
 double computeDistanceWeight(const double distance);
-
-template<class Frame>
-std::vector<Frame> calculateDerivatives(const std::vector<Frame>& frames);
 
 }
 
@@ -110,7 +128,7 @@ void blendAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
         std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations)
-{    
+{
     const double fps = 60;
 
     typedef typename nvl::Index Index;
@@ -124,6 +142,9 @@ void blendAnimations(
     typedef typename Model::Animation Animation;
     typedef typename Animation::Frame Frame;
     typedef typename Animation::Transformation Transformation;
+
+
+    std::vector<double> windowWeights = {0.5, 0.25, 0.25};
 
     Model* targetModel = entry.model;
     Skeleton& targetSkeleton = targetModel->skeleton;
@@ -142,9 +163,6 @@ void blendAnimations(
     //Data for fixed and candidate frames for each cluster
     std::vector<std::vector<Frame>> fixedFrames(cluster.size());
     std::vector<std::vector<std::vector<Frame>>> candidateFrames(cluster.size());
-
-    std::vector<std::vector<Frame>> fixedDerivatives(cluster.size());
-    std::vector<std::vector<std::vector<Frame>>> candidateDerivatives(cluster.size());
 
     //Fill candidate and fixed frames
     std::vector<double> times;
@@ -184,9 +202,9 @@ void blendAnimations(
         }
 
         //Blend frames to a given number of fps
-        nvl::animationBlendFrameTransformations(fixedFrames[cId], fps);
+        nvl::animationBlendFrameTransformations(fixedFrames[cId], fps, 1.0, false);
         for (Index aId = 0; aId < candidateFrames[cId].size(); aId++) {
-            nvl::animationBlendFrameTransformations(candidateFrames[cId][aId], fps);
+            nvl::animationBlendFrameTransformations(candidateFrames[cId][aId], fps, 1.0, false);
         }
 
         //Add times of fixed frames
@@ -204,7 +222,7 @@ void blendAnimations(
     times.erase(std::unique(times.begin(), times.end()), times.end());
 
 
-    //Compute global frames and derivatives
+    //Compute global frames
     std::vector<std::vector<Frame>> globalFixedFrames = fixedFrames;
     std::vector<std::vector<std::vector<Frame>>> globalCandidateFrames = candidateFrames;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -215,13 +233,6 @@ void blendAnimations(
         nvl::animationComputeGlobalFrames(currentSkeleton, globalFixedFrames[cId]);
         for (Index aId = 0; aId < candidateFrames[cId].size(); aId++) {
             nvl::animationComputeGlobalFrames(currentSkeleton, globalCandidateFrames[cId][aId]);
-        }        
-
-        //Calculate derivatives
-        fixedDerivatives[cId] = internal::calculateDerivatives(fixedFrames[cId]);
-        candidateDerivatives[cId].resize(candidateFrames[cId].size());
-        for (Index aId = 0; aId < candidateFrames[cId].size(); aId++) {
-            candidateDerivatives[cId][aId] = internal::calculateDerivatives(candidateFrames[cId][aId]);
         }
     }
 
@@ -300,7 +311,6 @@ void blendAnimations(
 
             for (const Index& candidateAId : candidateAnimations) {
                 const std::vector<Frame>& currentCandidateFrames = globalCandidateFrames[cId][candidateAId];
-                const std::vector<Frame>& currentCandidateDerivative = candidateDerivatives[cId][candidateAId];
 
                 for (Index startingFId = 0; startingFId < currentCandidateFrames.size(); startingFId++) {
                     const double startingTime = currentCandidateFrames[startingFId].time();
@@ -310,7 +320,6 @@ void blendAnimations(
 
                     double loopScore = 0.0;
                     std::vector<double> loopScoreSingle(times.size(), 0.0);
-
 
                     for (Index i = 0; i < times.size(); ++i) {
                         const double& currentTime = times[i];
@@ -323,19 +332,6 @@ void blendAnimations(
                                 loopFrameId = 0;
                             }
                         }
-
-                        const Frame& candidateFrame1 = currentCandidateFrames[loopFrameId == 0 ? currentCandidateFrames.size() - 1 : loopFrameId - 1];
-                        const Frame& candidateFrame2 = currentCandidateFrames[loopFrameId];
-
-                        double candidateTime1 = candidateFrame1.time() + loopFrameOffset;
-                        double candidateTime2 = candidateFrame2.time() + loopFrameOffset;
-                        if (loopFrameId == 0) {
-                            candidateTime1 = candidateTime2;
-                        }
-
-                        double candidateAlpha = candidateTime1 == candidateTime2 ? 1.0 : (currentTime - candidateTime1) / (candidateTime2 - candidateTime1);
-                        assert(candidateAlpha >= 0.0 && candidateAlpha <= 1.0);
-
 
                         //For each joint
                         for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
@@ -358,42 +354,17 @@ void blendAnimations(
                                 mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
                             }
 
-                            Transformation candidateTransformation1 = internal::computeMappedTransformation(candidateFrame1, mappedJoints[cId], mappedJointConfidence[cId]);
-                            Transformation candidateTransformation2 = internal::computeMappedTransformation(candidateFrame2, mappedJoints[cId], mappedJointConfidence[cId]);
-
-                            Transformation candidateInterpolatedTransformation = nvl::interpolateAffine(candidateTransformation1, candidateTransformation2, candidateAlpha);
-
-                            const Frame& candidateDerivativeFrame = currentCandidateDerivative[loopFrameId];
-                            Transformation candidateDerivative = internal::computeMappedTransformation(candidateDerivativeFrame, mappedJoints[cId], mappedJointConfidence[cId]);
+                            std::vector<Transformation> candidateTransformations = internal::computeWindowTransformations(currentCandidateFrames, loopFrameId, KEYFRAME_WINDOW_SIZE, mappedJoints[cId], mappedJointConfidence[cId]);
 
                             for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
                                 Index otherAnimationMode = animationModes[otherCId];
                                 Index otherAnimationId = animationIds[otherCId];
                                 if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
                                     const std::vector<Frame>& currentFixedFrames = globalFixedFrames[otherCId];
-                                    const std::vector<Frame>& currentFixedDerivatives = fixedDerivatives[otherCId];
 
-                                    const Frame& fixedFrame1 = currentFixedFrames[currentFrameId[i][otherCId] == 0 ? currentFixedFrames.size() - 1 : currentFrameId[i][otherCId] - 1];
-                                    const Frame& fixedFrame2 = currentFixedFrames[currentFrameId[i][otherCId]];
+                                    std::vector<Transformation> fixedTransformations = internal::computeWindowTransformations(currentFixedFrames, currentFrameId[i][otherCId], KEYFRAME_WINDOW_SIZE, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
 
-                                    Transformation fixedTransformation1 = internal::computeMappedTransformation(fixedFrame1, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-                                    Transformation fixedTransformation2 = internal::computeMappedTransformation(fixedFrame2, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-
-                                    double fixedTime1 = fixedFrame1.time() + currentTimeOffset[i][otherCId];
-                                    double fixedTime2 = fixedFrame2.time() + currentTimeOffset[i][otherCId];
-                                    if (currentFrameId[i][otherCId] == 0) {
-                                        fixedTime1 = fixedTime2;
-                                    }
-
-                                    double fixedAlpha = fixedTime1 == fixedTime2 ? 1.0 : (currentTime - fixedTime1) / (fixedTime2 - fixedTime1);
-                                    assert(fixedAlpha >= 0.0 && fixedAlpha <= 1.0);
-
-                                    Transformation fixedTnterpolatedTransformation = nvl::interpolateAffine(fixedTransformation1, fixedTransformation2, fixedAlpha);
-
-                                    const Frame& fixedDerivativeFrame = currentFixedDerivatives[currentFrameId[i][otherCId]];
-                                    Transformation fixedDerivative = internal::computeMappedTransformation(fixedDerivativeFrame, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-
-                                    double similarity = internal::transformationSimilarityScore(fixedTnterpolatedTransformation, candidateInterpolatedTransformation, fixedDerivative, candidateDerivative);
+                                    double similarity = internal::transformationSimilarityScore(candidateTransformations, fixedTransformations, windowWeights);
                                     assert(similarity >= 0 && similarity <= 1);
 
                                     jointFrameScore += similarity;
@@ -440,22 +411,10 @@ void blendAnimations(
                         }
                     }
 
-                    const Frame& candidateFrame1 = currentCandidateFrames[loopFrameId == 0 ? currentCandidateFrames.size() - 1 : loopFrameId - 1];
-                    const Frame& candidateFrame2 = currentCandidateFrames[loopFrameId];
-
-                    double candidateTime1 = candidateFrame1.time() + loopFrameOffset;
-                    double candidateTime2 = candidateFrame2.time() + loopFrameOffset;
-                    if (loopFrameId == 0) {
-                        candidateTime1 = candidateTime2;
-                    }
-
-                    double candidateAlpha = candidateTime1 == candidateTime2 ? 1.0 : (currentTime - candidateTime1) / (candidateTime2 - candidateTime1);
-                    assert(candidateAlpha >= 0.0 && candidateAlpha <= 1.0);
-
                     bestKeyframeScore[i][cId] = bestLoopScoreSingle[i];
                     bestKeyframeAnimation[i][cId] = bestLoopAnimationId;
                     bestKeyframe[i][cId] = loopFrameId;
-                    bestKeyframeAlpha[i][cId] = candidateAlpha;
+                    bestKeyframeAlpha[i][cId] = 1.0;
                 }
             }
         }
@@ -467,9 +426,7 @@ void blendAnimations(
     // ------------------------------------------ BEST KEYFRAMES ------------------------------------------
 
     //For each time entry find the best keyframes
-    for (Index i = 0; i < times.size(); ++i) {        
-        const double& currentTime = times[i];
-
+    for (Index i = 0; i < times.size(); ++i) {
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             Index animationMode = animationModes[cId];
             Index animationId = animationIds[cId];
@@ -489,11 +446,8 @@ void blendAnimations(
 
                 for (const Index& candidateAId : candidateAnimations) {
                     const std::vector<Frame>& currentCandidateFrames = globalCandidateFrames[cId][candidateAId];
-                    const std::vector<Frame>& currentCandidateDerivative = candidateDerivatives[cId][candidateAId];
-                    for (Index candidateFId = 0; candidateFId < currentCandidateFrames.size(); candidateFId++) {
-                        const Frame& candidateFrame1 = currentCandidateFrames[candidateFId == 0 ? currentCandidateFrames.size() - 1 : candidateFId - 1];
-                        const Frame& candidateFrame2 = currentCandidateFrames[candidateFId];
 
+                    for (Index candidateFId = 0; candidateFId < currentCandidateFrames.size(); candidateFId++) {
                         double frameScore = 0.0;
 
                         //For each joint
@@ -517,41 +471,17 @@ void blendAnimations(
                                 mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
                             }
 
-                            Transformation candidateTransformation1 = internal::computeMappedTransformation(candidateFrame1, mappedJoints[cId], mappedJointConfidence[cId]);
-                            Transformation candidateTransformation2 = internal::computeMappedTransformation(candidateFrame2, mappedJoints[cId], mappedJointConfidence[cId]);
-
-                            const Frame& candidateDerivativeFrame = currentCandidateDerivative[candidateFId];
-                            Transformation candidateDerivative = internal::computeMappedTransformation(candidateDerivativeFrame, mappedJoints[cId], mappedJointConfidence[cId]);
+                            std::vector<Transformation> candidateTransformations = internal::computeWindowTransformations(currentCandidateFrames, candidateFId, KEYFRAME_WINDOW_SIZE, mappedJoints[cId], mappedJointConfidence[cId]);
 
                             for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
                                 Index otherAnimationMode = animationModes[otherCId];
                                 Index otherAnimationId = animationIds[otherCId];
                                 if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
                                     const std::vector<Frame>& currentFixedFrames = globalFixedFrames[otherCId];
-                                    const std::vector<Frame>& currentFixedDerivatives = fixedDerivatives[otherCId];
 
-                                    const Frame& fixedFrame1 = currentFixedFrames[currentFrameId[i][otherCId] == 0 ? currentFixedFrames.size() - 1 : currentFrameId[i][otherCId] - 1];
-                                    const Frame& fixedFrame2 = currentFixedFrames[currentFrameId[i][otherCId]];
+                                    std::vector<Transformation> fixedTransformations = internal::computeWindowTransformations(currentFixedFrames, currentFrameId[i][otherCId], KEYFRAME_WINDOW_SIZE, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
 
-                                    Transformation fixedTransformation1 = internal::computeMappedTransformation(fixedFrame1, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-                                    Transformation fixedTransformation2 = internal::computeMappedTransformation(fixedFrame2, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-
-                                    double fixedTime1 = fixedFrame1.time() + currentTimeOffset[i][otherCId];
-                                    double fixedTime2 = fixedFrame2.time() + currentTimeOffset[i][otherCId];
-                                    if (currentFrameId[i][otherCId] == 0) {
-                                        fixedTime1 = fixedTime2;
-                                    }
-
-                                    double fixedAlpha = fixedTime1 == fixedTime2 ? 1.0 : (currentTime - fixedTime1) / (fixedTime2 - fixedTime1);
-                                    assert(fixedAlpha >= 0.0 && fixedAlpha <= 1.0);
-
-                                    Transformation fixedTnterpolatedTransformation = nvl::interpolateAffine(fixedTransformation1, fixedTransformation2, fixedAlpha);
-
-                                    const Frame& fixedDerivativeFrame = currentFixedDerivatives[currentFrameId[i][otherCId]];
-                                    Transformation fixedDerivative = internal::computeMappedTransformation(fixedDerivativeFrame, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-
-                                    double similarity = internal::transformationSimilarityScore(fixedTnterpolatedTransformation, candidateTransformation2, fixedDerivative, candidateDerivative);
-
+                                    double similarity = internal::transformationSimilarityScore(candidateTransformations, fixedTransformations, windowWeights);
                                     assert(similarity >= 0 && similarity <= 1);
 
                                     jointFrameScore += similarity;
@@ -639,17 +569,22 @@ void blendAnimations(
 
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Index& animationMode = animationModes[cId];
+
+            std::cout << cId << " -> ";
+
             if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
                 if (bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX) {
-                    std::cout << cId << " -> ";
                     if (bestKeyframeAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
-                        std::cout << "Blended" << std::endl;
+                        std::cout << " B" << std::endl;
                     }
                     else {
-                        std::cout << "Animation: " << bestKeyframeAnimation[i][cId] << " - Frame: " << bestKeyframe[i][cId] << " - Alpha: " << bestKeyframeAlpha[i][cId] << std::endl;
+                        std::cout << " " << bestKeyframeAnimation[i][cId] << "(" << bestKeyframe[i][cId] << ")";
                     }
                 }
             }
+
+
+            std::cout << std::endl;
         }
     }
 #endif
@@ -957,53 +892,122 @@ typename Frame::Transformation computeMappedTransformation(
     return transformation;
 }
 
+
+template<class Frame, class JointId>
+std::vector<typename Frame::Transformation> computeWindowTransformations(
+        const std::vector<Frame>& frames,
+        const nvl::Index& fId,
+        const unsigned int& windowSize,
+        const std::vector<JointId>& mappedJoints,
+        const std::vector<double>& mappedJointConfidence)
+{
+    typedef typename Frame::Transformation Transformation;
+    typedef nvl::Index Index;
+
+    std::vector<Transformation> transformations;
+
+    for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
+        long long int id = fId + w;
+
+        if (id < 0) {
+            id += frames.size();
+        }
+        else if (id >= frames.size()) {
+            id = id - frames.size();
+        }
+
+        const Frame& frame2 = frames[id];
+
+        Transformation transformation = internal::computeMappedTransformation(frame2, mappedJoints, mappedJointConfidence);
+
+
+        transformations.push_back(transformation);
+    }
+
+    return transformations;
+}
+
 template<class T>
 double transformationSimilarityScore(
-        const T& fixedInterpolatedTransformation,
-        const T& candidateInterpolatedTransformation,
-        const T& fixedDerivativeTransformation,
-        const T& candidateDerivativeTransformation)
+        const std::vector<T>& transformations1,
+        const std::vector<T>& transformations2,
+        const std::vector<double>& weights)
 {
+    typedef nvl::Index Index;
+
+    assert(transformations1.size() == transformations2.size());
+    assert(transformations1.size() == weights.size());
+
     const double globalWeight = 0.8;
     const double derivativeWeight = 0.2;
 
-
-
-    nvl::Quaterniond fixedInterpolatedQuaternion(fixedInterpolatedTransformation.rotation());
-    nvl::Quaterniond candidateInterpolatedQuaternion(candidateInterpolatedTransformation.rotation());
-    fixedInterpolatedQuaternion.normalize();
-    candidateInterpolatedQuaternion.normalize();
-
     double globalScore = 0.0;
     if (globalWeight > 0.0) {
-        globalScore = nvl::abs(fixedInterpolatedQuaternion.dot(candidateInterpolatedQuaternion));
-        if (nvl::epsEqual(globalScore, 1.0))
-            globalScore = 1.0;
-        else if (nvl::epsEqual(globalScore, 0.0))
-            globalScore = 0.0;
-        assert(globalScore >= 0.0 && globalScore <= 1.0);
+        for (Index i = 0; i < transformations1.size(); i++) {
+            globalScore += weights[i] * transformationSimilarity(transformations1[i], transformations2[i]);
+        }
     }
-
-
-
-    nvl::Quaterniond fixedDerivativeQuaternion(fixedDerivativeTransformation.rotation());
-    nvl::Quaterniond candidateDerivativeQuaternion(candidateDerivativeTransformation.rotation());
-    fixedDerivativeQuaternion.normalize();
-    candidateDerivativeQuaternion.normalize();
 
     double derivativeScore = 0.0;
-    if (derivativeWeight > 0.0) {
-        derivativeScore = nvl::abs(fixedDerivativeQuaternion.dot(candidateDerivativeQuaternion));
-        if (nvl::epsEqual(derivativeScore, 1.0))
-            derivativeScore = 1.0;
-        else if (nvl::epsEqual(derivativeScore, 0.0))
-            derivativeScore = 0.0;
-        assert(derivativeScore >= 0.0 && derivativeScore <= 1.0);
+    if (derivativeWeight > 0.0 && transformations1.size() > 1) {
+        const Index mid = transformations1.size() / 2;
+        for (Index i = 0; i < transformations1.size(); i++) {
+            T d1;
+            T d2;
+
+            if (i <= mid) {
+                d1 = transformations1[i + 1].rotation() * transformations1[i].rotation().inverse();
+                d2 = transformations2[i + 1].rotation() * transformations2[i].rotation().inverse();
+            }
+            else {
+                d1 = transformations1[i].rotation() * transformations1[i - 1].rotation().inverse();
+                d2 = transformations2[i].rotation() * transformations2[i - 1].rotation().inverse();
+            }
+
+            derivativeScore += weights[i] * transformationSimilarity(d1, d2);
+        }
     }
 
-    return globalWeight * globalScore +
-           derivativeWeight * derivativeScore;
+    assert(globalScore >= 0.0 && globalScore <= 1.0);
+    assert(derivativeScore >= 0.0 && derivativeScore <= 1.0);
+
+    double score = globalWeight * globalScore + derivativeWeight * derivativeScore;
+    assert(score >= 0.0 && score <= 1.0);
+
+    return score;
 }
+
+template<class T>
+double transformationSimilarity(
+        const T& t1,
+        const T& t2)
+{
+    typedef nvl::Quaterniond Quaternion;
+
+    Quaternion q1(t1.rotation());
+    Quaternion q2(t2.rotation());
+    q1.normalize();
+    q2.normalize();
+
+    return quaternionSimilarity(q1, q2);
+}
+
+
+template<class Q>
+double quaternionSimilarity(
+        const Q& q1,
+        const Q& q2)
+{
+    double score = nvl::abs(q1.dot(q2));
+    if (nvl::epsEqual(score, 1.0))
+        score = 1.0;
+    else if (nvl::epsEqual(score, 0.0))
+        score = 0.0;
+    assert(score >= 0.0 && score <= 1.0);
+
+    return score;
+}
+
 
 inline double computeDistanceWeight(const double distance) {
     const unsigned int minDistance = 2;
@@ -1020,51 +1024,6 @@ inline double computeDistanceWeight(const double distance) {
     }
 
     return distanceWeight;
-}
-
-template<class Frame>
-std::vector<Frame> calculateDerivatives(const std::vector<Frame>& frames)
-{
-    typedef typename Frame::Transformation Transformation;
-    typedef nvl::Index Index;
-
-    std::vector<Frame> derivatives(frames.size());
-
-    for (Index i = 0; i < frames.size(); i++) {
-        const Frame& frame2 = frames[i];
-        const double& time2 = frame2.time();
-        const std::vector<Transformation>& transformations2 = frame2.transformations();
-
-        if (i == 0) {
-            derivatives[i] = Frame(time2, std::vector<Transformation>(transformations2.size(), Transformation::Identity()));
-        }
-        else {
-            const Frame& frame1 = frames[i - 1];
-//            const double time1 = frame1.time();
-            const std::vector<Transformation>& transformations1 = frame1.transformations();
-
-
-            std::vector<Transformation> derivativeTransformations(transformations2.size());
-
-            for (Index j = 0; j < transformations2.size(); j++) {
-                nvl::Quaterniond quaternion1(transformations1[j].rotation());
-                nvl::Quaterniond quaternion2(transformations2[j].rotation());
-                quaternion1.normalize();
-                quaternion2.normalize();
-
-                nvl::Rotation3d differenceRotation(quaternion2 * quaternion1.inverse());
-
-//                double newAngle = differenceRotation.angle() / (time2 - time1);
-//                nvl::Rotation3d derivativeRotation(nvl::Rotation3d(newAngle, differenceRotation.axis()));
-
-                derivativeTransformations[j] = Transformation(differenceRotation);
-            }
-
-            derivatives[i] = Frame(time2, derivativeTransformations);
-        }
-    }
-
-    return derivatives;
 }
 
 }
