@@ -12,11 +12,32 @@ std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data,
         const MixMode& mixMode);
 
+struct MixAnimationParameters {
+    MixAnimationParameters() :
+        samplingFPS(30.0),
+        globalWeight(0.5),
+        localWeight(0.2),
+        globalDerivativeWeight(0.2),
+        localDerivativeWeight(0.1),
+        windowSize(1)
+    {
+
+    }
+
+    double samplingFPS;
+    double globalWeight;
+    double localWeight;
+    double globalDerivativeWeight;
+    double localDerivativeWeight;
+    unsigned int windowSize;
+};
+
 template<class Model>
 void mixAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
-        std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations);
+        std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations,
+        const MixAnimationParameters& parameters);
 
 //template<class Model>
 //nvl::Index chooseAnimation(

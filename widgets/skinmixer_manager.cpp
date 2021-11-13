@@ -407,7 +407,15 @@ void SkinMixerManager::blendAnimations()
     Model* modelPtr = vSelectedModelDrawer->model();
     SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-    skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimations);
+    skinmixer::MixAnimationParameters parameters;
+
+    parameters.samplingFPS = ui->animationBlendingFPSSpinBox->value();
+    parameters.globalWeight = ui->animationBlendingGlobalSpinBox->value();
+    parameters.localWeight = ui->animationBlendingLocalSpinBox->value();
+    parameters.globalDerivativeWeight = ui->animationBlendingGlobalDerivativeSpinBox->value();
+    parameters.localDerivativeWeight = ui->animationBlendingLocalDerivativeSpinBox->value();
+    parameters.windowSize = ui->animationBlendingWindowSpinBox->value();
+    skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimations, parameters);
 
     vCanvas->stopAnimations();
 
@@ -668,6 +676,8 @@ void SkinMixerManager::updateView()
     ui->animationJointGroupBox->setEnabled(blendedModelSelected && jointSelected);
 
     ui->updateJointsBirthButton->setEnabled(blendedModelSelected && jointSelected);
+
+    ui->animationBlendingPage->setEnabled(!animationBlending);
 
     clearLayout(ui->animationSelectGroupBox->layout());
     clearLayout(ui->animationJointGroupBox->layout());

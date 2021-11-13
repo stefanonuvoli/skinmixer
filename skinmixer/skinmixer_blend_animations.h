@@ -24,7 +24,12 @@ template<class Model>
 void blendAnimations(
         SkinMixerData<Model>& data,
         typename SkinMixerData<Model>::Entry& entry,
-        std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations);
+        std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations,
+        const double& globalWeight,
+        const double& localWeight,
+        const double& globalDerivativeWeight,
+        const double& localDerivativeWeight,
+        const unsigned int& windowSize);
 
 //template<class Model>
 //nvl::Index findBestAnimation(
