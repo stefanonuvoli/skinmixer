@@ -148,7 +148,7 @@ void blendAnimations(
 
     std::vector<double> windowWeights(windowSize * 2 + 1);
 
-    Index wId = 0; TODO!!!
+    Index wId = 0;
     for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
         windowWeights[wId] = windowSize + 1 - std::abs(w);
         wId++;
@@ -999,7 +999,7 @@ inline double windowSimilarity(
 
     double globalScore = 0.0;
     if (globalWeight > 0.0) {
-        assert(globalQ1.size() == q2.size());
+        assert(globalQ1.size() == globalQ2.size());
         assert(globalQ1.size() == windowWeights.size());
 
         for (Index i = 0; i < globalQ1.size(); i++) {
@@ -1009,7 +1009,7 @@ inline double windowSimilarity(
 
     double globalDerivativeScore = 0.0;
     if (globalDerivativeWeight > 0.0 && globalQ1.size() > 1) {
-        assert(globalQ1.size() == q2.size());
+        assert(globalQ1.size() == globalQ2.size());
         assert(globalQ1.size() == windowWeights.size());
 
         const Index mid = globalQ1.size() / 2;
@@ -1039,7 +1039,7 @@ inline double windowSimilarity(
 
     double localScore = 0.0;
     if (localWeight > 0.0) {
-        assert(localQ1.size() == q2.size());
+        assert(localQ1.size() == localQ2.size());
         assert(localQ1.size() == windowWeights.size());
 
         for (Index i = 0; i < localQ1.size(); i++) {
@@ -1049,7 +1049,7 @@ inline double windowSimilarity(
 
     double localDerivativeScore = 0.0;
     if (localDerivativeWeight > 0.0 && localQ1.size() > 1) {
-        assert(localQ1.size() == q2.size());
+        assert(localQ1.size() == localQ2.size());
         assert(localQ1.size() == windowWeights.size());
 
         const Index mid = localQ1.size() / 2;
