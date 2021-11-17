@@ -53,8 +53,6 @@
 #define PRESERVE_SELECT_VALUE 0.999
 #define PRESERVE_ATTACH_RADIUS 2
 
-//#define PREVIEW
-
 namespace skinmixer {
 
 namespace internal {
@@ -203,7 +201,105 @@ void blendSurfaces(
 
 
 
-#ifndef PREVIEW
+    if (mixMode == MixMode::PREVIEW) {
+        Mesh preMesh; //Preserved mesh
+        Mesh newMesh; //New surface mesh
+
+        std::vector<std::unordered_set<FaceId>> preservedFaces(cluster.size()); //Preserved faces
+        std::vector<std::pair<Index, VertexId>> preBirthVertex; //Preserved mesh birth vertices
+        std::vector<std::pair<Index, FaceId>> preBirthFace; //Preserved mesh birth faces
+
+
+
+
+        //Create grid for each model
+        for (Index cId = 0; cId < cluster.size(); ++cId) {
+            const Index& eId = cluster[cId];
+
+            clusterMap.insert(std::make_pair(eId, cId));
+
+            const Entry& entry = data.entry(eId);
+            const Model* model = entry.model;
+            const Mesh& mesh = model->mesh;
+
+            //Model
+            models[cId] = model;
+
+            //Vertex select values
+            SelectInfo globalSelectInfo = data.computeGlobalSelectInfo(eId);
+            vertexSelectValues[cId] = globalSelectInfo.vertex;
+
+            //Find faces in the field
+            fieldFaces[cId] = internal::findFieldFaces(mesh, vertexSelectValues[cId], scaleFactor);
+
+
+            //Find faces in the field
+            ffAdjs[cId] = nvl::meshFaceFaceAdjacencies(mesh);
+
+            //Transfer vertices to keep in the current mesh
+            nvl::meshTransferFaces(mesh, std::vector<FaceId>(fieldFaces[cId].begin(), fieldFaces[cId].end()), inputMeshes[cId], fieldBirthVertex[cId], fieldBirthFace[cId]);
+        }
+
+
+        //Find preserved faces by select values
+        for (Index cId = 0; cId < cluster.size(); ++cId) {
+            const Mesh& mesh = models[cId]->mesh;
+
+            for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
+                if (mesh.isFaceDeleted(fId)) {
+                    continue;
+                }
+
+                double selectValue = internal::averageFaceSelectValue(mesh, fId, vertexSelectValues[cId]);
+
+                if (selectValue >= 0.5) {
+                    preservedFaces[cId].insert(fId);
+                }
+            }
+        }
+
+
+
+        //Create preserved
+        preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
+
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/preMesh.obj", preMesh);
+    #endif
+
+
+        //Get final mesh
+        Mesh quadrangulation;
+        resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
+
+
+        //Compute and fill the birth infos
+        resultEntry.birth.entries = cluster;
+        resultEntry.birth.vertex.resize(resultMesh.nextVertexId());
+        for (VertexId vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
+            if (resultMesh.isVertexDeleted(vId))
+                continue;
+
+            std::vector<VertexInfo>& vertexInfo = resultEntry.birth.vertex[vId];
+
+            Index birthEId = resultPreBirthVertex[vId].first;
+            Index birthVId = resultPreBirthVertex[vId].second;
+
+            assert(birthEId != nvl::NULL_ID);
+            VertexInfo info;
+            info.eId = birthEId;
+            info.vId = birthVId;
+            info.weight = 1.0;
+            info.closestFaceId = nvl::NULL_ID;
+            info.distance = 0.0;
+            vertexInfo.push_back(info);
+        }
+
+        return;
+    }
+
+
+    assert(mixMode == MixMode::MESHING || mixMode == MixMode::MORPHING);
 
     // --------------------------------------- GET GRIDS AND BLENDED GRID ---------------------------------------
 
@@ -221,7 +317,7 @@ void blendSurfaces(
 
         const Entry& entry = data.entry(eId);
         const Model* model = entry.model;
-        const Mesh& mesh = model->mesh;        
+        const Mesh& mesh = model->mesh;
 
         //Find faces in the field
         fieldFaces[cId] = internal::findFieldFaces(mesh, vertexSelectValues[cId], scaleFactor);
@@ -288,7 +384,7 @@ void blendSurfaces(
     }
 
 
-    if (mixMode == MixMode::RETOPOLOGY) {
+    if (mixMode == MixMode::MESHING) {
 
         // --------------------------------------- DEFINITION OF VARIABLES ---------------------------------------
 
@@ -401,8 +497,8 @@ void blendSurfaces(
             if (blendedMesh.isFaceDeleted(fId))
                 continue;
 
-            for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
-                const Point& point = blendedMesh.vertex(vId).point();
+            for (VertexId vId : blendedMesh.faceVertexIds(fId)) {
+                const Point& point = blendedMesh.vertexPoint(vId);
                 const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
                 const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
                 const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
@@ -418,7 +514,7 @@ void blendSurfaces(
 
                 //Entry 1
                 const Index eId1 = action.entry1;
-                assert(eId1 != nvl::MAX_INDEX);
+                assert(eId1 != nvl::NULL_ID);
                 const Index cId1 = clusterMap.at(eId1);
 
                 const FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
@@ -450,7 +546,7 @@ void blendSurfaces(
 
                 //Entry 2
                 const Index eId2 = action.entry2;
-                if (eId2 != nvl::MAX_INDEX) {
+                if (eId2 != nvl::NULL_ID) {
                     const Index cId2 = clusterMap.at(eId2);
 
                     const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
@@ -559,8 +655,8 @@ void blendSurfaces(
 
             bool isNewSurface = true;
 
-            for (VertexId vId : blendedMesh.face(fId).vertexIds()) {
-                const Point& point = blendedMesh.vertex(vId).point();
+            for (VertexId vId : blendedMesh.faceVertexIds(fId)) {
+                const Point& point = blendedMesh.vertexPoint(vId);
                 const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
                 const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
                 const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
@@ -578,7 +674,7 @@ void blendSurfaces(
 
                 //Entry 1
                 const Index eId1 = action.entry1;
-                assert(eId1 != nvl::MAX_INDEX);
+                assert(eId1 != nvl::NULL_ID);
                 const Index cId1 = clusterMap.at(eId1);
 
                 const FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
@@ -591,7 +687,7 @@ void blendSurfaces(
 
                 //Entry 2
                 const Index eId2 = action.entry2;
-                if (eId2 != nvl::MAX_INDEX) {
+                if (eId2 != nvl::NULL_ID) {
                     const Index cId2 = clusterMap.at(eId2);
 
                     const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
@@ -682,7 +778,7 @@ void blendSurfaces(
             if (nvl::meshIsBorderVertex(newMesh, vId, newFFAdj))
                 continue;
 
-            const Point& point = newMesh.vertex(vId).point();
+            const Point& point = newMesh.vertexPoint(vId);
             const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
             const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
             const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
@@ -698,7 +794,7 @@ void blendSurfaces(
 
             //Entry 1
             const Index eId1 = action.entry1;
-            assert(eId1 != nvl::MAX_INDEX);
+            assert(eId1 != nvl::NULL_ID);
             const Index cId1 = clusterMap.at(eId1);
 
             const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(vdbCoord);
@@ -716,7 +812,7 @@ void blendSurfaces(
 
             //Entry 2
             const Index eId2 = action.entry2;
-            if (eId2 != nvl::MAX_INDEX) {
+            if (eId2 != nvl::NULL_ID) {
                 const Index cId2 = clusterMap.at(eId2);
 
                 const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(vdbCoord);
@@ -949,12 +1045,12 @@ void blendSurfaces(
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Mesh& mesh = models[cId]->mesh;
             for (const FaceId& fId : preservedFaces[cId]) {
-                const std::vector<VertexId>& vIds = mesh.face(fId).vertexIds();
+                const std::vector<VertexId>& vIds = mesh.faceVertexIds(fId);
                 preservedVertices[cId].insert(vIds.begin(), vIds.end());
             }
 
             for (const FaceId& fId : morphingFaces[cId]) {
-                for (const VertexId& vId : mesh.face(fId).vertexIds()) {
+                for (const VertexId& vId : mesh.faceVertexIds(fId)) {
                     if (preservedVertices[cId].find(vId) == preservedVertices[cId].end()) {
                         morphingVertices[cId].insert(vId);
                     }
@@ -984,13 +1080,13 @@ void blendSurfaces(
             std::vector<FaceId> tmpBirthFace;
             nvl::meshTransferVerticesWithFaces(mesh, verticesToTransfer, resultMesh, tmpBirthVertex, tmpBirthFace);
 
-            resultPreBirthVertex.resize(resultMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-            resultPreBirthFace.resize(resultMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+            resultPreBirthVertex.resize(resultMesh.nextVertexId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
+            resultPreBirthFace.resize(resultMesh.nextFaceId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
 
-            resultMorphingBirthVertex.resize(resultMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+            resultMorphingBirthVertex.resize(resultMesh.nextVertexId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
 
             for (Index vId = lastVertexId; vId < resultMesh.nextVertexId(); ++vId) {
-                assert(tmpBirthVertex[vId] != nvl::MAX_INDEX);
+                assert(tmpBirthVertex[vId] != nvl::NULL_ID);
                 VertexId birthVertexId = tmpBirthVertex[vId];
 
                 //If to be morphed, then move to the closest point
@@ -1004,7 +1100,7 @@ void blendSurfaces(
                 }
             }
             for (Index fId = lastFaceId; fId < resultMesh.nextFaceId(); ++fId) {
-                assert(tmpBirthFace[fId] != nvl::MAX_INDEX);
+                assert(tmpBirthFace[fId] != nvl::NULL_ID);
                 resultPreBirthFace[fId] = std::make_pair(eId, tmpBirthFace[fId]);
             }
         }
@@ -1063,10 +1159,10 @@ void blendSurfaces(
                 const Index& birthEId = pair.first;
                 const VertexId& birthVertexId = pair.second;
 
-                if (birthEId != nvl::MAX_INDEX) {
-                    assert(birthVertexId != nvl::MAX_INDEX);
+                if (birthEId != nvl::NULL_ID) {
+                    assert(birthVertexId != nvl::NULL_ID);
 
-                    const Point& point = resultMesh.vertex(vId).point();
+                    const Point& point = resultMesh.vertexPoint(vId);
                     const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
                     const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
                     const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
@@ -1081,7 +1177,7 @@ void blendSurfaces(
                     gradient = -gradient * blendedDistance * gradientWeight;
 
                     Point newPoint = point + gradient;
-                    resultMesh.vertex(vId).setPoint(newPoint);
+                    resultMesh.setVertexPoint(vId, newPoint);
                 }
             }
 
@@ -1098,16 +1194,16 @@ void blendSurfaces(
                 const Index& birthEId = pair.first;
                 const VertexId& birthVertexId = pair.second;
 
-                if (birthEId != nvl::MAX_INDEX) {
-                    assert(birthVertexId != nvl::MAX_INDEX);
+                if (birthEId != nvl::NULL_ID) {
+                    assert(birthVertexId != nvl::NULL_ID);
 
-                    const Point& point = resultMesh.vertex(vId).point();
+                    const Point& point = resultMesh.vertexPoint(vId);
 
                     //Calculate delta
                     Point delta = Point::Zero();
                     const std::vector<VertexId>& neighbors = resultVVAdj[vId];
                     for(const int& neighborId : neighbors) {
-                        const Point& neighborPoint = resultMesh.vertex(neighborId).point();
+                        const Point& neighborPoint = resultMesh.vertexPoint(neighborId);
                         delta += neighborPoint;
                     }
                     delta /= neighbors.size();
@@ -1118,7 +1214,7 @@ void blendSurfaces(
                     //Calculate new point
                     Point newPoint = (1 - dcWeight) * point + dcWeight * dcPoint;
 
-                    resultMesh.vertex(vId).setPoint(newPoint);
+                    resultMesh.setVertexPoint(vId, newPoint);
                 }
             }
 
@@ -1158,15 +1254,16 @@ void blendSurfaces(
 
             const Index& birthEId = pair.first;
             const VertexId& birthVertexId = pair.second;
-            const Index& birthCId = clusterMap.at(birthEId);
 
-            if (birthEId != nvl::MAX_INDEX) {
-                assert(birthVertexId != nvl::MAX_INDEX);
+
+            if (birthEId != nvl::NULL_ID) {
+                const Index& birthCId = clusterMap.at(birthEId);
+                assert(birthVertexId != nvl::NULL_ID);
 
                 Index bestCId = nvl::maxLimitValue<Index>();
                 double bestSelectValue = nvl::minLimitValue<double>();
 
-                const Point& point = resultMesh.vertex(vId).point();
+                const Point& point = resultMesh.vertexPoint(vId);
                 const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
                 const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
                 const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
@@ -1180,7 +1277,7 @@ void blendSurfaces(
                     const Action& action = data.action(actionId);
 
                     const Index eId1 = action.entry1;
-                    assert(eId1 != nvl::MAX_INDEX);
+                    assert(eId1 != nvl::NULL_ID);
                     const Index cId1 = clusterMap.at(eId1);
 
                     const Mesh& mesh1 = models[cId1]->mesh;
@@ -1200,7 +1297,7 @@ void blendSurfaces(
 
                     if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
                         const Index eId2 = action.entry2;
-                        assert(eId2 != nvl::MAX_INDEX);
+                        assert(eId2 != nvl::NULL_ID);
                         const Index cId2 = clusterMap.at(eId2);
 
                         const Mesh& mesh2 = models[cId2]->mesh;
@@ -1231,11 +1328,11 @@ void blendSurfaces(
                 Point closestPoint;
                 FaceId closestFaceId = vcgGrid.getClosestFace(point, closestPoint);
 
-                FaceNormal normal = blendedMesh.face(closestFaceId).normal();
+                FaceNormal normal = blendedMesh.faceNormal(closestFaceId);
                 normal.normalize();
 
                 const double inflateStep = voxelSize / 10.0;
-//                const double inflateDistance = std::max(inflateStep * 0.1, (bestSelectValue > 0.5 ? 1.0 - (bestSelectValue - 0.5) / (1.0 - 0.5) * inflateStep : inflateStep * 0.1));
+                //                const double inflateDistance = std::max(inflateStep * 0.1, (bestSelectValue > 0.5 ? 1.0 - (bestSelectValue - 0.5) / (1.0 - 0.5) * inflateStep : inflateStep * 0.1));
 
                 Point newPoint = closestPoint;
                 if (!inflate) {
@@ -1243,38 +1340,8 @@ void blendSurfaces(
                 }
 
                 newPoint = closestPoint + inflateStep * normal;
-//                newPoint = closestPoint + inflateDistance * inflateStep * normal;
 
-                resultMesh.vertex(vId).setPoint(newPoint);
-
-
-
-
-//                const Point& point = resultMesh.vertex(vId).point();
-
-//                const double& selectValue = vertexSelectValues[birthCId][birthVertexId];
-
-//                Point closestPoint;
-//                FaceId closestFaceId = vcgGrid.getClosestFace(point, closestPoint);
-
-//                FaceNormal normal = blendedMesh.face(closestFaceId).normal();
-//                normal.normalize();
-
-//                const double inflateStep = voxelSize / 2.0;
-
-
-//                bool inflate = selectValue >= 0.5;
-//                double inflateDistance = 1.0 - ((std::fabs(selectValue - 0.5) - 0.5) / (0.5 - 0.0));
-
-//                Point newPoint = closestPoint;
-//                if (!inflate) {
-//                    normal = -normal;
-//                }
-
-////                newPoint = closestPoint + inflateStep * normal;
-//                newPoint = closestPoint + inflateDistance * inflateStep * normal;
-
-//                resultMesh.vertex(vId).setPoint(newPoint);
+                resultMesh.setVertexPoint(vId, newPoint);
             }
         }
 
@@ -1311,17 +1378,17 @@ void blendSurfaces(
         Index birthEId = resultPreBirthVertex[vId].first;
         Index birthVId = resultPreBirthVertex[vId].second;
 
-        if (birthEId != nvl::MAX_INDEX) {
+        if (birthEId != nvl::NULL_ID) {
             VertexInfo info;
             info.eId = birthEId;
             info.vId = birthVId;
             info.weight = 1.0;
-            info.closestFaceId = nvl::MAX_INDEX;
+            info.closestFaceId = nvl::NULL_ID;
             info.distance = 0.0;
             vertexInfo.push_back(info);
         }
         else {
-            const Point& point = resultMesh.vertex(vId).point();
+            const Point& point = resultMesh.vertexPoint(vId);
             const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
             const GridVec vdbPoint = blendedGrid->worldToIndex(vdbWorldPoint);
             const GridCoord vdbCoord(std::round(vdbPoint.x()), std::round(vdbPoint.y()), std::round(vdbPoint.z()));
@@ -1336,7 +1403,7 @@ void blendSurfaces(
 
                 //Entry 1
                 const Index eId1 = action.entry1;
-                assert(eId1 != nvl::MAX_INDEX);
+                assert(eId1 != nvl::NULL_ID);
                 const Index cId1 = clusterMap.at(eId1);
 
                 const FloatGrid::ValueType closedDistance1 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId1]->tree(), vdbPoint);
@@ -1355,7 +1422,7 @@ void blendSurfaces(
                         FaceId originFaceId1 = fieldBirthFace1[pId1];
                         VertexInfo info;
                         info.eId = eId1;
-                        info.vId = nvl::MAX_INDEX;
+                        info.vId = nvl::NULL_ID;
                         info.weight = 1.0;
                         info.closestFaceId = originFaceId1;
                         info.distance = closedDistance1;
@@ -1365,7 +1432,7 @@ void blendSurfaces(
                 else if (action.operation == OperationType::REPLACE) {
                     //Entry 2
                     const Index eId2 = action.entry2;
-                    assert(eId2 != nvl::MAX_INDEX);
+                    assert(eId2 != nvl::NULL_ID);
                     const Index cId2 = clusterMap.at(eId2);
 
                     const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
@@ -1387,7 +1454,7 @@ void blendSurfaces(
                         if (selectValue1 >= SELECT_VALUE_MAX_THRESHOLD && selectValue2 < SELECT_VALUE_MAX_THRESHOLD) {
                             VertexInfo info1;
                             info1.eId = eId1;
-                            info1.vId = nvl::MAX_INDEX;
+                            info1.vId = nvl::NULL_ID;
                             info1.weight = 1.0;
                             info1.closestFaceId = originFaceId1;
                             info1.distance = closedDistance1;
@@ -1396,7 +1463,7 @@ void blendSurfaces(
                         else if (selectValue1 < SELECT_VALUE_MAX_THRESHOLD && selectValue2 >= SELECT_VALUE_MAX_THRESHOLD) {
                             VertexInfo info2;
                             info2.eId = eId2;
-                            info2.vId = nvl::MAX_INDEX;
+                            info2.vId = nvl::NULL_ID;
                             info2.weight = 1.0;
                             info2.closestFaceId = originFaceId2;
                             info2.distance = closedDistance2;
@@ -1405,7 +1472,7 @@ void blendSurfaces(
                         else if (selectValue1 <= SELECT_VALUE_MIN_THRESHOLD && selectValue2 <= SELECT_VALUE_MIN_THRESHOLD) {
                             VertexInfo info1;
                             info1.eId = eId1;
-                            info1.vId = nvl::MAX_INDEX;
+                            info1.vId = nvl::NULL_ID;
                             info1.weight = 0.5;
                             info1.closestFaceId = originFaceId1;
                             info1.distance = closedDistance1;
@@ -1413,7 +1480,7 @@ void blendSurfaces(
 
                             VertexInfo info2;
                             info2.eId = eId2;
-                            info2.vId = nvl::MAX_INDEX;
+                            info2.vId = nvl::NULL_ID;
                             info2.weight = 0.5;
                             info2.closestFaceId = originFaceId2;
                             info2.distance = closedDistance2;
@@ -1422,7 +1489,7 @@ void blendSurfaces(
                         else {
                             VertexInfo info1;
                             info1.eId = eId1;
-                            info1.vId = nvl::MAX_INDEX;
+                            info1.vId = nvl::NULL_ID;
                             info1.weight = selectValue1 / (selectValue1 + selectValue2);
                             info1.closestFaceId = originFaceId1;
                             info1.distance = closedDistance1;
@@ -1430,7 +1497,7 @@ void blendSurfaces(
 
                             VertexInfo info2;
                             info2.eId = eId2;
-                            info2.vId = nvl::MAX_INDEX;
+                            info2.vId = nvl::NULL_ID;
                             info2.weight = selectValue2 / (selectValue1 + selectValue2);
                             info2.closestFaceId = originFaceId2;
                             info2.distance = closedDistance2;
@@ -1441,7 +1508,7 @@ void blendSurfaces(
                         FaceId originFaceId1 = fieldBirthFace1[pId1];
                         VertexInfo info1;
                         info1.eId = eId1;
-                        info1.vId = nvl::MAX_INDEX;
+                        info1.vId = nvl::NULL_ID;
                         info1.weight = 1.0;
                         info1.closestFaceId = originFaceId1;
                         info1.distance = closedDistance1;
@@ -1451,7 +1518,7 @@ void blendSurfaces(
                         FaceId originFaceId2 = fieldBirthFace2[pId2];
                         VertexInfo info2;
                         info2.eId = eId2;
-                        info2.vId = nvl::MAX_INDEX;
+                        info2.vId = nvl::NULL_ID;
                         info2.weight = 1.0;
                         info2.closestFaceId = originFaceId2;
                         info2.distance = closedDistance2;
@@ -1461,7 +1528,7 @@ void blendSurfaces(
                 else if (action.operation == OperationType::ATTACH) {
                     //Entry 2
                     const Index eId2 = action.entry2;
-                    assert(eId2 != nvl::MAX_INDEX);
+                    assert(eId2 != nvl::NULL_ID);
                     const Index cId2 = clusterMap.at(eId2);
 
                     const FloatGrid::ValueType closedDistance2 = openvdb::tools::QuadraticSampler::sample(closedGrids[cId2]->tree(), vdbPoint);
@@ -1483,7 +1550,7 @@ void blendSurfaces(
                         if (closedDistance1 <= closedDistance2) {
                             VertexInfo info1;
                             info1.eId = eId1;
-                            info1.vId = nvl::MAX_INDEX;
+                            info1.vId = nvl::NULL_ID;
                             info1.weight = 1.0;
                             info1.closestFaceId = originFaceId1;
                             info1.distance = closedDistance1;
@@ -1492,7 +1559,7 @@ void blendSurfaces(
                         else {
                             VertexInfo info2;
                             info2.eId = eId2;
-                            info2.vId = nvl::MAX_INDEX;
+                            info2.vId = nvl::NULL_ID;
                             info2.weight = 1.0;
                             info2.closestFaceId = originFaceId2;
                             info2.distance = closedDistance2;
@@ -1503,7 +1570,7 @@ void blendSurfaces(
                         FaceId originFaceId1 = fieldBirthFace1[pId1];
                         VertexInfo info1;
                         info1.eId = eId1;
-                        info1.vId = nvl::MAX_INDEX;
+                        info1.vId = nvl::NULL_ID;
                         info1.weight = 1.0;
                         info1.closestFaceId = originFaceId1;
                         info1.distance = closedDistance1;
@@ -1513,7 +1580,7 @@ void blendSurfaces(
                         FaceId originFaceId2 = fieldBirthFace2[pId2];
                         VertexInfo info2;
                         info2.eId = eId2;
-                        info2.vId = nvl::MAX_INDEX;
+                        info2.vId = nvl::NULL_ID;
                         info2.weight = 1.0;
                         info2.closestFaceId = originFaceId2;
                         info2.distance = closedDistance2;
@@ -1562,108 +1629,6 @@ void blendSurfaces(
         totalDuration += duration;
 #endif
 
-
-
-
-#else
-
-
-    Mesh preMesh; //Preserved mesh
-    Mesh newMesh; //New surface mesh
-
-    std::vector<std::unordered_set<FaceId>> preservedFaces(cluster.size()); //Preserved faces
-    std::vector<std::pair<Index, VertexId>> preBirthVertex; //Preserved mesh birth vertices
-    std::vector<std::pair<Index, FaceId>> preBirthFace; //Preserved mesh birth faces
-
-
-
-
-    //Create grid for each model
-    for (Index cId = 0; cId < cluster.size(); ++cId) {
-        const Index& eId = cluster[cId];
-
-        clusterMap.insert(std::make_pair(eId, cId));
-
-        const Entry& entry = data.entry(eId);
-        const Model* model = entry.model;
-        const Mesh& mesh = model->mesh;
-
-        //Model
-        models[cId] = model;
-
-        //Vertex select values
-        SelectInfo globalSelectInfo = data.computeGlobalSelectInfo(eId);
-        vertexSelectValues[cId] = globalSelectInfo.vertex;
-
-        //Find faces in the field
-        fieldFaces[cId] = internal::findFieldFaces(mesh, vertexSelectValues[cId], scaleFactor);
-
-
-        //Find faces in the field
-        ffAdjs[cId] = nvl::meshFaceFaceAdjacencies(mesh);
-
-        //Transfer vertices to keep in the current mesh
-        nvl::meshTransferFaces(mesh, std::vector<FaceId>(fieldFaces[cId].begin(), fieldFaces[cId].end()), inputMeshes[cId], fieldBirthVertex[cId], fieldBirthFace[cId]);
-    }
-
-
-    //Find preserved faces by select values
-    for (Index cId = 0; cId < cluster.size(); ++cId) {
-        const Mesh& mesh = models[cId]->mesh;
-
-        for (FaceId fId = 0; fId < mesh.nextFaceId(); ++fId) {
-            if (mesh.isFaceDeleted(fId)) {
-                continue;
-            }
-
-            double selectValue = internal::averageFaceSelectValue(mesh, fId, vertexSelectValues[cId]);
-
-            if (selectValue >= 0.5) {
-                preservedFaces[cId].insert(fId);
-            }
-        }
-    }
-
-
-
-    //Create preserved
-    preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
-
-#ifdef SKINMIXER_DEBUG_SAVE_MESHES
-    nvl::meshSaveToFile("results/preMesh.obj", preMesh);
-#endif
-
-
-    //Get final mesh
-    Mesh quadrangulation;
-    resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
-
-
-    //Compute and fill the birth infos
-    resultEntry.birth.entries = cluster;
-    resultEntry.birth.vertex.resize(resultMesh.nextVertexId());
-    for (VertexId vId = 0; vId < resultMesh.nextVertexId(); ++vId) {
-        if (resultMesh.isVertexDeleted(vId))
-            continue;
-
-        std::vector<VertexInfo>& vertexInfo = resultEntry.birth.vertex[vId];
-
-        Index birthEId = resultPreBirthVertex[vId].first;
-        Index birthVId = resultPreBirthVertex[vId].second;
-
-        assert(birthEId != nvl::MAX_INDEX);
-        VertexInfo info;
-        info.eId = birthEId;
-        info.vId = birthVId;
-        info.weight = 1.0;
-        info.closestFaceId = nvl::MAX_INDEX;
-        info.distance = 0.0;
-        vertexInfo.push_back(info);
-    }
-#endif
-
-
-
 #ifdef GLOBAL_TIMES
     std::cout << "-> Total duration: " << totalDuration << " ms" << std::endl;
 #endif
@@ -1706,14 +1671,14 @@ typename Model::Mesh getPreservedMesh(
         std::vector<FaceId> tmpBirthFace;
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(preFacesToKeepSet.begin(), preFacesToKeepSet.end()), preMesh, tmpBirthVertex, tmpBirthFace);
 
-        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
+        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
         for (Index vId = lastVertexId; vId < preMesh.nextVertexId(); ++vId) {
-            assert(tmpBirthVertex[vId] != nvl::MAX_INDEX);
+            assert(tmpBirthVertex[vId] != nvl::NULL_ID);
             preBirthVertex[vId] = std::make_pair(eId, tmpBirthVertex[vId]);
         }
         for (Index fId = lastFaceId; fId < preMesh.nextFaceId(); ++fId) {
-            assert(tmpBirthFace[fId] != nvl::MAX_INDEX);
+            assert(tmpBirthFace[fId] != nvl::NULL_ID);
             preBirthFace[fId] = std::make_pair(eId, tmpBirthFace[fId]);
         }
     }
@@ -1752,14 +1717,14 @@ typename Model::Mesh computePreservedMesh(
         std::vector<FaceId> tmpBirthFace;
         nvl::meshTransferFaces(mesh, std::vector<FaceId>(preservedFaces[cId].begin(), preservedFaces[cId].end()), preMesh, tmpBirthVertex, tmpBirthFace);
 
-        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+        preBirthVertex.resize(preMesh.nextVertexId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
+        preBirthFace.resize(preMesh.nextFaceId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
         for (Index vId = lastVertexId; vId < preMesh.nextVertexId(); ++vId) {
-            assert(tmpBirthVertex[vId] != nvl::MAX_INDEX);
+            assert(tmpBirthVertex[vId] != nvl::NULL_ID);
             preBirthVertex[vId] = std::make_pair(eId, tmpBirthVertex[vId]);
         }
         for (Index fId = lastFaceId; fId < preMesh.nextFaceId(); ++fId) {
-            assert(tmpBirthFace[fId] != nvl::MAX_INDEX);
+            assert(tmpBirthFace[fId] != nvl::NULL_ID);
             preBirthFace[fId] = std::make_pair(eId, tmpBirthFace[fId]);
         }
     }
@@ -1783,6 +1748,8 @@ Mesh quadrangulateMesh(
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::Face Face;
     typedef typename Mesh::MaterialId MaterialId;
+    typedef typename Mesh::WedgeNormalId WedgeNormalId;
+    typedef typename Mesh::WedgeUVId WedgeUVId;
     typedef typename nvl::Index Index;
 
     Mesh tmpResult;
@@ -1819,7 +1786,7 @@ Mesh quadrangulateMesh(
     par.timeLimit = 200;
     par.gapLimit = 0.0;
     par.callbackTimeLimit = { 3.00, 5.000, 10.0, 20.0, 30.0, 60.0, 90.0, 120.0 };
-    par.callbackGapLimit = { 0.001, 0.005, 0.01, 0.05, 0.10, 0.15, 0.20, 0.300 };
+    par.callbackGapLimit = { 0.001, 0.005, 0.01, 0.05, 0.10, 0.15, 0.20, 0.30  };
     par.minimumGap = 0.3;
     par.chartSmoothingIterations = 5;
     par.quadrangulationFixedSmoothingIterations = 5;
@@ -1890,10 +1857,19 @@ Mesh quadrangulateMesh(
     std::vector<Index> vcgResultBirthFace;
     nvl::convertVCGMeshToMesh(vcgResult, tmpResult, vcgResultBirthVertex, vcgResultBirthFace);
 
-    std::vector<MaterialId> materialMap(preMesh.nextMaterialId(), nvl::MAX_INDEX);
+    birthVertex.resize(tmpResult.nextVertexId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
+    birthFace.resize(tmpResult.nextFaceId(), std::make_pair(nvl::NULL_ID, nvl::NULL_ID));
 
-    birthVertex.resize(tmpResult.nextVertexId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
-    birthFace.resize(tmpResult.nextFaceId(), std::make_pair(nvl::MAX_INDEX, nvl::MAX_INDEX));
+    if (preMesh.hasVertexNormals()) {
+        result.enableVertexNormals();
+    }
+    if (preMesh.hasVertexUVs()) {
+        result.enableVertexUVs();
+    }
+    if (preMesh.hasVertexColors()) {
+        result.enableVertexColors();
+    }
+
     for (VertexId vId = 0; vId < tmpResult.nextVertexId(); vId++) {
         if (tmpResult.isVertexDeleted(vId))
             continue;
@@ -1901,16 +1877,49 @@ Mesh quadrangulateMesh(
         Index vcgResultVId = vcgResultBirthVertex[vId];
         int vcgPreMeshVId = vcgPreservedVertexMap[vcgResultVId];
         if (vcgPreMeshVId >= 0) {
-            const VertexId& preMeshVId = vcgPreBirthVertex[vcgPreMeshVId];
-            const Vertex& preVertex = preMesh.vertex(preMeshVId);
+            const VertexId& preVId = vcgPreBirthVertex[vcgPreMeshVId];
+            const Vertex& preVertex = preMesh.vertex(preVId);
 
             const VertexId newVId = result.addVertex(preVertex);
 
-            birthVertex[vId] = preBirthVertex[preMeshVId];
+            birthVertex[newVId] = preBirthVertex[preVId];
+
+            if (preMesh.hasVertexNormals()) {
+                result.setVertexNormal(newVId, preMesh.vertexNormal(preVId));
+            }
+            if (preMesh.hasVertexUVs()) {
+                result.setVertexUV(newVId, preMesh.vertexUV(preVId));
+            }
+            if (preMesh.hasVertexColors()) {
+                result.setVertexColor(newVId, preMesh.vertexColor(preVId));
+            }
         }
         else {
             result.addVertex(tmpResult.vertex(vId));
         }
+    }
+
+    std::vector<MaterialId> materialMap;
+    std::vector<WedgeNormalId> wedgeNormalMap;
+    std::vector<WedgeUVId> wedgeUVMap;
+
+
+    if (preMesh.hasFaceNormals()) {
+        result.enableFaceNormals();
+    }
+
+    if (preMesh.hasFaceMaterials()) {
+        result.enableFaceMaterials();
+        materialMap.resize(preMesh.nextMaterialId(), nvl::NULL_ID);
+    }
+
+    if (preMesh.hasWedgeNormals()) {
+        result.enableWedgeNormals();
+        wedgeNormalMap.resize(preMesh.nextWedgeNormalId(), nvl::NULL_ID);
+    }
+    if (preMesh.hasWedgeUVs()) {
+        result.enableWedgeUVs();
+        wedgeUVMap.resize(preMesh.nextWedgeUVId(), nvl::NULL_ID);
     }
 
     for (FaceId fId = 0; fId < tmpResult.nextFaceId(); fId++) {
@@ -1920,22 +1929,66 @@ Mesh quadrangulateMesh(
         Index vcgResultFId = vcgResultBirthFace[fId];
         int vcgPreMeshFId = vcgPreservedFaceMap[vcgResultFId];
         if (vcgPreMeshFId >= 0) {
-            const FaceId& preMeshFId = vcgPreBirthFace[vcgPreMeshFId];
-            const Face& preFace = preMesh.face(preMeshFId);
+            const FaceId& preFId = vcgPreBirthFace[vcgPreMeshFId];
+            const Face& preFace = preMesh.face(preFId);
 
-            const std::vector<VertexId>& vertexIds = tmpResult.face(fId).vertexIds();
+            const std::vector<VertexId>& vertexIds = tmpResult.faceVertexIds(fId);
             FaceId newFId = result.addFace(preFace);
-            result.face(newFId).setVertexIds(vertexIds);
+            result.setFaceVertexIds(newFId, vertexIds);
 
-            birthFace[fId] = preBirthFace[preMeshFId];
+            birthFace[newFId] = preBirthFace[preFId];
 
-            MaterialId mId = preFace.materialId();
-            if (mId != nvl::MAX_INDEX) {
-                if (materialMap[mId] == nvl::MAX_INDEX) {
-                    MaterialId newMId = result.addMaterial(preMesh.material(mId));
-                    materialMap[mId] = newMId;
+            if (preMesh.hasFaceNormals()) {
+                result.setFaceNormal(newFId, preMesh.faceNormal(preFId));
+            }
+
+            if (preMesh.hasFaceMaterials() && !preMesh.faceMaterialIsNull(preFId)) {
+                const MaterialId& preMId = preMesh.faceMaterialId(preFId);
+
+                if (materialMap[preMId] == nvl::NULL_ID) {
+                    MaterialId newMId = result.addMaterial(preMesh.material(preMId));
+                    materialMap[preMId] = newMId;
                 }
-                result.face(newFId).setMaterialId(materialMap[mId]);
+
+                result.setFaceMaterialId(newFId, materialMap[preMId]);
+            }
+
+            if (preMesh.hasWedgeNormals() && !preMesh.faceWedgeNormalsAreNull(preFId)) {
+                const std::vector<WedgeNormalId>& wedgeNormalIds = preMesh.faceWedgeNormals(preFId);
+
+                std::vector<WedgeNormalId> newWedgeNormalIds(preFace.vertexNumber(), nvl::NULL_ID);
+                for (Index j = 0; j < wedgeNormalIds.size(); j++) {
+                    const WedgeNormalId& wedgeNormalId = wedgeNormalIds[j];
+
+                    if (wedgeNormalId != nvl::NULL_ID) {
+                        if (wedgeNormalMap[wedgeNormalId] == nvl::NULL_ID) {
+                            WedgeNormalId newWedgeNormalId = result.addWedgeNormal(preMesh.wedgeNormal(wedgeNormalId));
+                            wedgeNormalMap[wedgeNormalId] = newWedgeNormalId;
+                        }
+                        newWedgeNormalIds[j] = wedgeNormalMap[wedgeNormalId];
+                    }
+                }
+
+                result.setFaceWedgeNormals(newFId, newWedgeNormalIds);
+            }
+
+            if (preMesh.hasWedgeUVs() && !preMesh.faceWedgeUVsAreNull(preFId)) {
+                const std::vector<WedgeUVId>& wedgeUVIds = preMesh.faceWedgeUVs(preFId);
+
+                std::vector<WedgeUVId> newWedgeUVIds(preFace.vertexNumber(), nvl::NULL_ID);
+                for (Index j = 0; j < wedgeUVIds.size(); j++) {
+                    const WedgeUVId& wedgeUVId = wedgeUVIds[j];
+
+                    if (wedgeUVId != nvl::NULL_ID) {
+                        if (wedgeUVMap[wedgeUVId] == nvl::NULL_ID) {
+                            WedgeUVId newWedgeUVId = result.addWedgeUV(preMesh.wedgeUV(wedgeUVId));
+                            wedgeUVMap[wedgeUVId] = newWedgeUVId;
+                        }
+                        newWedgeUVIds[j] = wedgeUVMap[wedgeUVId];
+                    }
+                }
+
+                result.setFaceWedgeUVs(newFId, newWedgeUVIds);
             }
         }
         else {

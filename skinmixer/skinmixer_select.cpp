@@ -95,7 +95,7 @@ void computeSelectValues(
 
             VertexId vId = componentBirthVertex[cId];
 
-            assert(vId != nvl::MAX_INDEX);
+            assert(vId != nvl::NULL_ID);
             minValue = nvl::min(minValue, vertexSelectValue[vId]);
             maxValue = nvl::max(maxValue, vertexSelectValue[vId]);
 

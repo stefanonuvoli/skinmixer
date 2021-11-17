@@ -252,7 +252,7 @@ void getBlendedGrid(
                     const Action& action = data.action(actionId);
 
                     const Index eId1 = action.entry1;
-                    assert(eId1 != nvl::MAX_INDEX);
+                    assert(eId1 != nvl::NULL_ID);
                     const Index cId1 = clusterMap.at(eId1);
 
                     const IntGrid::ValueType pId1 = polygonAccessors[cId1].getValue(coord);
@@ -272,7 +272,7 @@ void getBlendedGrid(
                                 0.9 * (std::fabs(0.5 - actionSelectValue1) * 2.0);
 
                         const Index eId2 = action.entry2;
-                        if (eId2 != nvl::MAX_INDEX) {
+                        if (eId2 != nvl::NULL_ID) {
                             const Index cId2 = clusterMap.at(eId2);
 
                             const IntGrid::ValueType pId2 = polygonAccessors[cId2].getValue(coord);
@@ -309,7 +309,7 @@ void getBlendedGrid(
                 const Action& action = data.action(actionId);
 
                 const Index eId1 = action.entry1;
-                assert(eId1 != nvl::MAX_INDEX);
+                assert(eId1 != nvl::NULL_ID);
                 const Index cId1 = clusterMap.at(eId1);
 
                 const FloatGrid::ValueType closedDistance1 = closedAccessors[cId1].getValue(coord);
@@ -327,7 +327,7 @@ void getBlendedGrid(
                     const Mesh& mesh1 = models[cId1]->mesh;
 
                     const Index eId2 = action.entry2;
-                    assert(eId2 != nvl::MAX_INDEX);
+                    assert(eId2 != nvl::NULL_ID);
                     const Index cId2 = clusterMap.at(eId2);
 
 
@@ -455,9 +455,9 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
         for (Index c1 = 0; c1 < meshCC.size(); ++c1) {
             for (const FaceId& f1 : meshCC[c1]) {
                 for (Index pos1 = 0; pos1 < meshFFAdj[f1].size(); ++pos1) {
-                    if (meshFFAdj[f1][pos1] == nvl::MAX_INDEX) {
-                        FaceId bestF2 = nvl::MAX_INDEX;
-                        Index bestPos2 = nvl::MAX_INDEX;
+                    if (meshFFAdj[f1][pos1] == nvl::NULL_ID) {
+                        FaceId bestF2 = nvl::NULL_ID;
+                        Index bestPos2 = nvl::NULL_ID;
                         Scalar bestDistance = nvl::maxLimitValue<Scalar>();
                         double bestScore = nvl::maxLimitValue<double>();
 
@@ -469,7 +469,7 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
 
                             for (const FaceId& f2 : meshCC[c2]) {
                                 for (Index pos2 = 0; pos2 < meshFFAdj[f2].size(); ++pos2) {
-                                    if (meshFFAdj[f2][pos2] == nvl::MAX_INDEX) {
+                                    if (meshFFAdj[f2][pos2] == nvl::NULL_ID) {
                                         Point b2 = nvl::meshFaceBarycenter(mesh, f2);
 
                                         Scalar distance = (b1 - b2).norm();
@@ -490,7 +490,7 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
                             }
                         }
 
-                        if (bestF2 != nvl::MAX_INDEX) {
+                        if (bestF2 != nvl::NULL_ID) {
                             meshFFAdj[f1][pos1] = bestF2;
                             meshFFAdj[bestF2][bestPos2] = f1;
 
@@ -543,7 +543,7 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
 
             for (const FaceId& fId : fieldFaces) {
                 for (const FaceId& adj : meshFFAdj[fId]) {
-                    if (adj != nvl::MAX_INDEX) {
+                    if (adj != nvl::NULL_ID) {
                         if (fieldFaces.find(adj) == fieldFaces.end()) {
 
                             double selectValue = averageFaceSelectValue(mesh, adj, vertexSelectValues);
@@ -629,7 +629,7 @@ double interpolateFaceSelectValue(
     for (VertexId j = 0; j < face.vertexNumber(); ++j) {
         const VertexId& vId = face.vertexId(j);
 
-        polygon[j] = mesh.vertex(vId).point();
+        polygon[j] = mesh.vertexPoint(vId);
         values[j] = vertexSelectValue[vId];
     }
 

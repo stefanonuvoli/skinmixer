@@ -88,7 +88,7 @@ Mesh attachMeshesByBorders(
         std::vector<VertexId>& mChain = mChains[chainId];
 
         double mChainScore = nvl::maxLimitValue<double>();
-        Index mComponentId = nvl::MAX_INDEX;
+        Index mComponentId = nvl::NULL_ID;
 
         //For each component, find the candidate chain
         for (Index cId = 0; cId < mConnectedComponents.size(); cId++) {
@@ -98,7 +98,7 @@ Mesh attachMeshesByBorders(
             std::vector<VertexId> componentVertices;
 
             for (const FaceId& fId : component) {
-                for (const VertexId& vId : mesh.face(fId).vertexIds()) {
+                for (const VertexId& vId : mesh.faceVertexIds(fId)) {
                     componentVertices.push_back(vId);
                 }
             }
@@ -112,10 +112,10 @@ Mesh attachMeshesByBorders(
             bool validPath = true;
             double chainScore = 0.0;
             for (Index j = 0; j < dChain.size() && validPath; ++j) {
-                const Point& dPoint = destMesh.vertex(dChain[j]).point();
+                const Point& dPoint = destMesh.vertexPoint(dChain[j]);
 
                 double bestDistance = nvl::maxLimitValue<double>();
-                VertexId bestVId = nvl::MAX_INDEX;
+                VertexId bestVId = nvl::NULL_ID;
 
                 for (const VertexId& vId : componentVertices) {
                     if (chainVerticesSet.find(vId) != chainVerticesSet.end() ||
@@ -124,7 +124,7 @@ Mesh attachMeshesByBorders(
                         continue;
                     }
 
-                    const Point& mPoint = mesh.vertex(vId).point();
+                    const Point& mPoint = mesh.vertexPoint(vId);
 
                     double distance = (mPoint - dPoint).norm();
 
@@ -134,7 +134,7 @@ Mesh attachMeshesByBorders(
                     }
                 }
 
-                if (bestVId < nvl::MAX_INDEX) {
+                if (bestVId < nvl::NULL_ID) {
                     chainScore += bestDistance;
 
                     if (j > 0) {
@@ -173,8 +173,8 @@ Mesh attachMeshesByBorders(
 
                     for (const VertexId& adjVId : mVVAdj[vId]) {
                         if (adjVId == candidateChain[0]) {
-                            const Point& p1 = mesh.vertex(vId).point();
-                            const Point& p2 = mesh.vertex(adjVId).point();
+                            const Point& p1 = mesh.vertexPoint(vId);
+                            const Point& p2 = mesh.vertexPoint(adjVId);
 
                             const double distance = (p1 - p2).norm();
                             tmpMeshGraph.addEdge(vId, adjVId, distance);
@@ -209,7 +209,7 @@ Mesh attachMeshesByBorders(
             }
         }
 
-        assert(mComponentId < nvl::MAX_INDEX);
+        assert(mComponentId < nvl::NULL_ID);
         mUsedComponents.insert(mComponentId);
 
         //Delete nodes from graph
@@ -270,7 +270,7 @@ Mesh attachMeshesByBorders(
                         if (edgesInChains.find(std::make_pair(v1, v2)) == edgesInChains.end()) {
                             const FaceId& adjId = mFFAdj[currentFId][k];
 
-                            if (adjId != nvl::MAX_INDEX && !visited[adjId]) {
+                            if (adjId != nvl::NULL_ID && !visited[adjId]) {
                                 stack.push(adjId);
                             }
                         }
@@ -323,23 +323,23 @@ Mesh attachMeshesByBorders(
         const std::vector<VertexId>& dChain = dChains[chainId];
         const std::vector<VertexId>& mChain = mChains[chainId];
 
-        VertexId bestStartI = nvl::MAX_INDEX;
-        VertexId bestStartJ = nvl::MAX_INDEX;
+        VertexId bestStartI = nvl::NULL_ID;
+        VertexId bestStartJ = nvl::NULL_ID;
         Scalar bestStartDist = nvl::maxLimitValue<Scalar>();
 
         //Compute the start vertices (closest projected point)
-        std::vector<VertexId> minDClosestVertex(dChain.size(), nvl::MAX_INDEX);
+        std::vector<VertexId> minDClosestVertex(dChain.size(), nvl::NULL_ID);
         std::vector<double> minDClosestT(dChain.size(), nvl::maxLimitValue<double>());
         for (Index j = 0; j < dChain.size(); ++j) {
-            const Point& dPoint = destMesh.vertex(dChain[j]).point();
+            const Point& dPoint = destMesh.vertexPoint(dChain[j]);
 
             Scalar minDist = nvl::maxLimitValue<Scalar>();
 
             for (Index i = 0; i < mChain.size(); ++i) {
                 Index nextI = (i + 1) % mChain.size();
 
-                const Point& mPoint = mesh.vertex(mChain[i]).point();
-                const Point& mNextPoint = mesh.vertex(mChain[nextI]).point();
+                const Point& mPoint = mesh.vertexPoint(mChain[i]);
+                const Point& mNextPoint = mesh.vertexPoint(mChain[nextI]);
 
                 double t;
                 Point projectionPoint = nvl::closestPointOnSegment(mPoint, mNextPoint, dPoint, t);
@@ -385,10 +385,10 @@ Mesh attachMeshesByBorders(
         std::vector<Point> mSmoothPoint(mChain.size());
         std::vector<Point> dSmoothPoint(dChain.size());
         for (Index i = 0; i < mChain.size(); ++i) {
-            mSmoothPoint[i] = mesh.vertex(mChain[i]).point();
+            mSmoothPoint[i] = mesh.vertexPoint(mChain[i]);
         }
         for (Index j = 0; j < dChain.size(); ++j) {
-            dSmoothPoint[j] = destMesh.vertex(dChain[j]).point();
+            dSmoothPoint[j] = destMesh.vertexPoint(dChain[j]);
         }
         for (Index t = 0; t < 5; ++t) {
             std::vector<Point> mChainPointsCopy = mSmoothPoint;
@@ -614,7 +614,7 @@ Mesh attachMeshesByBorders(
             Index nextI = (currentI + 1) % mChain.size();
 
             const VertexId& destVertexId = dChain[currentJ];
-            const Point& jPoint = destMesh.vertex(destVertexId).point();
+            const Point& jPoint = destMesh.vertexPoint(destVertexId);
 
             const Scalar& pT = dParametrization[currentJ];
 

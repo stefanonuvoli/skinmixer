@@ -9,7 +9,7 @@
 #include <iostream>
 
 //#define KEYFRAME_SELECTION_VERBOSITY
-#define DUPLICATE_KEYFRAME_TO_BLEND nvl::MAX_INDEX - 1
+#define DUPLICATE_KEYFRAME_TO_BLEND nvl::NULL_ID - 1
 
 namespace skinmixer {
 
@@ -80,9 +80,9 @@ void initializeAnimationWeights(
 
         int numConfidence = 0;
         for (JointInfo jointInfo : jointInfos) {
-            assert(jointInfo.jId != nvl::MAX_INDEX);
-            assert(jointInfo.eId != nvl::MAX_INDEX);
-            assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
+            assert(jointInfo.jId != nvl::NULL_ID);
+            assert(jointInfo.eId != nvl::NULL_ID);
+            assert(clusterMap[jointInfo.eId] != nvl::NULL_ID);
 
             const Index& cId = clusterMap[jointInfo.eId];
 
@@ -93,10 +93,10 @@ void initializeAnimationWeights(
         }
         if (numConfidence > 1) {
             for (JointInfo jointInfo : jointInfos) {
-                assert(jointInfo.jId != nvl::MAX_INDEX);
-                assert(jointInfo.eId != nvl::MAX_INDEX);
-                assert(clusterMap[jointInfo.eId] != nvl::MAX_INDEX);
-                assert(parentId != nvl::MAX_INDEX);
+                assert(jointInfo.jId != nvl::NULL_ID);
+                assert(jointInfo.eId != nvl::NULL_ID);
+                assert(clusterMap[jointInfo.eId] != nvl::NULL_ID);
+                assert(parentId != nvl::NULL_ID);
 
                 const Index& cId = clusterMap[jointInfo.eId];
 
@@ -269,8 +269,8 @@ void blendAnimations(
     for (Index i = 0; i < times.size(); ++i) {
         //Resize data for determining the best match
         bestKeyframeScore[i].resize(cluster.size(), nvl::minLimitValue<double>());
-        bestKeyframeAnimation[i].resize(cluster.size(), nvl::MAX_INDEX);
-        bestKeyframe[i].resize(cluster.size(), nvl::MAX_INDEX);
+        bestKeyframeAnimation[i].resize(cluster.size(), nvl::NULL_ID);
+        bestKeyframe[i].resize(cluster.size(), nvl::NULL_ID);
         bestKeyframeAlpha[i].resize(cluster.size(), nvl::minLimitValue<double>());
 
         //Iteration variables
@@ -324,8 +324,8 @@ void blendAnimations(
             }
 
             double bestLoopScore = nvl::minLimitValue<double>();
-            Index bestLoopAnimationId = nvl::MAX_INDEX;
-            Index bestLoopStartingFrame = nvl::MAX_INDEX;
+            Index bestLoopAnimationId = nvl::NULL_ID;
+            Index bestLoopStartingFrame = nvl::NULL_ID;
             std::vector<double> bestLoopScoreSingle;
 
             for (const Index& candidateAId : candidateAnimations) {
@@ -429,7 +429,7 @@ void blendAnimations(
                 }
             }
 
-            if (bestLoopAnimationId != nvl::MAX_INDEX) {
+            if (bestLoopAnimationId != nvl::NULL_ID) {
                 const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][bestLoopAnimationId];
 
                 const double startingTime = currentGlobalCandidateFrames[bestLoopStartingFrame].time();
@@ -577,7 +577,7 @@ void blendAnimations(
         const Index& animationMode = animationModes[cId];
         if (animationMode == BLEND_ANIMATION_KEYFRAME) {
             for (Index i = 0; i < times.size(); ++i) {
-                if (bestKeyframeAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND || bestKeyframeAnimation[i][cId] == nvl::MAX_INDEX)
+                if (bestKeyframeAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND || bestKeyframeAnimation[i][cId] == nvl::NULL_ID)
                     continue;
 
                 Index maxScoreIndex = i;
@@ -626,7 +626,7 @@ void blendAnimations(
             std::cout << cId << " -> ";
 
             if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
-                if (bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX) {
+                if (bestKeyframeAnimation[i][cId] != nvl::NULL_ID) {
                     if (bestKeyframeAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
                         std::cout << " B" << std::endl;
                     }
@@ -715,10 +715,10 @@ void blendAnimations(
                                 nextIndex++;
                             }
 
-                            assert(bestKeyframeAnimation[prevIndex][cId] != nvl::MAX_INDEX);
-                            assert(bestKeyframe[prevIndex][cId] != nvl::MAX_INDEX);
-                            assert(bestKeyframeAnimation[nextIndex][cId] != nvl::MAX_INDEX);
-                            assert(bestKeyframe[nextIndex][cId] != nvl::MAX_INDEX);
+                            assert(bestKeyframeAnimation[prevIndex][cId] != nvl::NULL_ID);
+                            assert(bestKeyframe[prevIndex][cId] != nvl::NULL_ID);
+                            assert(bestKeyframeAnimation[nextIndex][cId] != nvl::NULL_ID);
+                            assert(bestKeyframe[nextIndex][cId] != nvl::NULL_ID);
 
                             assert(bestKeyframeAnimation[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
                             assert(bestKeyframe[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
@@ -741,9 +741,9 @@ void blendAnimations(
 
                             transformations[cId] = nvl::interpolateAffine(candidateTransformation1, candidateTransformation2, candidateAlpha);
                         }
-                        else if (bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX) {
-                            assert(bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX);
-                            assert(bestKeyframe[i][cId] != nvl::MAX_INDEX);
+                        else if (bestKeyframeAnimation[i][cId] != nvl::NULL_ID) {
+                            assert(bestKeyframeAnimation[i][cId] != nvl::NULL_ID);
+                            assert(bestKeyframe[i][cId] != nvl::NULL_ID);
 
                             const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
 
@@ -837,10 +837,10 @@ void blendAnimations(
                             nextIndex++;
                         }
 
-                        assert(bestKeyframeAnimation[prevIndex][cId] != nvl::MAX_INDEX);
-                        assert(bestKeyframe[prevIndex][cId] != nvl::MAX_INDEX);
-                        assert(bestKeyframeAnimation[nextIndex][cId] != nvl::MAX_INDEX);
-                        assert(bestKeyframe[nextIndex][cId] != nvl::MAX_INDEX);
+                        assert(bestKeyframeAnimation[prevIndex][cId] != nvl::NULL_ID);
+                        assert(bestKeyframe[prevIndex][cId] != nvl::NULL_ID);
+                        assert(bestKeyframeAnimation[nextIndex][cId] != nvl::NULL_ID);
+                        assert(bestKeyframe[nextIndex][cId] != nvl::NULL_ID);
 
                         assert(bestKeyframeAnimation[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
                         assert(bestKeyframe[prevIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
@@ -863,9 +863,9 @@ void blendAnimations(
 
                         clusterTransformations[jId] = nvl::interpolateAffine(candidateTransformation1, candidateTransformation2, candidateAlpha);
                     }
-                    else if (bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX) {
-                        assert(bestKeyframeAnimation[i][cId] != nvl::MAX_INDEX);
-                        assert(bestKeyframe[i][cId] != nvl::MAX_INDEX);
+                    else if (bestKeyframeAnimation[i][cId] != nvl::NULL_ID) {
+                        assert(bestKeyframeAnimation[i][cId] != nvl::NULL_ID);
+                        assert(bestKeyframe[i][cId] != nvl::NULL_ID);
 
                         const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
 
@@ -966,7 +966,7 @@ std::vector<nvl::Quaterniond> computeWindow(
         if (id < 0) {
             id += frames.size();
         }
-        else if (id >= frames.size()) {
+        else if (id >= static_cast<long long int>(frames.size())) {
             id = id - frames.size();
         }
 

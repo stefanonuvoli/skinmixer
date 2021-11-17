@@ -300,7 +300,7 @@ void SkinMixerData<Model>::computeDeformation(Entry& entry)
 
 //                    dualQuaternions.push_back(nvl::DualQuaterniond(nvl::Rotation3d(transformations[jId].rotation()), nvl::Translation3d(transformations[jId].translation())));
 //                    const JointId& parentId = model->skeleton.parentId(jId);
-//                    if (parentId != nvl::MAX_INDEX) {
+//                    if (parentId != nvl::NULL_ID) {
 //                        dualQuaternions.push_back(nvl::DualQuaterniond(nvl::Rotation3d(transformations[parentId].rotation()), nvl::Translation3d(transformations[parentId].translation())));
 //                    }
 //                    for (const JointId& childId : model->skeleton.children(jId)) {
@@ -341,7 +341,7 @@ void SkinMixerData<Model>::computeDeformation(Entry& entry)
 template<class Model>
 void SkinMixerData<Model>::Entry::clear()
 {
-    id = nvl::MAX_INDEX;
+    id = nvl::NULL_ID;
 
     model = nullptr;
 
@@ -372,10 +372,10 @@ template<class Model>
 void SkinMixerData<Model>::Action::clear()
 {
     operation = OperationType::NONE;
-    entry1 = nvl::MAX_INDEX;
-    entry2 = nvl::MAX_INDEX;
-    joint1 = nvl::MAX_INDEX;
-    joint2 = nvl::MAX_INDEX;
+    entry1 = nvl::NULL_ID;
+    entry2 = nvl::NULL_ID;
+    joint1 = nvl::NULL_ID;
+    joint2 = nvl::NULL_ID;
 
     select1.clear();
     select2.clear();
@@ -418,7 +418,7 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
         Action& action = this->action(aId);
 
         if (action.operation == OperationType::REMOVE) {
-            assert(action.entry1 != nvl::MAX_INDEX);
+            assert(action.entry1 != nvl::NULL_ID);
 
             if (action.entry1 == entry.id) {
                 const SelectInfo& selectInfo1 = action.select1;
@@ -435,7 +435,7 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
             }
         }
         else if (action.operation == OperationType::DETACH) {
-            assert(action.entry1 != nvl::MAX_INDEX);
+            assert(action.entry1 != nvl::NULL_ID);
 
             if (action.entry1 == entry.id) {
                 const SelectInfo& selectInfo1 = action.select1;
@@ -452,8 +452,8 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
             }
         }
         else if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
-            assert(action.entry1 != nvl::MAX_INDEX);
-            assert(action.entry2 != nvl::MAX_INDEX);
+            assert(action.entry1 != nvl::NULL_ID);
+            assert(action.entry2 != nvl::NULL_ID);
 
             if (action.entry1 == entry.id) {
                 const SelectInfo& selectInfo1 = action.select1;

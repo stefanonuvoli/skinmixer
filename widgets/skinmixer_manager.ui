@@ -127,9 +127,9 @@
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
          <item>
-          <widget class="QRadioButton" name="mixModeRetopologyRadioBox">
+          <widget class="QRadioButton" name="mixModeMeshingRadioBox">
            <property name="text">
-            <string>Retopology</string>
+            <string>Meshing</string>
            </property>
            <property name="checked">
             <bool>true</bool>
@@ -140,6 +140,13 @@
           <widget class="QRadioButton" name="mixModeMorphingRadioBox">
            <property name="text">
             <string>Morphing</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="mixModePreviewRadioBox">
+           <property name="text">
+            <string>Preview</string>
            </property>
           </widget>
          </item>
@@ -241,7 +248,7 @@
          <string/>
         </property>
         <property name="currentIndex">
-         <number>2</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="generalParametersPage">
          <attribute name="title">

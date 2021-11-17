@@ -13,7 +13,7 @@ namespace skinmixer {
 
 enum OperationType { NONE, REMOVE, DETACH, REPLACE, ATTACH };
 enum ReplaceMode { BLEND, UNION };
-enum MixMode { RETOPOLOGY, MORPHING };
+enum MixMode { MESHING, MORPHING, PREVIEW };
 
 template<class Model>
 class SkinMixerData

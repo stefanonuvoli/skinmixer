@@ -118,7 +118,7 @@ void blendSkeletons(
             }
         }
 
-        jointMap[birthEId] = std::vector<JointId>(currentSkeleton.jointNumber(), nvl::MAX_INDEX);
+        jointMap[birthEId] = std::vector<JointId>(currentSkeleton.jointNumber(), nvl::NULL_ID);
     }
 
     for (const nvl::Index& birthEId : cluster) {
@@ -145,7 +145,7 @@ void blendSkeletons(
             while (it != remainingAssignedJoints[birthEId].end()) {
                 JointId jId = *it;
 
-                assert(jointMap[birthEId][jId] == nvl::MAX_INDEX);
+                assert(jointMap[birthEId][jId] == nvl::NULL_ID);
                 assert(keptJoints[birthEId].find(jId) != keptJoints[birthEId].end() && remainingAssignedJoints[birthEId].find(jId) != remainingAssignedJoints[birthEId].end());
 
                 keptDone = false;
@@ -153,16 +153,16 @@ void blendSkeletons(
                 const Joint& joint = currentSkeleton.joint(jId);
                 JointId parentId = currentSkeleton.parentId(jId);
 
-                JointId newJId = nvl::MAX_INDEX;
-                if (parentId == nvl::MAX_INDEX || (keptJoints[birthEId].find(parentId) == keptJoints[birthEId].end() && jointToBeMerged[birthEId].find(jId) == jointToBeMerged[birthEId].end())) {
+                JointId newJId = nvl::NULL_ID;
+                if (parentId == nvl::NULL_ID || (keptJoints[birthEId].find(parentId) == keptJoints[birthEId].end() && jointToBeMerged[birthEId].find(jId) == jointToBeMerged[birthEId].end())) {
                     newJId = targetSkeleton.addRoot(joint);
                 }
-                else if (parentId != nvl::MAX_INDEX && jointMap[birthEId][parentId] != nvl::MAX_INDEX) {
+                else if (parentId != nvl::NULL_ID && jointMap[birthEId][parentId] != nvl::NULL_ID) {
                     const Joint& joint = currentSkeleton.joint(jId);
                     newJId = targetSkeleton.addChild(jointMap[birthEId][parentId], joint);
                 }
 
-                if (newJId != nvl::MAX_INDEX) {
+                if (newJId != nvl::NULL_ID) {
                     jointMap[birthEId][jId] = newJId;
                     matchedJoints[birthEId].insert(newJId);
                     perfectMatchedJoints[birthEId].insert(newJId);
@@ -184,8 +184,8 @@ void blendSkeletons(
 
                         if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
                             JointInfo actionJInfo;
-                            actionJInfo.eId = nvl::MAX_INDEX;
-                            actionJInfo.jId = nvl::MAX_INDEX;
+                            actionJInfo.eId = nvl::NULL_ID;
+                            actionJInfo.jId = nvl::NULL_ID;
                             actionJInfo.confidence = 1.0;
 
                             if (action.entry1 == birthEId && action.joint1 == jId) {
@@ -198,7 +198,7 @@ void blendSkeletons(
                             }
 
                             //Case merge joint
-                            if (actionJInfo.jId != nvl::MAX_INDEX) {
+                            if (actionJInfo.jId != nvl::NULL_ID) {
                                 jointMap[actionJInfo.eId][actionJInfo.jId] = newJId;
 
                                 resultEntry.birth.joint[newJId].push_back(actionJInfo);
@@ -250,8 +250,8 @@ void blendSkeletons(
         while (!remainingJoints.empty()) {
             double bestConfidence = nvl::minLimitValue<double>();
             double bestScore = nvl::minLimitValue<double>();
-            JointId bestCurrentJoint = nvl::MAX_INDEX;
-            JointId bestTargetJoint = nvl::MAX_INDEX;
+            JointId bestCurrentJoint = nvl::NULL_ID;
+            JointId bestTargetJoint = nvl::NULL_ID;
 
             for (JointId assignedJId = 0; assignedJId < currentSkeleton.jointNumber(); ++assignedJId) {
                 if (remainingJoints.find(assignedJId) != remainingJoints.end())
@@ -263,7 +263,7 @@ void blendSkeletons(
 
                 //Handle parents
                 if (remainingJoints.find(assignedParentId) != remainingJoints.end()) {
-                    assert(currentMap[assignedParentId] == nvl::MAX_INDEX);
+                    assert(currentMap[assignedParentId] == nvl::NULL_ID);
                     assert(nonKeptJoints[birthEId].find(assignedParentId) != nonKeptJoints[birthEId].end() && remainingJoints.find(assignedParentId) != remainingJoints.end());
 
                     JointId currentJId = assignedParentId;
@@ -335,7 +335,7 @@ void blendSkeletons(
                     if (remainingJoints.find(currentChildId) == remainingJoints.end())
                         continue;
 
-                    assert(currentMap[currentChildId] == nvl::MAX_INDEX);
+                    assert(currentMap[currentChildId] == nvl::NULL_ID);
                     assert(nonKeptJoints[birthEId].find(currentChildId) != nonKeptJoints[birthEId].end() && remainingJoints.find(currentChildId) != remainingJoints.end());
 
                     std::vector<JointId> candidates = nvl::skeletonJointDescendants(targetSkeleton, currentMap[assignedJId]);
@@ -434,7 +434,7 @@ void blendSkeletons(
             remainingJoints.erase(bestCurrentJoint);
         }
         for (JointId jId = 0; jId < currentSkeleton.jointNumber(); ++jId) {
-            assert(currentMap[jId] != nvl::MAX_INDEX);
+            assert(currentMap[jId] != nvl::NULL_ID);
         }
     }
 }

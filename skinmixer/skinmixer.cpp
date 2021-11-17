@@ -304,9 +304,9 @@ nvl::Index remove(
     Action action;
     action.operation = OperationType::REMOVE;
     action.entry1 = entry.id;
-    action.entry2 = nvl::MAX_INDEX;
+    action.entry2 = nvl::NULL_ID;
     action.joint1 = includeParent ? model->skeleton.parentId(targetJoint) : targetJoint;
-    action.joint2 = nvl::MAX_INDEX;
+    action.joint2 = nvl::NULL_ID;
     action.hardness1 = hardness;
     action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
@@ -340,9 +340,9 @@ nvl::Index detach(
     Action action;
     action.operation = OperationType::DETACH;
     action.entry1 = entry.id;
-    action.entry2 = nvl::MAX_INDEX;
+    action.entry2 = nvl::NULL_ID;
     action.joint1 = includeParent ? model->skeleton.parentId(targetJoint) : targetJoint;
-    action.joint2 = nvl::MAX_INDEX;
+    action.joint2 = nvl::NULL_ID;
     action.hardness1 = hardness;
     action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;

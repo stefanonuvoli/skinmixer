@@ -51,7 +51,7 @@ void blendSkinningWeights(
     std::vector<std::vector<JointId>> preJointMap(cluster.size());
     for (Index cId = 0; cId < cluster.size(); ++cId) {
         Entry& birthEntry = data.entry(cluster[cId]);
-        preJointMap[cId].resize(birthEntry.model->skeleton.jointNumber(), nvl::MAX_INDEX);
+        preJointMap[cId].resize(birthEntry.model->skeleton.jointNumber(), nvl::NULL_ID);
     }
 
     for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
@@ -61,8 +61,8 @@ void blendSkinningWeights(
             if (jointInfo.confidence == 1.0) {
                 const Index& cId = clusterMap[jointInfo.eId];
 
-                assert(jointInfo.jId != nvl::MAX_INDEX);
-                assert(preJointMap[cId][jointInfo.jId] == nvl::MAX_INDEX);
+                assert(jointInfo.jId != nvl::NULL_ID);
+                assert(preJointMap[cId][jointInfo.jId] == nvl::NULL_ID);
 
                 preJointMap[cId][jointInfo.jId] = jId;
             }
@@ -81,17 +81,17 @@ void blendSkinningWeights(
             const Mesh& currentMesh = currentModel->mesh;
             const SkinningWeights& currentSkinningWeights = currentModel->skinningWeights;
 
-            if (vertexInfo.vId != nvl::MAX_INDEX) {
+            if (vertexInfo.vId != nvl::NULL_ID) {
                 const Index& cId = clusterMap[vertexInfo.eId];
 
                 assert(vertexInfo.weight == 1.0);
 
                 const std::vector<Index>& nonZeros = currentSkinningWeights.nonZeroWeights(vertexInfo.vId);
                 for (const Index& jId : nonZeros) {
-                    if (preJointMap[cId][jId] != nvl::MAX_INDEX) {
+                    if (preJointMap[cId][jId] != nvl::NULL_ID) {
                         const SkinningWeightsScalar& sw = currentSkinningWeights.weight(vertexInfo.vId, jId);
 
-                        assert(preJointMap[cId][jId] != nvl::MAX_INDEX);
+                        assert(preJointMap[cId][jId] != nvl::NULL_ID);
                         if (sw > nvl::EPSILON) {
                             targetSkinningWeights.weight(vId, preJointMap[cId][jId]) += sw;
                         }
@@ -99,7 +99,7 @@ void blendSkinningWeights(
                 }
             }
             else {
-                const Point& point = targetMesh.vertex(vId).point();
+                const Point& point = targetMesh.vertexPoint(vId);
 
                 for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
 
@@ -107,7 +107,7 @@ void blendSkinningWeights(
 
                     SkinningWeightsScalar sw = 0.0;
                     for (const JointInfo& jointInfo : jointInfos) {
-                        assert (jointInfo.jId != nvl::MAX_INDEX);
+                        assert (jointInfo.jId != nvl::NULL_ID);
 
                         if (jointInfo.eId != vertexInfo.eId) {
                             continue;
@@ -177,7 +177,7 @@ typename SkinningWeights::Scalar interpolateSkinningWeightOnFace(
     for (VertexId j = 0; j < face.vertexNumber(); ++j) {
         const VertexId& vId = face.vertexId(j);
 
-        polygon[j] = mesh.vertex(vId).point();
+        polygon[j] = mesh.vertexPoint(vId);
         values[j] = skinningWeights.weight(vId, jointId);
 
         if (values[j] > nvl::EPSILON) {

@@ -10,7 +10,7 @@
 
 #include <nvl/viewer/widgets/canvas.h>
 #include <nvl/viewer/widgets/drawable_list_widget.h>
-#include <nvl/viewer/widgets/skeletonjoint_list_widget.h>
+#include <nvl/viewer/widgets/skeleton_joint_list_widget.h>
 #include <nvl/viewer/widgets/model_animation_widget.h>
 #include <nvl/viewer/drawables/model_drawer.h>
 
