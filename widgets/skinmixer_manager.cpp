@@ -4,7 +4,7 @@
 #include <nvl/utilities/timer.h>
 #include <nvl/utilities/colorize.h>
 
-#include <nvl/models/model_io.h>
+#include <nvl/models/io/model_io.h>
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -13,7 +13,7 @@
 
 #include "skinmixer/skinmixer.h"
 
-#include <nvl/models/mesh_normals.h>
+#include <nvl/models/algorithms/mesh_normals.h>
 
 #define HARDNESS_DEFAULT 0
 #define DETACHING_HARDNESS_DEFAULT 0

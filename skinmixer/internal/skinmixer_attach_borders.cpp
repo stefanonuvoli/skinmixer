@@ -5,11 +5,11 @@
 #include <nvl/vcglib/vcg_triangle_mesh.h>
 #include <nvl/vcglib/vcg_polygon_mesh.h>
 
-#include <nvl/models/mesh_adjacencies.h>
-#include <nvl/models/mesh_borders.h>
-#include <nvl/models/mesh_transfer.h>
-#include <nvl/models/mesh_split.h>
-#include <nvl/models/mesh_graph.h>
+#include <nvl/models/algorithms/mesh_adjacencies.h>
+#include <nvl/models/algorithms/mesh_borders.h>
+#include <nvl/models/algorithms/mesh_transfer.h>
+#include <nvl/models/algorithms/mesh_split.h>
+#include <nvl/models/algorithms/mesh_graph.h>
 
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/closest_point.h>
@@ -21,7 +21,7 @@
 #include <gurobi_c++.h>
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-#include <nvl/models/mesh_io.h>
+#include <nvl/models/io/mesh_io.h>
 #endif
 
 namespace skinmixer {

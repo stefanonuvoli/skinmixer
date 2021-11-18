@@ -2,8 +2,8 @@
 
 #include <nvl/math/smoothing.h>
 
-#include <nvl/models/mesh_transfer.h>
-#include <nvl/models/mesh_adjacencies.h>
+#include <nvl/models/algorithms/mesh_transfer.h>
+#include <nvl/models/algorithms/mesh_adjacencies.h>
 
 #include <nvl/math/common_functions.h>
 

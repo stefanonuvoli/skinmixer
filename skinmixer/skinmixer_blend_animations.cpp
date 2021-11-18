@@ -5,7 +5,7 @@
 #include <nvl/math/interpolation.h>
 #include <nvl/math/numeric_limits.h>
 
-#include <nvl/models/animation_algorithms.h>
+#include <nvl/models/algorithms/animation_algorithms.h>
 #include <iostream>
 
 //#define KEYFRAME_SELECTION_VERBOSITY

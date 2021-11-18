@@ -7,9 +7,9 @@
 #include "skinmixer/skinmixer_blend_skinningweights.h"
 #include "skinmixer/skinmixer_blend_animations.h"
 
-#include <nvl/models/model_transformations.h>
-#include <nvl/models/model_deformation.h>
-#include <nvl/models/mesh_normals.h>
+#include <nvl/models/algorithms/model_transformations.h>
+#include <nvl/models/algorithms/model_deformation.h>
+#include <nvl/models/algorithms/mesh_normals.h>
 
 #include <nvl/structures/disjoint_set.h>
 

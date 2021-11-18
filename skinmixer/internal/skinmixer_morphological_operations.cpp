@@ -1,7 +1,7 @@
 #include "skinmixer_morphological_operations.h"
 
-#include <nvl/models/mesh_adjacencies.h>
-#include <nvl/models/mesh_borders.h>
+#include <nvl/models/algorithms/mesh_adjacencies.h>
+#include <nvl/models/algorithms/mesh_borders.h>
 
 namespace skinmixer {
 namespace internal {

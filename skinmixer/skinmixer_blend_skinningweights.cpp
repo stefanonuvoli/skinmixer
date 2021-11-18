@@ -1,6 +1,6 @@
 #include "skinmixer_blend_skinningweights.h"
 
-#include <nvl/models/model_normalization.h>
+#include <nvl/models/algorithms/model_normalization.h>
 
 #include <nvl/math/constants.h>
 #include <nvl/math/numeric_limits.h>

@@ -1,7 +1,7 @@
 #include "skinmixer_data.h"
 
-#include <nvl/models/animation_skinning.h>
-#include <nvl/models/skeleton_adjacencies.h>
+#include <nvl/models/algorithms/animation_skinning.h>
+#include <nvl/models/algorithms/skeleton_adjacencies.h>
 #include <nvl/math/interpolation.h>
 #include <unordered_set>
 

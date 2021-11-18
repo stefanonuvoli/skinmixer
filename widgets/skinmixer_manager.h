@@ -14,8 +14,8 @@
 #include <nvl/viewer/widgets/model_animation_widget.h>
 #include <nvl/viewer/drawables/model_drawer.h>
 
-#include <nvl/models/model.h>
-#include <nvl/models/meshes.h>
+#include <nvl/models/model_3d.h>
+#include <nvl/models/mesh_3d.h>
 
 #include "skinmixer/skinmixer_data.h"
 

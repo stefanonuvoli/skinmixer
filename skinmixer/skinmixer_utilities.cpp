@@ -1,7 +1,7 @@
 #include "skinmixer.h"
 
-#include <nvl/models/skeleton_adjacencies.h>
-#include <nvl/models/mesh_adjacencies.h>
+#include <nvl/models/algorithms/skeleton_adjacencies.h>
+#include <nvl/models/algorithms/mesh_adjacencies.h>
 
 #include <nvl/math/smoothing.h>
 #include <nvl/math/numeric_limits.h>

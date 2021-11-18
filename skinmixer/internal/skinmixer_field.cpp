@@ -1,14 +1,15 @@
 #include "skinmixer_field.h"
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-#include <nvl/models/mesh_io.h>
+#include <nvl/models/io/mesh_io.h>
 #endif
 
-#include <nvl/models/mesh_transfer.h>
-#include <nvl/models/mesh_transformations.h>
-#include <nvl/models/mesh_triangulation.h>
-#include <nvl/models/mesh_geometric_information.h>
-#include <nvl/models/mesh_eigen_convert.h>
+#include <nvl/models/algorithms/mesh_transfer.h>
+#include <nvl/models/algorithms/mesh_transformations.h>
+#include <nvl/models/algorithms/mesh_triangulation.h>
+#include <nvl/models/algorithms/mesh_geometric_information.h>
+#include <nvl/models/algorithms/mesh_eigen_convert.h>
+#include <nvl/models/algorithms/mesh_adjacencies.h>
 
 #include <nvl/math/barycentric_interpolation.h>
 #include <nvl/math/numeric_limits.h>

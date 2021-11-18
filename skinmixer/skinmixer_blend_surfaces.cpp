@@ -9,14 +9,14 @@
 
 #include <nvl/vcglib/vcg_remeshing.h>
 
-#include <nvl/models/mesh_geometric_information.h>
-#include <nvl/models/mesh_transformations.h>
-#include <nvl/models/mesh_adjacencies.h>
-#include <nvl/models/mesh_borders.h>
-#include <nvl/models/mesh_transfer.h>
-#include <nvl/models/mesh_smoothing.h>
-#include <nvl/models/mesh_differentiation.h>
-#include <nvl/models/mesh_normals.h>
+#include <nvl/models/algorithms/mesh_geometric_information.h>
+#include <nvl/models/algorithms/mesh_transformations.h>
+#include <nvl/models/algorithms/mesh_adjacencies.h>
+#include <nvl/models/algorithms/mesh_borders.h>
+#include <nvl/models/algorithms/mesh_transfer.h>
+#include <nvl/models/algorithms/mesh_smoothing.h>
+#include <nvl/models/algorithms/mesh_differentiation.h>
+#include <nvl/models/algorithms/mesh_normals.h>
 
 #include <nvl/vcglib/vcg_convert.h>
 #include <nvl/vcglib/vcg_triangle_mesh.h>
@@ -24,7 +24,7 @@
 #include <nvl/vcglib/vcg_grid.h>
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-#include <nvl/models/mesh_io.h>
+#include <nvl/models/io/mesh_io.h>
 #endif
 
 #include <quadretopology/quadretopology.h>
@@ -1792,9 +1792,9 @@ Mesh quadrangulateMesh(
     par.quadrangulationFixedSmoothingIterations = 5;
     par.quadrangulationNonFixedSmoothingIterations = 5;
     par.doubletRemoval = true;
-    par.resultSmoothingIterations = 5;
+    par.resultSmoothingIterations = 0;
     par.resultSmoothingNRing = 3;
-    par.resultSmoothingLaplacianIterations = 5;
+    par.resultSmoothingLaplacianIterations = 0;
     par.resultSmoothingLaplacianNRing = 3;
 
     //Get patch decomposition of the new surface
@@ -1943,14 +1943,14 @@ Mesh quadrangulateMesh(
             }
 
             if (preMesh.hasFaceMaterials() && !preMesh.faceMaterialIsNull(preFId)) {
-                const MaterialId& preMId = preMesh.faceMaterialId(preFId);
+                const MaterialId& preMId = preMesh.faceMaterial(preFId);
 
                 if (materialMap[preMId] == nvl::NULL_ID) {
                     MaterialId newMId = result.addMaterial(preMesh.material(preMId));
                     materialMap[preMId] = newMId;
                 }
 
-                result.setFaceMaterialId(newFId, materialMap[preMId]);
+                result.setfaceMaterial(newFId, materialMap[preMId]);
             }
 
             if (preMesh.hasWedgeNormals() && !preMesh.faceWedgeNormalsAreNull(preFId)) {
