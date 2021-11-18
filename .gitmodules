@@ -7,3 +7,6 @@
 [submodule "libs/libigl"]
 	path = libs/libigl
 	url = https://github.com/libigl/libigl
+[submodule "libs/quadretopology"]
+	path = libs/quadretopology
+	url = ../quadretopology
