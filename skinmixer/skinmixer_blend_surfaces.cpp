@@ -45,8 +45,9 @@
 #define NEWSURFACE_REMESHING_FACTOR 0.8
 #define NEWSURFACE_REMESHING_ITERATIONS 3
 
+#define NEWMESH_SUBDIVISION_ITERATIONS 1
 #define NEWMESH_REMESHING_FACTOR 0.8
-#define NEWMESH_REMESHING_ITERATIONS 5
+#define NEWMESH_REMESHING_ITERATIONS 3
 
 #define PRESERVE_GAP_THRESHOLD 0.01
 #define PRESERVE_REGULARIZATION_ITERATIONS 2
@@ -764,13 +765,79 @@ void blendSurfaces(
 
 #ifdef STEP_TIMES
         start = chrono::steady_clock::now();
-        std::cout << "Smoothing... ";
+        std::cout << "Mesh border subdivision... ";
 #endif
 
 
-        //Select vertices to smooth
+        for (int it = 0; it < NEWMESH_SUBDIVISION_ITERATIONS; ++it) {
+            //Select edges to subdivide
+            std::vector<std::vector<FaceId>> newFFAdj = nvl::meshFaceFaceAdjacencies(newMesh);
+
+            std::vector<std::pair<VertexId, VertexId>> edgesToSubdivide;
+            for (FaceId fId = 0; fId < newMesh.nextFaceId(); ++fId) {
+                if (newMesh.isFaceDeleted(fId))
+                    continue;
+
+                if (nvl::meshIsBorderFace(newMesh, fId, newFFAdj)) {
+                    const std::vector<VertexId>& vertexIds = newMesh.faceVertexIds(fId);
+                    for (Index j = 0; j < vertexIds.size(); j++) {
+
+                        if (!nvl::meshIsBorderFaceEdge(newMesh, fId, j, newFFAdj)) {
+                            VertexId nextJ = (j + 1) % vertexIds.size();
+
+                            edgesToSubdivide.push_back(std::make_pair(vertexIds[j], vertexIds[nextJ]));
+                        }
+                    }
+                }
+            }
+
+            //Split
+            std::vector<std::vector<FaceId>> newVFAdj = nvl::meshVertexFaceAdjacencies(newMesh);
+
+            for (const std::pair<VertexId, VertexId>& edge : edgesToSubdivide) {
+                Point midPoint =
+                        (newMesh.vertexPoint(edge.first) + newMesh.vertexPoint(edge.second)) / 2.0;
+                nvl::meshSplitEdge(newMesh, edge.first, edge.second, midPoint, newVFAdj);
+            }
+
+            //Find faces to subdivide
+            newFFAdj = nvl::meshFaceFaceAdjacencies(newMesh);
+
+            std::vector<FaceId> facesToSubdivide;
+            for (FaceId fId = 0; fId < newMesh.nextFaceId(); ++fId) {
+                if (newMesh.isFaceDeleted(fId))
+                    continue;
+
+                if (nvl::meshIsBorderFace(newMesh, fId, newFFAdj)) {
+                    facesToSubdivide.push_back(fId);
+                }
+            }
+
+
+            for (const FaceId& fId : facesToSubdivide) {
+                nvl::meshSubdivideInBarycenterWithTriangles(newMesh, fId);
+            }
+        }
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/newMesh_4_subdivided.obj", newMesh);
+#endif
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Smoothing... ";
+#endif
+
+        //Calculate ff adjancencies
         std::vector<std::vector<FaceId>> newFFAdj = nvl::meshFaceFaceAdjacencies(newMesh);
 
+        //Select vertices to smooth
         for (VertexId vId = 0; vId < newMesh.nextVertexId(); ++vId) {
             if (newMesh.isVertexDeleted(vId))
                 continue;
@@ -843,15 +910,16 @@ void blendSurfaces(
         nvl::meshLaplacianSmoothing(newMesh, borderVerticesToSmooth, SMOOTHING_BORDER_ITERATIONS, borderVerticesToSmoothAlpha);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/newMesh_4_smoothing.obj", newMesh);
+        nvl::meshSaveToFile("results/newMesh_5_smoothing.obj", newMesh);
 #endif
 
         //Total laplacian
         nvl::meshLaplacianSmoothing(newMesh, innerVerticesToSmooth, SMOOTHING_INNER_ITERATIONS, SMOOTHING_INNER_WEIGHT);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        nvl::meshSaveToFile("results/newMesh.obj", newMesh);
+        nvl::meshSaveToFile("results/newMesh_6_laplacian.obj", newMesh);
 #endif
+
 
 
 #ifdef STEP_TIMES
@@ -862,7 +930,23 @@ void blendSurfaces(
 
 
 
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Remeshing... ";
+#endif
 
+        //Remesh
+        newMesh = nvl::isotropicRemeshing(newMesh, blendedEdgeSize * NEWMESH_REMESHING_FACTOR, NEWMESH_REMESHING_ITERATIONS, true);
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        nvl::meshSaveToFile("results/newMesh.obj", newMesh);
+#endif
+
+#ifdef STEP_TIMES
+        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+        std::cout << duration << " ms" << std::endl;
+        totalDuration += duration;
+#endif
 
 
         // --------------------------------------- QUADRANGULATION ---------------------------------------
@@ -1792,10 +1876,10 @@ Mesh quadrangulateMesh(
     par.quadrangulationFixedSmoothingIterations = 5;
     par.quadrangulationNonFixedSmoothingIterations = 5;
     par.doubletRemoval = true;
-    par.resultSmoothingIterations = 0;
-    par.resultSmoothingNRing = 3;
-    par.resultSmoothingLaplacianIterations = 0;
-    par.resultSmoothingLaplacianNRing = 3;
+    par.resultSmoothingIterations = 5;
+    par.resultSmoothingNRing = 0;
+    par.resultSmoothingLaplacianIterations = 3;
+    par.resultSmoothingLaplacianNRing = 0;
 
     //Get patch decomposition of the new surface
     std::vector<std::vector<size_t>> newSurfacePartitions;
@@ -1881,6 +1965,7 @@ Mesh quadrangulateMesh(
             const Vertex& preVertex = preMesh.vertex(preVId);
 
             const VertexId newVId = result.addVertex(preVertex);
+            result.setVertexPoint(newVId, tmpResult.vertexPoint(vId));
 
             birthVertex[newVId] = preBirthVertex[preVId];
 
