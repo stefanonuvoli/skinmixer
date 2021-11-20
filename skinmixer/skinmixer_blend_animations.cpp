@@ -145,12 +145,30 @@ void blendAnimations(
 
     typedef nvl::Quaterniond Quaternion;
 
+    const double otherFrameWeights = 0.4;
 
-    std::vector<double> windowWeights(windowSize * 2 + 1);
+    std::vector<double> windowWeights(windowSize * 2 + 1, 0.0);
 
     Index wId = 0;
     for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
-        windowWeights[wId] = windowSize + 1 - std::abs(w);
+        if (w != 0) {
+            windowWeights[wId] = windowSize + 1 - std::abs(w);
+        }
+
+        wId++;
+    }
+    assert(windowWeights.size() == wId);
+
+    nvl::normalize(windowWeights);
+
+    wId = 0;
+    for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
+        if (w == 0) {
+            windowWeights[wId] = 1.0 - otherFrameWeights;
+        }
+        else {
+            windowWeights[wId] *= otherFrameWeights;
+        }
         wId++;
     }
     assert(windowWeights.size() == wId);
@@ -159,8 +177,8 @@ void blendAnimations(
 
 #ifdef KEYFRAME_SELECTION_VERBOSITY
     std::cout << "Window weights: ";
-    for (Index i = 0; i < windowWeights.size(); i++) {
-        std::cout << windowWeights[i] << " ";
+    for (Index wId = 0; wId < windowWeights.size(); wId++) {
+        std::cout << windowWeights[wId] << " ";
     }
     std::cout << std::endl;
 #endif
