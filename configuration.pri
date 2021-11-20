@@ -23,6 +23,7 @@ QUADRETOPOLOGY_PATH = $$PWD/libs/quadretopology
 LIBIGL_PATH = $$PWD/libs/libigl
 VCGLIB_PATH = $$PWD/libs/vcglib
 OPENVDB_PATH = /usr/local/lib/
+FBXSDK_PATH = /opt/fbxsdk
 
 GUROBI_PATH = /opt/gurobi903/linux64
 GUROBI_COMPILER = gurobi_g++5.2
