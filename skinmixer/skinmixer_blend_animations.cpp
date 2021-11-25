@@ -6,7 +6,11 @@
 #include <nvl/math/numeric_limits.h>
 
 #include <nvl/models/algorithms/animation_algorithms.h>
+#include <nvl/models/algorithms/animation_blend.h>
+
+#ifdef KEYFRAME_SELECTION_VERBOSITY
 #include <iostream>
+#endif
 
 //#define KEYFRAME_SELECTION_VERBOSITY
 #define DUPLICATE_KEYFRAME_TO_BLEND nvl::NULL_ID - 1
@@ -267,9 +271,9 @@ void blendAnimations(
         const Skeleton& currentSkeleton = currentModel->skeleton;
 
         //Calculate global frames
-        nvl::animationComputeGlobalFrames(currentSkeleton, globalFixedFrames[cId]);
+        nvl::animationGlobalFromLocalFrames(currentSkeleton, globalFixedFrames[cId]);
         for (Index aId = 0; aId < localCandidateFrames[cId].size(); aId++) {
-            nvl::animationComputeGlobalFrames(currentSkeleton, globalCandidateFrames[cId][aId]);
+            nvl::animationGlobalFromLocalFrames(currentSkeleton, globalCandidateFrames[cId][aId]);
         }
     }
 

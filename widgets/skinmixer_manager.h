@@ -59,6 +59,7 @@ public:
     Index loadModel(const Model& model);
     bool removeModelDrawer(ModelDrawer* modelDrawer);
 
+
 public Q_SLOTS:
 
     void slot_canvasPicking(const std::vector<PickingData>& data);
@@ -107,6 +108,7 @@ private slots:
 
     void on_updateJointsResetButton_clicked();
     void on_updateJointsBirthButton_clicked();
+
 
 private:
 

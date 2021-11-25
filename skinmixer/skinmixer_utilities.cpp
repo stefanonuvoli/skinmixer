@@ -23,8 +23,8 @@ nvl::Affine3d findReplaceMoveTransformation(
     const Skeleton& skeleton1 = model1->skeleton;
     const Skeleton& skeleton2 = model2->skeleton;
 
-    Point v1 = currentTransformation1 * (skeleton1.joint(targetJoint1).restPose() * Point(0,0,0));
-    Point v2 = currentTransformation2 * (skeleton2.joint(targetJoint2).restPose() * Point(0,0,0));
+    Point v1 = currentTransformation1 * (skeleton1.joint(targetJoint1).bindPose() * Point(0,0,0));
+    Point v2 = currentTransformation2 * (skeleton2.joint(targetJoint2).bindPose() * Point(0,0,0));
     Point t = v1 - v2;
 
     return nvl::Affine3d(nvl::Translation3d(t));

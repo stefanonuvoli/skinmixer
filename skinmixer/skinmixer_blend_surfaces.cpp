@@ -2035,7 +2035,7 @@ Mesh quadrangulateMesh(
                     materialMap[preMId] = newMId;
                 }
 
-                result.setfaceMaterial(newFId, materialMap[preMId]);
+                result.setFaceMaterial(newFId, materialMap[preMId]);
             }
 
             if (preMesh.hasWedgeNormals() && !preMesh.faceWedgeNormalsAreNull(preFId)) {

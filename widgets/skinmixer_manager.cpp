@@ -93,8 +93,8 @@ nvl::Index SkinMixerManager::loadModel(Model* model)
     vDrawerToModelMap.insert(std::make_pair(modelDrawer, model));
     vModelToDrawerMap.insert(std::make_pair(model, modelDrawer));
 
-    //Remove rotations in rest pose of the model
-    modelRemoveRotationInRestPose(*model);
+    //Remove rotations in bind pose of the model
+    modelRemoveRotationInBindPose(*model);
 
     vSkinMixerData.addEntry(model);
 
@@ -274,7 +274,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     nvl::Translation3d tra(transform.translation());
 
     if (vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) {
-        nvl::Point3d center = vSelectedModelDrawer->model()->skeleton.joint(vSelectedJoint).restPose() * vSelectedModelDrawer->model()->skeleton.originPoint();
+        nvl::Point3d center = vSelectedModelDrawer->model()->skeleton.joint(vSelectedJoint).bindPose() * vSelectedModelDrawer->model()->skeleton.originPoint();
         nvl::Translation3d originTra(-center);
 
         nvl::Affine3d rotationTransform = originTra.inverse() * rot * originTra;
@@ -612,8 +612,8 @@ void SkinMixerManager::prepareModelForReplaceOrAttach()
                 targetJoint2 = skeleton2.parentId(targetJoint2);
             }
 
-            Point v1 = skeleton1.joint(targetJoint1).restPose() * skeleton1.originPoint();
-            Point v2 = skeleton2.joint(targetJoint2).restPose() * skeleton2.originPoint();
+            Point v1 = skeleton1.joint(targetJoint1).bindPose() * skeleton1.originPoint();
+            Point v2 = skeleton2.joint(targetJoint2).bindPose() * skeleton2.originPoint();
 
             Point translateVector = v1 - v2;
 
@@ -1170,7 +1170,7 @@ void SkinMixerManager::on_modelLoadButton_clicked()
     dialog.setFileMode(QFileDialog::ExistingFiles);
     QStringList filters;
     filters
-            << "Model (*.rig)"
+            << "Model (*.rig *.fbx)"
             << "Any files (*)";
     dialog.setNameFilters(filters);
 
@@ -1219,11 +1219,11 @@ void SkinMixerManager::on_modelSaveButton_clicked()
     if (vSelectedModelDrawer == nullptr)
         return;
 
-    QString filename = QFileDialog::getSaveFileName(this,
-            tr("Save model"), QDir::homePath(),
-            tr("Model (*.rig);;All Files (*)"));
-
     const Model& model = *vSelectedModelDrawer->model();
+
+    QString filename = QFileDialog::getSaveFileName(this,
+            tr("Save model"), QDir::homePath() + QString(model.name().c_str()) + QString(".rig"),
+            tr("Model (*.rig);;All Files (*)"));
 
     if (!filename.isEmpty()) {
         bool success = nvl::modelSaveToFile(filename.toStdString(), model);
