@@ -70,7 +70,11 @@ nvl::Index SkinMixerManager::loadModelFromFile(const std::string& filename)
 {
     Model tmpModel;
 
-    bool success = nvl::modelLoadFromFile(filename, tmpModel);
+    nvl::IOModelError error;
+    nvl::IOModelMode mode;
+    mode.deformToBindPose = ui->modelBindPoseCheckBox->isChecked();
+
+    bool success = nvl::modelLoadFromFile(filename, tmpModel, error, mode);
 
     if (success) {
         Model* model = new Model(tmpModel);
@@ -98,7 +102,7 @@ nvl::Index SkinMixerManager::loadModel(Model* model)
 
     vSkinMixerData.addEntry(model);
 
-    return vCanvas->addDrawable(modelDrawer, model->name());
+    return vCanvas->addDrawable(modelDrawer, model->name);
 }
 
 nvl::Index SkinMixerManager::loadModel(const Model& model)
@@ -760,7 +764,7 @@ void SkinMixerManager::updateView()
                 const Index& eId = birthEntries[cId];
                 Model* currentModel = vSkinMixerData.entry(eId).model;
 
-                QLabel* label = new QLabel(currentModel->name().c_str());
+                QLabel* label = new QLabel(currentModel->name.c_str());
                 label->setAlignment(Qt::AlignCenter);
 
                 QSlider* slider = new QSlider(Qt::Orientation::Horizontal, this);
@@ -874,7 +878,7 @@ void SkinMixerManager::updateView()
             ui->animationJointMeshComboBox->addItem("None");
             for (const Index& eId : birthEntries) {
                 Model* currentModel = vSkinMixerData.entry(eId).model;
-                ui->animationJointMeshComboBox->addItem(currentModel->name().c_str());
+                ui->animationJointMeshComboBox->addItem(currentModel->name.c_str());
             }
         }
     }
@@ -1222,7 +1226,7 @@ void SkinMixerManager::on_modelSaveButton_clicked()
     const Model& model = *vSelectedModelDrawer->model();
 
     QString filename = QFileDialog::getSaveFileName(this,
-            tr("Save model"), QDir::homePath() + QString(model.name().c_str()) + QString(".rig"),
+            tr("Save model"), QDir::homePath() + QString(model.name.c_str()) + QString(".rig"),
             tr("Model (*.rig);;All Files (*)"));
 
     if (!filename.isEmpty()) {
@@ -1442,7 +1446,7 @@ void SkinMixerManager::initializeLoadedModel(Model* model)
         nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
         nvl::Translation3d translateTransform(translateVector);
 
-        std::cout << model->name() << " (V: " << model->mesh.vertexNumber() << ", F: " << model->mesh.faceNumber() << ") -> Scale: " << scaleFactor << ", Translation: " << translateTransform.translation().transpose() << std::endl;
+        std::cout << model->name << " (V: " << model->mesh.vertexNumber() << ", F: " << model->mesh.faceNumber() << ") -> Scale: " << scaleFactor << ", Translation: " << translateTransform.translation().transpose() << std::endl;
 
         nvl::Affine3d transformation(scaleTransform * translateTransform);
         nvl::modelApplyTransformation(*model, transformation);
