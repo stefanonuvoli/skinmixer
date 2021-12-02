@@ -46,9 +46,6 @@ int main(int argc, char *argv[]) {
 
     //Add models
 
-//    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer texture/timmy/timmy.rig");
-//    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer texture/crypto/crypto.rig");
-
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Timmy/timmy.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Crypto/crypto.rig");
 
@@ -61,7 +58,7 @@ int main(int argc, char *argv[]) {
 
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Zlorp/zlorp.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Warrok/warrok.rig");
-//    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Dreyar/dreyar.rig");
+    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/Dreyar/dreyar.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/AlienSoldier/alienSoldier.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/GasMask/gasMask.rig");
 //    skinMixerManager.loadModelFromFile("/mnt/DATA/Workspace/Dataset/SkinMixer/MkHuman1/mkHuman1.rig");

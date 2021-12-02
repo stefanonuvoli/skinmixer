@@ -278,7 +278,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     nvl::Translation3d tra(transform.translation());
 
     if (vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) {
-        nvl::Point3d center = vSelectedModelDrawer->model()->skeleton.joint(vSelectedJoint).bindPose() * vSelectedModelDrawer->model()->skeleton.originPoint();
+        nvl::Point3d center = vSelectedModelDrawer->model()->skeleton.jointBindPose(vSelectedJoint) * vSelectedModelDrawer->model()->skeleton.originPoint();
         nvl::Translation3d originTra(-center);
 
         nvl::Affine3d rotationTransform = originTra.inverse() * rot * originTra;
@@ -419,15 +419,19 @@ void SkinMixerManager::blendAnimations()
     parameters.globalDerivativeWeight = ui->animationBlendingGlobalDerivativeSpinBox->value();
     parameters.localDerivativeWeight = ui->animationBlendingLocalDerivativeSpinBox->value();
     parameters.windowSize = ui->animationBlendingWindowSpinBox->value();
+    parameters.windowMainWeight = ui->animationBlendingMainWeightSpinBox->value();
     skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimations, parameters);
 
     vCanvas->stopAnimations();
 
-    if (!vBlendingAnimations.empty()) {
-        const Index& animationId = vBlendingAnimations[0].second;
+    for (const std::pair<Index, Index>& blendingAnimation : vBlendingAnimations) {
+        const Index& entryId = blendingAnimation.first;
+        const Index& animationId = blendingAnimation.second;
 
-        ModelDrawer* modelDrawer = vModelToDrawerMap.at(modelPtr);
-        modelDrawer->loadAnimation(animationId);
+        const SkinMixerEntry& entry = vSkinMixerData.entry(entryId);
+        ModelDrawer* entryModelDrawer = vModelToDrawerMap.at(entry.model);
+
+        entryModelDrawer->loadAnimation(animationId);
     }
 
     vModelAnimationWidget->updateView();
@@ -616,8 +620,8 @@ void SkinMixerManager::prepareModelForReplaceOrAttach()
                 targetJoint2 = skeleton2.parentId(targetJoint2);
             }
 
-            Point v1 = skeleton1.joint(targetJoint1).bindPose() * skeleton1.originPoint();
-            Point v2 = skeleton2.joint(targetJoint2).bindPose() * skeleton2.originPoint();
+            Point v1 = skeleton1.jointBindPose(targetJoint1) * skeleton1.originPoint();
+            Point v2 = skeleton2.jointBindPose(targetJoint2) * skeleton2.originPoint();
 
             Point translateVector = v1 - v2;
 

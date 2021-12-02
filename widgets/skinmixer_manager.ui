@@ -271,7 +271,7 @@
              <number>100</number>
             </property>
             <property name="value">
-             <number>80</number>
+             <number>20</number>
             </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -397,54 +397,14 @@
           <string>Animation blend</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_8">
-          <item row="1" column="0">
-           <widget class="QLabel" name="animationBlendingLocalLabel">
+          <item row="0" column="2">
+           <widget class="QLabel" name="animationBlendingGlobalDerivativeLabel">
             <property name="text">
-             <string>Local:</string>
+             <string>Deriv</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="animationBlendingGlobalLabel">
-            <property name="text">
-             <string>Global:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="animationBlendingLocalSpinBox">
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="animationBlendingFPSLabel">
-            <property name="text">
-             <string>FPS</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QDoubleSpinBox" name="animationBlendingGlobalSpinBox">
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.900000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="3">
+          <item row="0" column="7">
            <widget class="QDoubleSpinBox" name="animationBlendingLocalDerivativeSpinBox">
             <property name="maximum">
              <double>1.000000000000000</double>
@@ -454,6 +414,20 @@
             </property>
             <property name="value">
              <double>0.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="animationBlendingGlobalLabel">
+            <property name="text">
+             <string>Global</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="QLabel" name="animationBlendingLocalLabel">
+            <property name="text">
+             <string>Local</string>
             </property>
            </widget>
           </item>
@@ -470,28 +444,47 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="2">
-           <widget class="QLabel" name="animationBlendingGlobalDerivativeLabel">
-            <property name="text">
-             <string>Derivative:</string>
+          <item row="0" column="5">
+           <widget class="QDoubleSpinBox" name="animationBlendingLocalSpinBox">
+            <property name="maximum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.000000000000000</double>
             </property>
            </widget>
           </item>
-          <item row="1" column="2">
+          <item row="0" column="6">
            <widget class="QLabel" name="animationBlendingLocalDerivativeLabel">
             <property name="text">
-             <string>Derivative:</string>
+             <string>Deriv</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="2">
+          <item row="0" column="1">
+           <widget class="QDoubleSpinBox" name="animationBlendingGlobalSpinBox">
+            <property name="maximum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.900000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
            <widget class="QLabel" name="animationBlendingWindowLabel">
             <property name="text">
-             <string>Window:</string>
+             <string>Window</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="3">
+          <item row="2" column="1">
            <widget class="QSpinBox" name="animationBlendingWindowSpinBox">
             <property name="maximum">
              <number>10</number>
@@ -501,7 +494,31 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item row="2" column="2">
+           <widget class="QLabel" name="animationBlendingMainWeightLabel">
+            <property name="text">
+             <string>Weight</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="3">
+           <widget class="QDoubleSpinBox" name="animationBlendingMainWeightSpinBox">
+            <property name="maximum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.600000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="4">
+           <widget class="QLabel" name="animationBlendingFPSLabel">
+            <property name="text">
+             <string>FPS</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="5" colspan="2">
            <widget class="QDoubleSpinBox" name="animationBlendingFPSSpinBox">
             <property name="value">
              <double>30.000000000000000</double>

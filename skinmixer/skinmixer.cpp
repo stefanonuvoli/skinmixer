@@ -165,7 +165,17 @@ void mixAnimations(
 #endif
 
     //Blending animations
-    blendAnimations(data, entry, resultAnimations, parameters.samplingFPS, parameters.globalWeight, parameters.localWeight, parameters.globalDerivativeWeight, parameters.localDerivativeWeight, parameters.windowSize);
+    blendAnimations(
+                data,
+                entry,
+                resultAnimations,
+                parameters.samplingFPS,
+                parameters.globalWeight,
+                parameters.localWeight,
+                parameters.globalDerivativeWeight,
+                parameters.localDerivativeWeight,
+                parameters.windowSize,
+                parameters.windowMainWeight);
 
 #ifdef GLOBAL_TIMES
     duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();

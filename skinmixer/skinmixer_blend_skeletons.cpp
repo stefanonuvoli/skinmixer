@@ -203,7 +203,7 @@ void blendSkeletons(
 
                                 resultEntry.birth.joint[newJId].push_back(actionJInfo);
 
-                                transformation = data.entry(action.entry1).model->skeleton.joint(action.joint1).bindPose();
+                                transformation = data.entry(action.entry1).model->skeleton.jointBindPose(action.joint1);
 
                                 remainingAssignedJoints[actionJInfo.eId].erase(actionJInfo.jId);
                                 matchedJoints[actionJInfo.eId].insert(newJId);
@@ -295,8 +295,8 @@ void blendSkeletons(
                         const JointId& targetJId = candidates[candidateId];
                         const unsigned int& targetTopologicalDistance = candidateDistance[candidateId];
 
-                        Point currentPivotPoint = currentSkeleton.joint(assignedJId).bindPose() * Point::Zero();
-                        Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).bindPose() * nvl::Point3d::Zero();
+                        Point currentPivotPoint = currentSkeleton.jointBindPose(assignedJId) * Point::Zero();
+                        Point targetPivotPoint = targetSkeleton.jointBindPose(currentMap[assignedJId]) * nvl::Point3d::Zero();
 
                         double confidence = internal::skeletonMatchingConfidence(
                                     currentSkeleton,
@@ -352,8 +352,8 @@ void blendSkeletons(
                         const JointId& targetJId = candidates[candidateId];
                         const int& targetTopologicalDistance = distanceFromAssignedJoint[targetJId];
 
-                        Point currentPivotPoint = currentSkeleton.joint(assignedJId).bindPose() * Point::Zero();
-                        Point targetPivotPoint = targetSkeleton.joint(currentMap[assignedJId]).bindPose() * nvl::Point3d::Zero();
+                        Point currentPivotPoint = currentSkeleton.jointBindPose(assignedJId) * Point::Zero();
+                        Point targetPivotPoint = targetSkeleton.jointBindPose(currentMap[assignedJId]) * nvl::Point3d::Zero();
 
                         double confidence = internal::skeletonMatchingConfidence(
                                     currentSkeleton,
@@ -483,7 +483,7 @@ void SkeletonPaths<Skeleton>::compute(const Skeleton& skeleton)
                 const JointId& parentId = skeleton.parentId(jId);
 
                 nvl::Vector3<Scalar> p = nvl::Vector3<Scalar>::Zero();
-                p = skeleton.joint(parentId).bindPose().inverse() * skeleton.joint(jId).bindPose() * p;
+                p = skeleton.jointBindPose(parentId).inverse() * skeleton.jointBindPose(jId) * p;
 
                 distance = pathDistance[i].at(parentId) + p.norm();
             }
@@ -616,9 +616,9 @@ double skeletonMatchingConfidence(
         relativeDirectionScore = 1.0;
     }
     else if (!currentSkeleton.isRoot(currentJId) && !targetSkeleton.isRoot(targetJId)) {
-        nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentJId).bindPose() * Point::Zero() - currentPivotPoint;
+        nvl::Vector3d currentParentDirection = currentSkeleton.jointBindPose(currentJId) * Point::Zero() - currentPivotPoint;
         currentParentDirection.normalize();
-        nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetJId).bindPose() * nvl::Point3d::Zero() - targetPivotPoint;
+        nvl::Vector3d targetParentDirection = targetSkeleton.jointBindPose(targetJId) * nvl::Point3d::Zero() - targetPivotPoint;
         targetParentDirection.normalize();
         relativeDirectionScore = (currentParentDirection.dot(targetParentDirection) + 1) / 2.0;
     }
@@ -643,9 +643,9 @@ double skeletonMatchingConfidence(
             currentRootId = currentSkeleton.parentId(currentRootId);
         }
 
-        nvl::Vector3d currentParentDirection = currentSkeleton.joint(currentJId).bindPose() * nvl::Point3d::Zero() - currentSkeleton.joint(currentRootId).bindPose() * nvl::Point3d::Zero();
+        nvl::Vector3d currentParentDirection = currentSkeleton.jointBindPose(currentJId) * nvl::Point3d::Zero() - currentSkeleton.jointBindPose(currentRootId) * nvl::Point3d::Zero();
         currentParentDirection.normalize();
-        nvl::Vector3d targetParentDirection = targetSkeleton.joint(targetJId).bindPose() * nvl::Point3d::Zero() - targetSkeleton.joint(targetRootId).bindPose() * nvl::Point3d::Zero();
+        nvl::Vector3d targetParentDirection = targetSkeleton.jointBindPose(targetJId) * nvl::Point3d::Zero() - targetSkeleton.jointBindPose(targetRootId) * nvl::Point3d::Zero();
         targetParentDirection.normalize();
         globalDirectionScore = (currentParentDirection.dot(targetParentDirection) + 1) / 2.0;
     }

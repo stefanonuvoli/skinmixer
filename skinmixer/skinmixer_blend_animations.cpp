@@ -8,12 +8,12 @@
 #include <nvl/models/algorithms/animation_algorithms.h>
 #include <nvl/models/algorithms/animation_blend.h>
 
+#define KEYFRAME_SELECTION_VERBOSITY
+#define DUPLICATE_KEYFRAME_TO_BLEND nvl::NULL_ID - 1
+
 #ifdef KEYFRAME_SELECTION_VERBOSITY
 #include <iostream>
 #endif
-
-//#define KEYFRAME_SELECTION_VERBOSITY
-#define DUPLICATE_KEYFRAME_TO_BLEND nvl::NULL_ID - 1
 
 namespace skinmixer {
 
@@ -133,7 +133,8 @@ void blendAnimations(
         const double& localWeight,
         const double& globalDerivativeWeight,
         const double& localDerivativeWeight,
-        const unsigned int& windowSize)
+        const unsigned int& windowSize,
+        const double& mainFrameWeight)
 {
     typedef typename nvl::Index Index;
 
@@ -149,33 +150,29 @@ void blendAnimations(
 
     typedef nvl::Quaterniond Quaternion;
 
-    const double otherFrameWeights = 0.4;
-
     std::vector<double> windowWeights(windowSize * 2 + 1, 0.0);
 
-    Index wId = 0;
-    for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
-        if (w != 0) {
-            windowWeights[wId] = windowSize + 1 - std::abs(w);
-        }
+    double sigma = 1.5;
 
-        wId++;
+    for (int i = 0; i < static_cast<int>(windowWeights.size()); ++i) {
+        if (i == static_cast<int>(windowSize))
+            continue;
+
+        windowWeights[i] =
+            std::exp(-0.5 * (std::pow((i - static_cast<int>(windowSize))/sigma, 2.0)))
+                / (2 * M_PI * sigma * sigma);
     }
-    assert(windowWeights.size() == wId);
 
     nvl::normalize(windowWeights);
 
-    wId = 0;
-    for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
-        if (w == 0) {
-            windowWeights[wId] = 1.0 - otherFrameWeights;
+    for (int i = 0; i < static_cast<int>(windowWeights.size()); ++i) {
+        if (i == static_cast<int>(windowSize)) {
+            windowWeights[i] = mainFrameWeight;
         }
         else {
-            windowWeights[wId] *= otherFrameWeights;
+            windowWeights[i] *= 1.0 - mainFrameWeight;
         }
-        wId++;
     }
-    assert(windowWeights.size() == wId);
 
     nvl::normalize(windowWeights);
 
@@ -638,29 +635,35 @@ void blendAnimations(
 
 #ifdef KEYFRAME_SELECTION_VERBOSITY
     std::cout << std::endl << "Animation blending: " << std::endl;
+
+    std::cout.precision(4);
     for (Index i = 0; i < times.size(); ++i) {
         const double& currentTime = times[i];
-        std::cout << ">>>> " << i << " - Time: " << currentTime << std::endl;
+        std::cout << std::fixed << currentTime << " (" << i << ") ->\t";
 
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Index& animationMode = animationModes[cId];
 
-            std::cout << cId << " -> ";
+            if (cId > 0) {
+                std::cout << "\t";
+            }
 
             if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
                 if (bestKeyframeAnimation[i][cId] != nvl::NULL_ID) {
                     if (bestKeyframeAnimation[i][cId] == DUPLICATE_KEYFRAME_TO_BLEND) {
-                        std::cout << " B" << std::endl;
+                        std::cout << "B";
                     }
                     else {
-                        std::cout << " " << bestKeyframeAnimation[i][cId] << "(" << bestKeyframe[i][cId] << ")";
+                        std::cout << "(" << bestKeyframeAnimation[i][cId] << ", " << bestKeyframe[i][cId] << ")";
                     }
                 }
             }
-
-
-            std::cout << std::endl;
+            else {
+                std::cout << "F";
+            }
         }
+
+        std::cout << std::endl;
     }
 #endif
 

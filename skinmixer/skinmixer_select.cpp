@@ -6,6 +6,7 @@
 #include <nvl/models/algorithms/mesh_adjacencies.h>
 
 #include <nvl/math/common_functions.h>
+#include <nvl/math/statistics.h>
 
 #include <math.h>
 
@@ -79,44 +80,69 @@ void computeSelectValues(
 
     //For each component, we check rigidity
     for (const std::vector<FaceId>& componentFaces : connectedComponents) {
-        //Create connected component mesh
-        Mesh componentMesh;
-        std::vector<VertexId> componentBirthVertex;
-        std::vector<FaceId> componentBirthFace;
-        nvl::meshTransferFaces(mesh, componentFaces, componentMesh, componentBirthVertex, componentBirthFace);
-
-        //Check rigidity
-        double minValue = nvl::maxLimitValue<double>();
-        double maxValue = nvl::minLimitValue<double>();
-        double avgValue = 0.0;
-        for (VertexId cId = 0; cId < componentMesh.nextVertexId(); ++cId) {
-            if (componentMesh.isVertexDeleted(cId))
-                continue;
-
-            VertexId vId = componentBirthVertex[cId];
-
-            assert(vId != nvl::NULL_ID);
-            minValue = nvl::min(minValue, vertexSelectValue[vId]);
-            maxValue = nvl::max(maxValue, vertexSelectValue[vId]);
-
-            //Offset
-            vertexSelectValue[vId] = internal::computeHardness(vertexSelectValue[vId], hardness);
-
-            avgValue += vertexSelectValue[vId];
+        std::vector<VertexId> componentVertices;
+        for (const FaceId& fId : componentFaces) {
+            componentVertices.insert(componentVertices.end(), mesh.faceVertexIds(fId).begin(), mesh.faceVertexIds(fId).end());
         }
-        avgValue /= componentMesh.vertexNumber();
+        std::sort(componentVertices.begin(), componentVertices.end());
+        componentVertices.erase(std::unique(componentVertices.begin(), componentVertices.end()), componentVertices.end());
 
-        bool isRigid = minValue >= 1.0 - rigidity || maxValue <= rigidity;
+        std::vector<double> componentSignificantSelectValues;
+        for (nvl::Index i = 0; i < componentVertices.size(); ++i) {
+            if (!nvl::epsEqual(vertexSelectValue[componentVertices[i]], 0.0) &&
+                !nvl::epsEqual(vertexSelectValue[componentVertices[i]], 1.0))
+            {
+                componentSignificantSelectValues.push_back(vertexSelectValue[componentVertices[i]]);
+            }
+        }
 
-        //1.0 or 0.0 depending on avg value
-        if (isRigid) {
-            for (VertexId cId = 0; cId < componentMesh.nextVertexId(); ++cId) {
-                if (componentMesh.isVertexDeleted(cId))
-                    continue;
+        bool keepOrDiscard;
 
-                const VertexId& vId = componentBirthVertex[cId];
+        const double stddevExpected = 1.0 / nvl::sqrt(12.0);
+        const double meanExpected = 0.5;
+        if (!componentSignificantSelectValues.empty()) {
+            //Statistics variable to compute values for checking rigidity
+            double mean = nvl::mean(componentSignificantSelectValues);
+            double stddev = nvl::stddev(componentSignificantSelectValues, mean);
 
-                vertexSelectValue[vId] = avgValue >= 0.5 ? 1.0 : 0.0;
+            //Mean score
+            double meanRigidityScore =
+                    nvl::max(nvl::min(
+                        (nvl::abs(mean - meanExpected) / meanExpected)
+                    , 1.0), 0.0);
+
+            //Standard deviation score
+            double stddevRigidityScore =
+                    nvl::max(nvl::min(
+                        (nvl::abs(stddev - stddevExpected) / stddevExpected)
+                    , 1.0), 0.0);
+
+            //Total score
+            double rigidityScore = 0.5 * meanRigidityScore + 0.5 * stddevRigidityScore;
+
+            //Check if rigid
+            keepOrDiscard = rigidityScore > rigidity;
+        }
+        else {
+            keepOrDiscard = true;
+        }
+
+        //Compute hardness
+        for (VertexId vId : componentVertices) {
+            vertexSelectValue[vId] = internal::computeHardness(vertexSelectValue[vId], hardness);
+        }
+
+        //Rigid: 1.0 or 0.0 depending on avg value
+        if (keepOrDiscard) {
+            double avgSelectValue = 0.0;
+            for (VertexId vId : componentVertices) {
+                avgSelectValue += vertexSelectValue[vId];
+            }
+            avgSelectValue /= componentVertices.size();
+
+            double selectValue = avgSelectValue >= 0.5 ? 1.0 : 0.0;
+            for (VertexId vId : componentVertices) {
+                vertexSelectValue[vId] = selectValue;
             }
         }
     }

@@ -19,7 +19,8 @@ struct MixAnimationParameters {
         localWeight(0.2),
         globalDerivativeWeight(0.2),
         localDerivativeWeight(0.1),
-        windowSize(1)
+        windowSize(1),
+        windowMainWeight(0.6)
     {
 
     }
@@ -30,6 +31,7 @@ struct MixAnimationParameters {
     double globalDerivativeWeight;
     double localDerivativeWeight;
     unsigned int windowSize;
+    double windowMainWeight;
 };
 
 template<class Model>
