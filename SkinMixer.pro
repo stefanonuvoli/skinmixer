@@ -52,11 +52,8 @@ LIBS += -L$$OPENVDB_PATH -lopenvdb
 
 #gurobi
 INCLUDEPATH += $$GUROBI_PATH/include
-LIBS += -L$$GUROBI_PATH/lib -lgurobi_g++5.2 -lgurobi90
+LIBS += -L$$GUROBI_PATH/lib -l$$GUROBI_COMPILER -l$$GUROBI_LIB
 DEFINES += GUROBI_DEFINED
-
-#Define for vcglib smoother
-DEFINES += NOCOMISO
 
 LIBS += -lblosc -ltbb -lHalf -lboost_thread -lboost_system -lboost_iostreams
 
@@ -65,12 +62,18 @@ unix:!mac {
     QMAKE_CXXFLAGS += -fopenmp
     LIBS += -fopenmp
 }
-macx{
-    QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
-    QMAKE_LFLAGS += -lomp
-    LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
-}
+#macx{
+#    QMAKE_CXXFLAGS += -Xpreprocessor -fopenmp -lomp -I/usr/local/include
+#    QMAKE_LFLAGS += -lomp
+#    LIBS += -L /usr/local/lib /usr/local/lib/libomp.dylib
+#}
 
+win32{
+    DEFINES += NOMINMAX # Awful problem with windows..
+    DEFINES *= _USE_MATH_DEFINES
+    DEFINES *= _SCL_SECURE_NO_DEPRECATE
+    QMAKE_CXXFLAGS *= /bigobj
+}
 
 ############################ PROJECT FILES ############################
 

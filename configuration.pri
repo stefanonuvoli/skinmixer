@@ -10,21 +10,18 @@ DEFINES += STEP_TIMES
 
 ############################ LIBRARY PATHS ############################
 
-#Change if not default
-EIGEN_PATH = /usr/include/eigen3
-BOOST_PATH = /usr/include/boost
-LIBGQLVIEWER_PATH = /usr/lib/x86_64-linux-gnu
-
 #Internal libraries
-NUVOLIB_PATH = $$PWD/libs/nuvolib
+NUVOLIB_PATH        = $$PWD/libs/nuvolib
 QUADRETOPOLOGY_PATH = $$PWD/libs/quadretopology
+LIBIGL_PATH         = $$PWD/libs/libigl
+VCGLIB_PATH         = $$PWD/libs/vcglib
 
 #External libraries
-LIBIGL_PATH = $$PWD/libs/libigl
-VCGLIB_PATH = $$PWD/libs/vcglib
-OPENVDB_PATH = /usr/local/lib/
-FBXSDK_PATH = /opt/fbxsdk
-
-GUROBI_PATH = /opt/gurobi903/linux64
-GUROBI_COMPILER = gurobi_g++5.2
-GUROBI_LIB = gurobi90
+EIGEN_PATH          = /usr/include/eigen3
+BOOST_PATH          = /usr/include/boost
+LIBGQLVIEWER_PATH   = /usr/lib/x86_64-linux-gnu
+OPENVDB_PATH        = /usr/local/lib/
+FBXSDK_PATH         = /opt/fbxsdk
+GUROBI_PATH         = /opt/gurobi903/linux64
+GUROBI_COMPILER     = gurobi_g++5.2
+GUROBI_LIB          = gurobi90
