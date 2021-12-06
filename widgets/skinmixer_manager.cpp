@@ -1230,7 +1230,7 @@ void SkinMixerManager::on_modelSaveButton_clicked()
     const Model& model = *vSelectedModelDrawer->model();
 
     QString filename = QFileDialog::getSaveFileName(this,
-            tr("Save model"), QDir::homePath() + QString(model.name.c_str()) + QString(".rig"),
+            tr("Save model"), QDir::homePath() + "/" + QString(model.name.c_str()) + QString(".rig"),
             tr("Model (*.rig);;All Files (*)"));
 
     if (!filename.isEmpty()) {
