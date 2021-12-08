@@ -1178,8 +1178,10 @@ void SkinMixerManager::on_modelLoadButton_clicked()
     dialog.setFileMode(QFileDialog::ExistingFiles);
     QStringList filters;
     filters
-            << "Model (*.rig *.fbx)"
-            << "Any files (*)";
+            << "Model (*.rig *.fbx *.RIG *.FBX)"
+            << "RIG (*.rig *.RIG)"
+            << "FBX (*.fbx *.FBX)"
+            << "Any file (*)";
     dialog.setNameFilters(filters);
 
     QStringList files;
@@ -1230,8 +1232,9 @@ void SkinMixerManager::on_modelSaveButton_clicked()
     const Model& model = *vSelectedModelDrawer->model();
 
     QString filename = QFileDialog::getSaveFileName(this,
-            tr("Save model"), QDir::homePath() + "/" + QString(model.name.c_str()) + QString(".rig"),
-            tr("Model (*.rig);;All Files (*)"));
+        tr("Save model"), QDir::homePath() + "/" + QString(model.name.c_str()) + QString(".rig"),
+        tr("Model (*.rig *.RIG *.obj *.OBJ *.fbx *.FBX);;RIG (*.rig *.RIG);;FBX (*.fbx *.FBX);;OBJ (*.obj *.OBJ);;Any file (*)")
+    );
 
     if (!filename.isEmpty()) {
         bool success = nvl::modelSaveToFile(filename.toStdString(), model);
