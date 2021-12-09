@@ -5,7 +5,7 @@
 #include <nvl/math/interpolation.h>
 #include <nvl/math/numeric_limits.h>
 
-#include <nvl/models/algorithms/animation_algorithms.h>
+#include <nvl/models/algorithms/model_pose_propagation.h>
 #include <nvl/models/algorithms/animation_blend.h>
 
 #define KEYFRAME_SELECTION_VERBOSITY
@@ -240,9 +240,9 @@ void blendAnimations(
         }
 
         //Blend frames to a given number of fps
-        nvl::animationBlendFrameTransformations(localFixedFrames[cId], samplingFPS, 1.0, false);
+        nvl::animationFrameBlend(localFixedFrames[cId], samplingFPS, 1.0, false);
         for (Index aId = 0; aId < localCandidateFrames[cId].size(); aId++) {
-            nvl::animationBlendFrameTransformations(localCandidateFrames[cId][aId], samplingFPS, 1.0, false);
+            nvl::animationFrameBlend(localCandidateFrames[cId][aId], samplingFPS, 1.0, false);
         }
 
         //Add times of fixed frames
@@ -268,9 +268,9 @@ void blendAnimations(
         const Skeleton& currentSkeleton = currentModel->skeleton;
 
         //Calculate global frames
-        nvl::animationGlobalFromLocalFrames(currentSkeleton, globalFixedFrames[cId]);
+        nvl::animationFrameGlobalFromLocal(currentSkeleton, globalFixedFrames[cId]);
         for (Index aId = 0; aId < localCandidateFrames[cId].size(); aId++) {
-            nvl::animationGlobalFromLocalFrames(currentSkeleton, globalCandidateFrames[cId][aId]);
+            nvl::animationFrameGlobalFromLocal(currentSkeleton, globalCandidateFrames[cId][aId]);
         }
     }
 
