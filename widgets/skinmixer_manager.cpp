@@ -23,7 +23,7 @@
 #define ATTACHING_HARDNESS2_DEFAULT 0
 
 SkinMixerManager::SkinMixerManager(
-        nvl::Canvas* canvas,
+        nvl::QCanvas* canvas,
         nvl::DrawableListWidget* drawableListWidget,
         nvl::SkeletonJointListWidget* skeletonJointListWidget,
         nvl::ModelAnimationWidget* modelAnimationWidget,
@@ -141,14 +141,14 @@ void SkinMixerManager::slot_canvasPicking(const std::vector<PickingData>& data) 
     if (data.size() > 0) {
         Index selected = 0;
         for (Index i = 0; i < data.size(); ++i) {
-            if (data[i].identifier == nvl::Canvas::PICKING_SKELETON_JOINT) {
+            if (data[i].identifier == nvl::QCanvas::PICKING_SKELETON_JOINT) {
                 selected = i;
                 break;
             }
         }
 
         const PickingData& picked = data[selected];
-        size_t drawableId = picked.value1;
+        size_t drawableId = picked.value(0);
 
         std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
 
@@ -171,8 +171,8 @@ void SkinMixerManager::slot_canvasPicking(const std::vector<PickingData>& data) 
 
         std::unordered_set<Index> selectedJoints;
 
-        if (picked.identifier == nvl::Canvas::PICKING_SKELETON_JOINT) {
-            Index jointId = picked.value2;
+        if (picked.identifier == nvl::QCanvas::PICKING_SKELETON_JOINT) {
+            Index jointId = picked.value(1);
 
             vSkeletonJointListWidget->updateJointList();
 
@@ -1165,9 +1165,9 @@ void SkinMixerManager::connectSignals()
         //Connect signals to the viewer
         connect(vDrawableListWidget, &nvl::DrawableListWidget::signal_drawableSelectionChanged, this, &SkinMixerManager::slot_drawableSelectionChanged);
         connect(vSkeletonJointListWidget, &nvl::SkeletonJointListWidget::signal_jointSelectionChanged, this, &SkinMixerManager::slot_jointSelectionChanged);
-        connect(vCanvas, &nvl::Canvas::signal_movableFrameChanged, this, &SkinMixerManager::slot_movableFrameChanged);
-        connect(vCanvas, &nvl::Canvas::signal_canvasPicking, this, &SkinMixerManager::slot_canvasPicking);
-        connect(vCanvas, &nvl::Canvas::signal_drawableAdded, this, &SkinMixerManager::slot_drawableAdded);
+        connect(vCanvas, &nvl::QCanvas::signal_movableFrameChanged, this, &SkinMixerManager::slot_movableFrameChanged);
+        connect(vCanvas, &nvl::QCanvas::signal_canvasPicking, this, &SkinMixerManager::slot_canvasPicking);
+        connect(vCanvas, &nvl::QCanvas::signal_drawableAdded, this, &SkinMixerManager::slot_drawableAdded);
     }
 }
 

@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <nvl/viewer/widgets/canvas.h>
+#include <nvl/viewer/widgets/qcanvas.h>
 #include <nvl/viewer/widgets/drawable_list_widget.h>
 #include <nvl/viewer/widgets/skeleton_joint_list_widget.h>
 #include <nvl/viewer/widgets/model_animation_widget.h>
@@ -47,7 +47,7 @@ class SkinMixerManager : public QFrame
 public:
 
     explicit SkinMixerManager(
-            nvl::Canvas* canvas,
+            nvl::QCanvas* canvas,
             nvl::DrawableListWidget* drawableListWidget,
             nvl::SkeletonJointListWidget* skeletonJointListWidget,
             nvl::ModelAnimationWidget* modelAnimationWidget,
@@ -163,7 +163,7 @@ private:
     //Interface fields
     Ui::SkinMixerManager *ui;
 
-    nvl::Canvas* vCanvas;
+    nvl::QCanvas* vCanvas;
     nvl::DrawableListWidget* vDrawableListWidget;
     nvl::SkeletonJointListWidget* vSkeletonJointListWidget;
     nvl::ModelAnimationWidget* vModelAnimationWidget;
