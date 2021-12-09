@@ -5,7 +5,7 @@
 #include <nvl/math/interpolation.h>
 #include <nvl/math/numeric_limits.h>
 
-#include <nvl/models/algorithms/model_pose_propagation.h>
+#include <nvl/models/algorithms/animation_poses.h>
 #include <nvl/models/algorithms/animation_blend.h>
 
 #define KEYFRAME_SELECTION_VERBOSITY
