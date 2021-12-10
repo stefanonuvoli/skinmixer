@@ -291,46 +291,6 @@ void SkinMixerData<Model>::computeDeformation(Entry& entry)
             }
         }
 
-
-
-//        for (int it = 0; it < smoothingIterations; ++it) {
-//            for (JointId jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
-//                if (deformedJoints.find(jId) == deformedJoints.end()) {
-//                    std::vector<nvl::DualQuaterniond> dualQuaternions;
-
-//                    dualQuaternions.push_back(nvl::DualQuaterniond(nvl::Rotation3d(transformations[jId].rotation()), nvl::Translation3d(transformations[jId].translation())));
-//                    const JointId& parentId = model->skeleton.parentId(jId);
-//                    if (parentId != nvl::NULL_ID) {
-//                        dualQuaternions.push_back(nvl::DualQuaterniond(nvl::Rotation3d(transformations[parentId].rotation()), nvl::Translation3d(transformations[parentId].translation())));
-//                    }
-//                    for (const JointId& childId : model->skeleton.children(jId)) {
-//                        dualQuaternions.push_back(nvl::DualQuaterniond(nvl::Rotation3d(transformations[childId].rotation()), nvl::Translation3d(transformations[childId].translation())));
-//                    }
-
-//                    std::vector<double> dualQuaternionsWeights(dualQuaternions.size(), 1.0 / dualQuaternions.size());
-
-//                    nvl::DualQuaterniond averageDualQuaternion;
-//                    averageDualQuaternion.setZero();
-
-//                    for (Index i = 0; i < dualQuaternions.size(); ++i) {
-//                        double weight = dualQuaternionsWeights[i];
-
-//                        const double dot = dualQuaternions[0].rotation().dot(dualQuaternions[i].rotation());
-//                        if (dot < 0.0)
-//                            weight *= -1;
-
-//                        averageDualQuaternion = averageDualQuaternion + (weight * dualQuaternions[i]);
-//                    }
-//                    averageDualQuaternion.normalize();
-
-//                    transformations[jId] = averageDualQuaternion.affineTransformation();
-//                }
-//            }
-//        }
-
-
-
-
         deformation.resize(model->skeleton.jointNumber());
         for (Index jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
             deformation[jId] = nvl::DualQuaterniond(transformations[jId]);

@@ -72,7 +72,7 @@ nvl::Index SkinMixerManager::loadModelFromFile(const std::string& filename)
 
     nvl::IOModelError error;
     nvl::IOModelMode mode;
-    mode.deformToBindPose = ui->modelBindPoseCheckBox->isChecked();
+    mode.FBXDeformToBindPose = ui->modelBindPoseCheckBox->isChecked();
 
     bool success = nvl::modelLoadFromFile(filename, tmpModel, error, mode);
 
