@@ -14,6 +14,9 @@
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
+    //Use "." as decimal separator
+    std::setlocale(LC_NUMERIC, "en_US.UTF-8");
+
     //Viewer
     nvl::ViewerWindow viewer;
     viewer.setWindowTitle("SkinMixer");

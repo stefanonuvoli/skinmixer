@@ -59,12 +59,15 @@ public:
     Index loadModel(const Model& model);
     bool removeModelDrawer(ModelDrawer* modelDrawer);
 
+Q_SIGNALS:
+    void signal_selectedDrawableUpdated();
 
 public Q_SLOTS:
 
     void slot_canvasPicking(const std::vector<PickingData>& data);
-    void slot_jointSelectionChanged(const std::unordered_set<nvl::Skeleton3d::JointId>& selectedJoints);
     void slot_drawableSelectionChanged(const std::unordered_set<Index>& selectDrawables);
+    void slot_jointSelectionChanged(const std::unordered_set<nvl::Skeleton3d::JointId>& selectedJoints);
+    void slot_animationSelectionChanged(const Index& selectedAnimation);
     void slot_movableFrameChanged();    
     void slot_drawableAdded(const Index& id, nvl::Drawable* drawable);
 
@@ -77,7 +80,7 @@ private slots:
     void on_modelMoveButton_clicked();
     void on_modelCopyButton_clicked();
 
-    void on_functionSmoothingSlider_valueChanged(int value);
+    void on_weightSmoothingSlider_valueChanged(int value);
     void on_rigiditySlider_valueChanged(int value);
     void on_showZeroCheckBox_clicked();
 
@@ -110,10 +113,16 @@ private slots:
     void on_updateJointsBirthButton_clicked();
 
 
+    void on_modelAnimationPoseButton_clicked();
+
+    void on_modelAnimationRemoveButton_clicked();
+
 private:
 
     ModelDrawer* getSelectedModelDrawer();
     JointId getSelectedJointId();
+    Index getSelectedAnimation();
+    nvl::Index getCurrentAnimationFrame();
 
     void mix();
     void blendAnimations();

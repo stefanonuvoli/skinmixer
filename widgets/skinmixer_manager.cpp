@@ -14,6 +14,7 @@
 #include "skinmixer/skinmixer.h"
 
 #include <nvl/models/algorithms/mesh_normals.h>
+#include <nvl/models/algorithms/model_deformation.h>
 
 #define HARDNESS_DEFAULT 0
 #define DETACHING_HARDNESS_DEFAULT 0
@@ -72,7 +73,20 @@ nvl::Index SkinMixerManager::loadModelFromFile(const std::string& filename)
 
     nvl::IOModelError error;
     nvl::IOModelMode mode;
-    mode.FBXDeformToBindPose = ui->modelBindPoseCheckBox->isChecked();
+
+    if (ui->modelPoseZeroRadio->isChecked()) {
+        mode.FBXDeformToPose = nvl::IOModelFBXPose::IO_FBX_POSE_ZERO;
+    }
+    else if (ui->modelPoseBindRadio->isChecked()) {
+        mode.FBXDeformToPose = nvl::IOModelFBXPose::IO_FBX_POSE_BIND;
+    }
+    else if (ui->modelPoseDefaultRadio->isChecked()) {
+        mode.FBXDeformToPose = nvl::IOModelFBXPose::IO_FBX_POSE_DEFAULT;
+    }
+    else {
+        mode.FBXDeformToPose = nvl::IOModelFBXPose::IO_FBX_POSE_NONE;
+    }
+    mode.FBXSavePoses = true;
 
     bool success = nvl::modelLoadFromFile(filename, tmpModel, error, mode);
 
@@ -233,6 +247,11 @@ void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::
     vCanvas->updateGL();
 }
 
+void SkinMixerManager::slot_animationSelectionChanged(const Index& selectedAnimation)
+{
+    updateView();
+}
+
 void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<Index>& selectedDrawables)
 {
     NVL_SUPPRESS_UNUSEDVARIABLE(selectedDrawables);
@@ -373,6 +392,17 @@ SkinMixerManager::JointId SkinMixerManager::getSelectedJointId()
     return selectedJointId;
 }
 
+nvl::Index SkinMixerManager::getSelectedAnimation()
+{
+    return vModelAnimationWidget->selectedAnimation();
+}
+
+nvl::Index SkinMixerManager::getCurrentAnimationFrame()
+{
+    return vModelAnimationWidget->currentAnimationFrame();
+}
+
+
 void SkinMixerManager::mix()
 {
     const MixMode mixMode = ui->mixModeMeshingRadioBox->isChecked() ? MixMode::MESHING :  ui->mixModeMorphingRadioBox->isChecked() ? MixMode::MORPHING : MixMode::PREVIEW;
@@ -476,7 +506,7 @@ void SkinMixerManager::applyOperation()
 
     assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID);
 
-    const unsigned int smoothingIterations = ui->functionSmoothingSlider->value();
+    const unsigned int smoothingIterations = ui->weightSmoothingSlider->value();
     const double rigidity = ui->rigiditySlider->value() / 100.0;
 
     const double hardness1 = ui->hardness1Slider->value() / 100.0;
@@ -549,7 +579,7 @@ void SkinMixerManager::updatePreview()
     if (vCurrentOperation != OperationType::NONE && jointSelected) {        
         nvl::Index actionId = nvl::NULL_ID;
 
-        const unsigned int smoothingIterations = ui->functionSmoothingSlider->value();
+        const unsigned int smoothingIterations = ui->weightSmoothingSlider->value();
         const double rigidity = ui->rigiditySlider->value() / 100.0;
 
         const double hardness1 = ui->hardness1Slider->value() / 100.0;
@@ -649,12 +679,15 @@ void SkinMixerManager::updateView()
     bool jointSelected = modelDrawerSelected && vSelectedJoint != nvl::NULL_ID;
     bool blendedModelSelected = modelDrawerSelected && !vSkinMixerData.entryFromModel(vSelectedModelDrawer->model()).birth.entries.empty();
     bool animationBlending = blendedModelSelected && !vBlendingAnimations.empty();
+    bool animationSelected = getSelectedAnimation() != nvl::NULL_ID;
 
     ui->modelLoadButton->setEnabled(true);
     ui->modelRemoveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelSaveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelMoveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelCopyButton->setEnabled(atLeastOneDrawableSelected);
+    ui->modelAnimationPoseButton->setEnabled(animationSelected);
+    ui->modelAnimationRemoveButton->setEnabled(animationSelected);
 
     ui->operationDetachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationRemoveButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
@@ -1165,6 +1198,8 @@ void SkinMixerManager::connectSignals()
         //Connect signals to the viewer
         connect(vDrawableListWidget, &nvl::DrawableListWidget::signal_drawableSelectionChanged, this, &SkinMixerManager::slot_drawableSelectionChanged);
         connect(vSkeletonJointListWidget, &nvl::SkeletonJointListWidget::signal_jointSelectionChanged, this, &SkinMixerManager::slot_jointSelectionChanged);
+        connect(vModelAnimationWidget, &nvl::ModelAnimationWidget::signal_animationSelectionChanged, this, &SkinMixerManager::slot_animationSelectionChanged);
+        connect(this, &SkinMixerManager::signal_selectedDrawableUpdated, vModelAnimationWidget, &nvl::ModelAnimationWidget::slot_selectedDrawableUpdated);
         connect(vCanvas, &nvl::QCanvas::signal_movableFrameChanged, this, &SkinMixerManager::slot_movableFrameChanged);
         connect(vCanvas, &nvl::QCanvas::signal_canvasPicking, this, &SkinMixerManager::slot_canvasPicking);
         connect(vCanvas, &nvl::QCanvas::signal_drawableAdded, this, &SkinMixerManager::slot_drawableAdded);
@@ -1286,9 +1321,14 @@ void SkinMixerManager::on_modelCopyButton_clicked()
 }
 
 
-void SkinMixerManager::on_functionSmoothingSlider_valueChanged(int value)
+void SkinMixerManager::on_weightSmoothingSlider_valueChanged(int value)
 {
-    NVL_SUPPRESS_UNUSEDVARIABLE(value);
+    std::ostringstream out;
+    out.precision(2);
+    out << (value >= 0 ? "+" : "") << std::fixed << value / 100.0;
+
+    ui->weightSmoothingValueLabel->setText(out.str().c_str());
+
     updatePreview();
 
     vCanvas->updateGL();
@@ -1296,7 +1336,12 @@ void SkinMixerManager::on_functionSmoothingSlider_valueChanged(int value)
 
 void SkinMixerManager::on_rigiditySlider_valueChanged(int value)
 {
-    NVL_SUPPRESS_UNUSEDVARIABLE(value);
+    std::ostringstream out;
+    out.precision(2);
+    out << (value >= 0 ? "+" : "") << std::fixed << value / 100.0;
+
+    ui->rigidityValueLabel->setText(out.str().c_str());
+
     updatePreview();
 
     vCanvas->updateGL();
@@ -1614,3 +1659,57 @@ void SkinMixerManager::on_updateJointsBirthButton_clicked()
 {
     updateJointsBirth();
 }
+
+void SkinMixerManager::on_modelAnimationPoseButton_clicked()
+{
+    typedef typename Model::Animation Animation;
+    typedef typename Animation::Transformation Transformation;
+
+    ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    Model* model = vSelectedModelDrawer->model();
+    if (model == nullptr)
+        return;
+
+    Index aId = getSelectedAnimation();
+    if (aId == nvl::NULL_ID)
+        return;
+
+    Index fId = getCurrentAnimationFrame();
+    if (fId == nvl::NULL_ID)
+        return;
+
+    std::vector<Transformation> transformations = model->animations[aId].keyframe(fId).transformations();
+    nvl::skeletonPoseDeformationFromLocal(model->skeleton, transformations);
+
+    nvl::modelDeformDualQuaternionSkinning(*model, transformations, false, true);
+
+    vCanvas->updateGL();
+}
+
+
+void SkinMixerManager::on_modelAnimationRemoveButton_clicked()
+{
+     ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
+     if (vSelectedModelDrawer == nullptr)
+         return;
+
+     Model* model = vSelectedModelDrawer->model();
+     if (model == nullptr)
+         return;
+
+     Index aId = getSelectedAnimation();
+     if (aId == nvl::NULL_ID)
+         return;
+
+     vSelectedModelDrawer->unloadAnimation();
+     model->removeAnimation(aId);
+
+     vCanvas->updateGL();
+
+     emit signal_selectedDrawableUpdated();
+
+}
+
