@@ -33,12 +33,20 @@ std::vector<nvl::Index> mix(
     long totalDuration = 0;
 #endif
 
+    //Remove non standard deformations
+    for (Entry entry : data.entries()) {
+        if (entry.relatedActions.size() > 0) {
+            nvl::modelRemoveNonStandardTransformations(*entry.model);
+        }
+    }
+
     //Deform models
     for (Entry entry : data.entries()) {
         if (entry.relatedActions.size() > 0) {
+            nvl::modelRemoveNonStandardTransformations(*entry.model);
             data.computeDeformation(entry);
             if (!entry.deformation.empty()) {
-                nvl::modelDeformDualQuaternionSkinning(*entry.model, entry.deformation);
+                nvl::modelDeformDualQuaternionSkinning(*entry.model, entry.deformation, false, true);
             }
         }
     }

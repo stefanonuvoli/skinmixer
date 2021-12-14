@@ -86,6 +86,7 @@ nvl::Index SkinMixerManager::loadModelFromFile(const std::string& filename)
     else {
         mode.FBXDeformToPose = nvl::IOModelFBXPose::IO_FBX_POSE_NONE;
     }
+
     mode.FBXSavePoses = true;
 
     bool success = nvl::modelLoadFromFile(filename, tmpModel, error, mode);
@@ -110,9 +111,6 @@ nvl::Index SkinMixerManager::loadModel(Model* model)
 
     vDrawerToModelMap.insert(std::make_pair(modelDrawer, model));
     vModelToDrawerMap.insert(std::make_pair(model, modelDrawer));
-
-    //Remove rotations in bind pose of the model
-    modelRemoveRotationInBindPose(*model);
 
     vSkinMixerData.addEntry(model);
 
@@ -291,7 +289,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     nvl::Affine3d transform = vCanvas->movableFrame();
 
     nvl::Affine3d::LinearMatrixType scaMatrix;
-    transform.computeScalingRotation(&scaMatrix, static_cast<nvl::Affine3d::LinearMatrixType*>(0));
+    transform.computeRotationScaling(static_cast<nvl::Affine3d::LinearMatrixType*>(0), &scaMatrix);
     nvl::Scaling3d sca(scaMatrix.diagonal());
     nvl::Quaterniond rot(transform.rotation());
     nvl::Translation3d tra(transform.translation());
@@ -304,8 +302,6 @@ void SkinMixerManager::slot_movableFrameChanged()
 
         vActionRotation = rotationTransform * vActionRotation;
         vActionTranslation = tra * vActionTranslation;
-
-//        vActionDeformation = vActionDeformation * nvl::DualQuaterniond(rot, tra);
 
         updatePreview();
     }
@@ -1681,11 +1677,10 @@ void SkinMixerManager::on_modelAnimationPoseButton_clicked()
     if (fId == nvl::NULL_ID)
         return;
 
-    std::vector<Transformation> transformations = model->animations[aId].keyframe(fId).transformations();
-    nvl::skeletonPoseDeformationFromLocal(model->skeleton, transformations);
+    std::vector<Transformation> transformations = vSelectedModelDrawer->currentFrame().transformations();
+    nvl::modelDeformDualQuaternionSkinning(*model, transformations, true, true);
 
-    nvl::modelDeformDualQuaternionSkinning(*model, transformations, false, true);
-
+    vSelectedModelDrawer->update();
     vCanvas->updateGL();
 }
 

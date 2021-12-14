@@ -199,8 +199,8 @@ void blendAnimations(
     std::vector<Animation> clusterAnimations(cluster.size());
 
     //Data for fixed and candidate frames for each cluster
-    std::vector<std::vector<Frame>> localFixedFrames(cluster.size());
-    std::vector<std::vector<std::vector<Frame>>> localCandidateFrames(cluster.size());
+    std::vector<std::vector<Frame>> globalFixedFrames(cluster.size());
+    std::vector<std::vector<std::vector<Frame>>> globalCandidateFrames(cluster.size());
 
     //Fill candidate and fixed frames
     std::vector<double> times;
@@ -220,34 +220,34 @@ void blendAnimations(
                 for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
                     Frame frame = currentAnimation.keyframe(fId);
 
-                    localFixedFrames[cId].push_back(frame);
+                    globalFixedFrames[cId].push_back(frame);
                 }
             }
         }
         //Best keyframe or best sliding mode
         else if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
-            localCandidateFrames[cId].resize(currentModel->animationNumber());
+            globalCandidateFrames[cId].resize(currentModel->animationNumber());
             for (Index aId = 0; aId < currentModel->animationNumber(); ++aId) {
                 if (animationId == BLEND_ANIMATION_NONE|| animationId == aId) {
                     assert(animationId == BLEND_ANIMATION_NONE || (animationId >= 0 && animationId < currentModel->animationNumber()));
                     const Animation& currentAnimation = currentModel->animation(aId);
                     for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
                         Frame frame = currentAnimation.keyframe(fId);
-                        localCandidateFrames[cId][aId].push_back(frame);
+                        globalCandidateFrames[cId][aId].push_back(frame);
                     }
                 }
             }
         }
 
         //Blend frames to a given number of fps
-        nvl::animationFrameBlend(localFixedFrames[cId], samplingFPS, 1.0, false);
-        for (Index aId = 0; aId < localCandidateFrames[cId].size(); aId++) {
-            nvl::animationFrameBlend(localCandidateFrames[cId][aId], samplingFPS, 1.0, false);
+        nvl::animationFrameBlend(globalFixedFrames[cId], samplingFPS, 1.0, false);
+        for (Index aId = 0; aId < globalCandidateFrames[cId].size(); aId++) {
+            nvl::animationFrameBlend(globalCandidateFrames[cId][aId], samplingFPS, 1.0, false);
         }
 
         //Add times of fixed frames
-        for (Index fId = 0; fId < localFixedFrames[cId].size(); ++fId) {
-            times.push_back(localFixedFrames[cId][fId].time());
+        for (Index fId = 0; fId < globalFixedFrames[cId].size(); ++fId) {
+            times.push_back(globalFixedFrames[cId][fId].time());
         }
     }
 
@@ -260,17 +260,16 @@ void blendAnimations(
     times.erase(std::unique(times.begin(), times.end()), times.end());
 
 
-    //Compute global frames
-    std::vector<std::vector<Frame>> globalFixedFrames = localFixedFrames;
-    std::vector<std::vector<std::vector<Frame>>> globalCandidateFrames = localCandidateFrames;
+    //Compute local frames
+    std::vector<std::vector<Frame>> localFixedFrames = globalFixedFrames;
+    std::vector<std::vector<std::vector<Frame>>> localCandidateFrames = globalCandidateFrames;
     for (Index cId = 0; cId < cluster.size(); ++cId) {
         const Model* currentModel = data.entry(cluster[cId]).model;
         const Skeleton& currentSkeleton = currentModel->skeleton;
 
-        //Calculate global frames
-        nvl::animationFrameGlobalFromLocal(currentSkeleton, globalFixedFrames[cId]);
-        for (Index aId = 0; aId < localCandidateFrames[cId].size(); aId++) {
-            nvl::animationFrameGlobalFromLocal(currentSkeleton, globalCandidateFrames[cId][aId]);
+        nvl::animationFrameLocalFromGlobal(currentSkeleton, globalFixedFrames[cId]);
+        for (Index aId = 0; aId < globalCandidateFrames[cId].size(); aId++) {
+            nvl::animationFrameLocalFromGlobal(currentSkeleton, localCandidateFrames[cId][aId]);
         }
     }
 
@@ -303,12 +302,12 @@ void blendAnimations(
 
         //Update corresponding frame for the current time
         for (Index cId = 0; cId < cluster.size(); ++cId) {
-            const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[cId];
-            while (currentFrameId[i][cId] < currentLocalFixedFrames.size() && currentLocalFixedFrames[currentFrameId[i][cId]].time() + currentTimeOffset[i][cId] <= currentTime) {
+            const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[cId];
+            while (currentFrameId[i][cId] < currentGlobalFixedFrames.size() && currentGlobalFixedFrames[currentFrameId[i][cId]].time() + currentTimeOffset[i][cId] <= currentTime) {
                 ++currentFrameId[i][cId];
 
-                if (currentFrameId[i][cId] >= currentLocalFixedFrames.size()) {
-                    currentTimeOffset[i][cId] += currentLocalFixedFrames[currentLocalFixedFrames.size() - 1].time();
+                if (currentFrameId[i][cId] >= currentGlobalFixedFrames.size()) {
+                    currentTimeOffset[i][cId] += currentGlobalFixedFrames[currentGlobalFixedFrames.size() - 1].time();
                     currentFrameId[i][cId] = 0;
                 }
             }
@@ -706,10 +705,10 @@ void blendAnimations(
                             transformations[cId] = Transformation::Identity();
                         }
                         else {
-                            const std::vector<Frame>& currentLocalSelectedFrames = localFixedFrames[cId];
+                            const std::vector<Frame>& currentGlobalSelectedFrames = globalFixedFrames[cId];
 
-                            const Frame& fixedFrame1 = currentLocalSelectedFrames[currentFrameId[i][cId] == 0 ? currentLocalSelectedFrames.size() - 1 : currentFrameId[i][cId] - 1];
-                            const Frame& fixedFrame2 = currentLocalSelectedFrames[currentFrameId[i][cId]];
+                            const Frame& fixedFrame1 = currentGlobalSelectedFrames[currentFrameId[i][cId] == 0 ? currentGlobalSelectedFrames.size() - 1 : currentFrameId[i][cId] - 1];
+                            const Frame& fixedFrame2 = currentGlobalSelectedFrames[currentFrameId[i][cId]];
 
                             Transformation fixedTransformation1 = internal::computeMappedTransformation(fixedFrame1, mappedJoints[cId], mappedJointConfidence[cId]);
                             Transformation fixedTransformation2 = internal::computeMappedTransformation(fixedFrame2, mappedJoints[cId], mappedJointConfidence[cId]);
@@ -750,8 +749,8 @@ void blendAnimations(
                             assert(bestKeyframeAnimation[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
                             assert(bestKeyframe[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
 
-                            const std::vector<Frame>& prevCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
-                            const std::vector<Frame>& nextCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
+                            const std::vector<Frame>& prevCandidateFrames = globalCandidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
+                            const std::vector<Frame>& nextCandidateFrames = globalCandidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
 
                             const Frame& candidateFrame1 = prevCandidateFrames[bestKeyframe[prevIndex][cId]];
                             const Frame& candidateFrame2 = nextCandidateFrames[bestKeyframe[nextIndex][cId]];
@@ -770,10 +769,10 @@ void blendAnimations(
                             assert(bestKeyframeAnimation[i][cId] != nvl::NULL_ID);
                             assert(bestKeyframe[i][cId] != nvl::NULL_ID);
 
-                            const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
+                            const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
 
-                            const Frame& frame1 = currentLocalCandidateFrames[bestKeyframe[i][cId] == 0 ? currentLocalCandidateFrames.size() - 1 : bestKeyframe[i][cId] - 1];
-                            const Frame& frame2 = currentLocalCandidateFrames[bestKeyframe[i][cId]];
+                            const Frame& frame1 = currentGlobalCandidateFrames[bestKeyframe[i][cId] == 0 ? currentGlobalCandidateFrames.size() - 1 : bestKeyframe[i][cId] - 1];
+                            const Frame& frame2 = currentGlobalCandidateFrames[bestKeyframe[i][cId]];
 
                             Transformation transformation1 = internal::computeMappedTransformation(frame1, mappedJoints[cId], mappedJointConfidence[cId]);
                             Transformation transformation2 = internal::computeMappedTransformation(frame2, mappedJoints[cId], mappedJointConfidence[cId]);
@@ -808,7 +807,7 @@ void blendAnimations(
 
 
 
-
+        //TOOO SOLVE THE FACT THAT THE TRANSLATION OF THE BIND POSE IS DIFFERENT IF THE ANIMATION WEIGHT IS NOT THAT ONE. USE THE TRANSFORMATION WITHOUT BIND POSE
 
 
         // ------------------------------------------ FILLING SELECTED KEYFRAMES ------------------------------------------
@@ -830,10 +829,10 @@ void blendAnimations(
                         clusterTransformations[jId] = Transformation::Identity();
                     }
                     else {
-                        const std::vector<Frame>& currentLocalSelectedFrames = localFixedFrames[cId];
+                        const std::vector<Frame>& currentGlobalSelectedFrames = globalFixedFrames[cId];
 
-                        const Frame& fixedFrame1 = currentLocalSelectedFrames[currentFrameId[i][cId] == 0 ? currentLocalSelectedFrames.size() - 1 : currentFrameId[i][cId] - 1];
-                        const Frame& fixedFrame2 = currentLocalSelectedFrames[currentFrameId[i][cId]];
+                        const Frame& fixedFrame1 = currentGlobalSelectedFrames[currentFrameId[i][cId] == 0 ? currentGlobalSelectedFrames.size() - 1 : currentFrameId[i][cId] - 1];
+                        const Frame& fixedFrame2 = currentGlobalSelectedFrames[currentFrameId[i][cId]];
 
                         const Transformation& transformation1 = fixedFrame1.transformation(jId);
                         const Transformation& transformation2 = fixedFrame2.transformation(jId);
@@ -872,8 +871,8 @@ void blendAnimations(
                         assert(bestKeyframeAnimation[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
                         assert(bestKeyframe[nextIndex][cId] != DUPLICATE_KEYFRAME_TO_BLEND);
 
-                        const std::vector<Frame>& prevCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
-                        const std::vector<Frame>& nextCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
+                        const std::vector<Frame>& prevCandidateFrames = globalCandidateFrames[cId][bestKeyframeAnimation[prevIndex][cId]];
+                        const std::vector<Frame>& nextCandidateFrames = globalCandidateFrames[cId][bestKeyframeAnimation[nextIndex][cId]];
 
                         const Frame& candidateFrame1 = prevCandidateFrames[bestKeyframe[prevIndex][cId]];
                         const Frame& candidateFrame2 = nextCandidateFrames[bestKeyframe[nextIndex][cId]];
@@ -892,10 +891,10 @@ void blendAnimations(
                         assert(bestKeyframeAnimation[i][cId] != nvl::NULL_ID);
                         assert(bestKeyframe[i][cId] != nvl::NULL_ID);
 
-                        const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
+                        const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][bestKeyframeAnimation[i][cId]];
 
-                        const Frame& frame1 = currentLocalCandidateFrames[bestKeyframe[i][cId] == 0 ? currentLocalCandidateFrames.size() - 1 : bestKeyframe[i][cId] - 1];
-                        const Frame& frame2 = currentLocalCandidateFrames[bestKeyframe[i][cId]];
+                        const Frame& frame1 = currentGlobalCandidateFrames[bestKeyframe[i][cId] == 0 ? currentGlobalCandidateFrames.size() - 1 : bestKeyframe[i][cId] - 1];
+                        const Frame& frame2 = currentGlobalCandidateFrames[bestKeyframe[i][cId]];
 
                         Transformation transformation1 = frame1.transformation(jId);
                         Transformation transformation2 = frame2.transformation(jId);
@@ -912,9 +911,6 @@ void blendAnimations(
             clusterAnimations[cId].addKeyframe(clusterFrame);
         }
     }
-
-
-
 
     targetAnimation.setName("Blended");
     Index targetAnimationId = targetModel->addAnimation(targetAnimation);
