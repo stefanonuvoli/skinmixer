@@ -87,44 +87,65 @@ void computeSelectValues(
         std::sort(componentVertices.begin(), componentVertices.end());
         componentVertices.erase(std::unique(componentVertices.begin(), componentVertices.end()), componentVertices.end());
 
-        std::vector<double> componentSignificantSelectValues;
+        unsigned int numOnes = 0;
+        unsigned int numZeros = 0;
+
+        std::vector<double> significantSelectValues;
         for (nvl::Index i = 0; i < componentVertices.size(); ++i) {
-            if (!nvl::epsEqual(vertexSelectValue[componentVertices[i]], 0.0) &&
-                !nvl::epsEqual(vertexSelectValue[componentVertices[i]], 1.0))
-            {
-                componentSignificantSelectValues.push_back(vertexSelectValue[componentVertices[i]]);
+            if (nvl::epsEqual(vertexSelectValue[componentVertices[i]], 0.0)) {
+                ++numZeros;
+            }
+            else if (nvl::epsEqual(vertexSelectValue[componentVertices[i]], 1.0)) {
+                ++numOnes;
+            }
+            else {
+                significantSelectValues.push_back(vertexSelectValue[componentVertices[i]]);
             }
         }
 
+        double zerosRatio = static_cast<double>(numZeros) / static_cast<double>(componentVertices.size());
+        double onesRatio = static_cast<double>(numOnes) / static_cast<double>(componentVertices.size());
+
         bool keepOrDiscard;
 
-        const double stddevExpected = 1.0 / nvl::sqrt(12.0);
-        const double meanExpected = 0.5;
-        if (!componentSignificantSelectValues.empty()) {
-            //Statistics variable to compute values for checking rigidity
-            double mean = nvl::mean(componentSignificantSelectValues);
-            double stddev = nvl::stddev(componentSignificantSelectValues, mean);
+        if (zerosRatio > 0.3 || onesRatio > 0.3) {
+            keepOrDiscard = false;
+        }
+        else if (significantSelectValues.empty()) {
+            keepOrDiscard = true;
+        }
+        else {
+            const double meanExpected = 0.5;
+            double mean = nvl::mean(significantSelectValues);
+
+//            const double stddevExpected = 1.0 / nvl::sqrt(12.0);
+//            double stddev = nvl::stddev(significantSelectValues, mean);
 
             //Mean score
-            double meanRigidityScore =
-                    nvl::max(nvl::min(
+            double meanScore =
+                    1.0 - nvl::max(nvl::min(
                         (nvl::abs(mean - meanExpected) / meanExpected)
                     , 1.0), 0.0);
 
             //Standard deviation score
-            double stddevRigidityScore =
-                    nvl::max(nvl::min(
-                        (nvl::abs(stddev - stddevExpected) / stddevExpected)
-                    , 1.0), 0.0);
+            double uniformlyDistributedScore = 1.0 - nvl::sampleUniformlyDistributedScore(significantSelectValues, 0.0, 1.0, 10);
 
             //Total score
-            double rigidityScore = 0.5 * meanRigidityScore + 0.5 * stddevRigidityScore;
+            double rigidityScore = 0.5 * meanScore + 0.5 * uniformlyDistributedScore;
+
+
+//            //Standard deviation score
+//            double stddevRigidityScore =
+//                    nvl::max(nvl::min(
+//                        (nvl::abs(stddev - stddevExpected) / stddevExpected)
+//                    , 1.0), 0.0);
+
+//            //Total score
+//            double rigidityScore = 0.5 * meanRigidityScore + 0.5 * stddevRigidityScore;
+
 
             //Check if rigid
-            keepOrDiscard = rigidityScore > rigidity;
-        }
-        else {
-            keepOrDiscard = true;
+            keepOrDiscard = rigidityScore < rigidity;
         }
 
         //Compute hardness

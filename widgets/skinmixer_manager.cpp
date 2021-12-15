@@ -720,6 +720,11 @@ void SkinMixerManager::updateView()
     clearLayout(ui->animationJointGroupBox->layout());
     ui->animationJointMeshComboBox->clear();
 
+    on_rigiditySlider_valueChanged(ui->rigiditySlider->value());
+    on_hardness1Slider_valueChanged(ui->hardness1Slider->value());
+    on_hardness2Slider_valueChanged(ui->hardness2Slider->value());
+    on_weightSmoothingSlider_valueChanged(ui->weightSmoothingSlider->value());
+
     if (blendedModelSelected) {
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
 
@@ -1321,7 +1326,7 @@ void SkinMixerManager::on_weightSmoothingSlider_valueChanged(int value)
 {
     std::ostringstream out;
     out.precision(2);
-    out << (value >= 0 ? "+" : "") << std::fixed << value / 100.0;
+    out << std::fixed << value / 100.0;
 
     ui->weightSmoothingValueLabel->setText(out.str().c_str());
 
@@ -1334,7 +1339,7 @@ void SkinMixerManager::on_rigiditySlider_valueChanged(int value)
 {
     std::ostringstream out;
     out.precision(2);
-    out << (value >= 0 ? "+" : "") << std::fixed << value / 100.0;
+    out << std::fixed << value / 100.0;
 
     ui->rigidityValueLabel->setText(out.str().c_str());
 
