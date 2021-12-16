@@ -1243,6 +1243,8 @@ void blendSurfaces(
                 const Index& birthEId = pair.first;
                 const VertexId& birthVertexId = pair.second;
 
+                NVL_SUPPRESS_UNUSEDVARIABLE(birthVertexId);
+
                 if (birthEId != nvl::NULL_ID) {
                     assert(birthVertexId != nvl::NULL_ID);
 
@@ -1278,6 +1280,8 @@ void blendSurfaces(
                 const Index& birthEId = pair.first;
                 const VertexId& birthVertexId = pair.second;
 
+                NVL_SUPPRESS_UNUSEDVARIABLE(birthVertexId);
+
                 if (birthEId != nvl::NULL_ID) {
                     assert(birthVertexId != nvl::NULL_ID);
 
@@ -1286,7 +1290,7 @@ void blendSurfaces(
                     //Calculate delta
                     Point delta = Point::Zero();
                     const std::vector<VertexId>& neighbors = resultVVAdj[vId];
-                    for(const int& neighborId : neighbors) {
+                    for(const VertexId& neighborId : neighbors) {
                         const Point& neighborPoint = resultMesh.vertexPoint(neighborId);
                         delta += neighborPoint;
                     }
@@ -1339,13 +1343,13 @@ void blendSurfaces(
             const Index& birthEId = pair.first;
             const VertexId& birthVertexId = pair.second;
 
+            NVL_SUPPRESS_UNUSEDVARIABLE(birthVertexId);
 
             if (birthEId != nvl::NULL_ID) {
                 const Index& birthCId = clusterMap.at(birthEId);
                 assert(birthVertexId != nvl::NULL_ID);
 
                 Index bestCId = nvl::maxLimitValue<Index>();
-                double bestSelectValue = nvl::minLimitValue<double>();
 
                 const Point& point = resultMesh.vertexPoint(vId);
                 const GridVec vdbWorldPoint(point.x(), point.y(), point.z());
@@ -1376,7 +1380,6 @@ void blendSurfaces(
 
                     if (pId1 >= 0) {
                         bestCId = cId1;
-                        bestSelectValue = selectValue1;
                     }
 
                     if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
@@ -1398,7 +1401,6 @@ void blendSurfaces(
 
                                 if (selectValue2 > selectValue1) {
                                     bestCId = cId2;
-                                    bestSelectValue = selectValue2;
                                 }
                             }
                         }
@@ -1416,7 +1418,6 @@ void blendSurfaces(
                 normal.normalize();
 
                 const double inflateStep = voxelSize / 10.0;
-                //                const double inflateDistance = std::max(inflateStep * 0.1, (bestSelectValue > 0.5 ? 1.0 - (bestSelectValue - 0.5) / (1.0 - 0.5) * inflateStep : inflateStep * 0.1));
 
                 Point newPoint = closestPoint;
                 if (!inflate) {

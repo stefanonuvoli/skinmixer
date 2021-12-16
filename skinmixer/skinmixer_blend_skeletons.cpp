@@ -121,14 +121,6 @@ void blendSkeletons(
         jointMap[birthEId] = std::vector<JointId>(currentSkeleton.jointNumber(), nvl::NULL_ID);
     }
 
-    for (const nvl::Index& birthEId : cluster) {
-        const Entry& currentEntry = data.entry(birthEId);
-
-        Model* currentModel = currentEntry.model;
-        Skeleton& currentSkeleton = currentModel->skeleton;
-    }
-
-
     std::vector<std::set<JointId>> remainingAssignedJoints = keptJoints;
 
     bool keptDone;

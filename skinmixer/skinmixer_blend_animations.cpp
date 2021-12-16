@@ -62,7 +62,6 @@ void initializeAnimationWeights(
         typename SkinMixerData<Model>::Entry& resultEntry)
 {
     typedef typename nvl::Index Index;
-    typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
     typedef typename Model::Skeleton Skeleton;
     typedef typename Skeleton::JointId JointId;
@@ -245,7 +244,7 @@ void blendAnimations(
             localCandidateFrames[cId].resize(currentModel->animationNumber());
             for (Index aId = 0; aId < currentModel->animationNumber(); ++aId) {
                 if (animationId == BLEND_ANIMATION_NONE|| animationId == aId) {
-                    assert(animationId == BLEND_ANIMATION_NONE || (animationId >= 0 && animationId < currentModel->animationNumber()));
+                    assert(animationId == BLEND_ANIMATION_NONE || (animationId != nvl::NULL_ID && animationId < currentModel->animationNumber()));
                     const Animation& currentAnimation = currentModel->animation(aId);
                     for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
                         Frame frame = currentAnimation.keyframe(fId);

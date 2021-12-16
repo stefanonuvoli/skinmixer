@@ -39,8 +39,6 @@ void getClosedGrid(
         openvdb::FloatGrid::Ptr& closedGrid,
         openvdb::Int32Grid::Ptr& polygonGrid)
 {
-    typedef typename Mesh::Point Point;    
-
     typedef typename openvdb::FloatGrid FloatGrid;
     typedef typename FloatGrid::Ptr FloatGridPtr;
     typedef typename openvdb::Int32Grid IntGrid;
@@ -194,9 +192,7 @@ void getBlendedGrid(
     typedef typename SkinMixerData<Model>::Action Action;
 
     typedef typename openvdb::FloatGrid FloatGrid;
-    typedef typename FloatGrid::Ptr FloatGridPtr;
     typedef typename openvdb::Int32Grid IntGrid;
-    typedef typename IntGrid::Ptr IntGridPtr;
     typedef typename openvdb::math::Coord GridCoord;
     typedef typename openvdb::Vec3R GridVec;
     typedef typename openvdb::CoordBBox GridBBox;
@@ -459,7 +455,6 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
                     if (meshFFAdj[f1][pos1] == nvl::NULL_ID) {
                         FaceId bestF2 = nvl::NULL_ID;
                         Index bestPos2 = nvl::NULL_ID;
-                        Scalar bestDistance = nvl::maxLimitValue<Scalar>();
                         double bestScore = nvl::maxLimitValue<double>();
 
                         Point b1 = nvl::meshFaceBarycenter(mesh, f1);
@@ -483,7 +478,6 @@ std::unordered_set<typename Mesh::FaceId> findFieldFaces(
                                         if (score < bestScore) {
                                             bestF2 = f2;
                                             bestPos2 = pos2;
-                                            bestDistance = distance;
                                             bestScore = score;
                                         }
                                     }

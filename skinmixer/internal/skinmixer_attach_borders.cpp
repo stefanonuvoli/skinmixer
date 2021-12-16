@@ -599,7 +599,7 @@ Mesh attachMeshesByBorders(
 
     for (Index chainId = 0; chainId < dChains.size(); ++chainId) {
         const std::vector<VertexId>& dChain = dChains[chainId];
-        const std::vector<VertexId>& mChain = mChains[chainId];
+        std::vector<VertexId>& mChain = mChains[chainId];
         const std::vector<double>& mParametrization = mFinalParametrization[chainId];
         const std::vector<double>& dParametrization = dFinalParametrization[chainId];
 
@@ -628,6 +628,7 @@ Mesh attachMeshesByBorders(
             }
 
             VertexId newNVertexId = nvl::meshSplitEdge(newMesh, currentMVertexId, mChain[nextI], jPoint, meshVFAdj);
+            mChain.insert(mChain.begin() + nextI, newNVertexId);
 
             newSnappedVertices.insert(newNVertexId);
             preSnappedVertices.insert(destVertexId);
@@ -643,7 +644,6 @@ Mesh attachMeshesByBorders(
     nvl::meshSaveToFile("results/newMesh_2_splitted.obj", newMesh);
 #endif
 
-
     std::vector<VertexId> nonCollapsed = nvl::collapseBorders(newMesh, fixedBorderVertices);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
@@ -651,8 +651,40 @@ Mesh attachMeshesByBorders(
 #endif
 
     if (!nonCollapsed.empty()) {
-        std::cout << std::endl << "*** WARNING: " << nonCollapsed.size() << " vertices non collapsed." << std::endl;
-        //TODO!!
+        std::cout << std::endl << "*** WARNING: " << nonCollapsed.size() << " vertices non collapsed. Solving with triangles." << std::endl;
+
+        std::unordered_set<VertexId> nonCollapsedSet(nonCollapsed.begin(), nonCollapsed.end());
+
+        for (Index chainId = 0; chainId < mChains.size(); ++chainId) {
+            const std::vector<VertexId>& mChain = mChains[chainId];
+
+            Index lastCollapsed = mChain.size() - 1;
+            while (lastCollapsed != nvl::NULL_ID && nonCollapsedSet.find(mChain[lastCollapsed]) != nonCollapsedSet.end()) {
+                if (lastCollapsed == 0) {
+                    lastCollapsed = nvl::NULL_ID;
+                }
+                else {
+                    lastCollapsed--;
+                }
+            }
+            if (lastCollapsed == nvl::NULL_ID)  {
+                std::cout << std::endl << "*** WARNING: " << nonCollapsed.size() << " none of the vertices was collapsed. Impossible to close the shape." << std::endl;
+            }
+
+            else {
+                for (Index i = 0; i < mChain.size(); ++i) {
+                    if (nonCollapsedSet.find(mChain[i]) != nonCollapsedSet.end()) {
+                        Index nextI = (i + 1) % mChain.size();
+
+                        newMesh.addFace(mChain[lastCollapsed], mChain[i], mChain[nextI]);
+
+                        nonCollapsedSet.erase(mChain[i]);
+                    }
+
+                    lastCollapsed = i;
+                }
+            }
+        }
     }
 
     return newMesh;

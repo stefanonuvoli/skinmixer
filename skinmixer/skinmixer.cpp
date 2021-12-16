@@ -75,7 +75,6 @@ std::vector<nvl::Index> mix(
 
         //New model
         Model* resultModel = new Model();
-        Mesh& resultMesh = resultModel->mesh;
 
         Index newEntryId = data.addEntry(resultModel);
         Entry& resultEntry = data.entry(newEntryId);

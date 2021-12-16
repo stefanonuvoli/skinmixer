@@ -246,10 +246,8 @@ void computeRemoveSelectValues(
     typedef typename Model::Skeleton Skeleton;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Skeleton::JointId JointId;
-    typedef typename Model::SkinningWeights SkinningWeights;
     const Mesh& mesh = model.mesh;
     const Skeleton& skeleton = model.skeleton;
-    const SkinningWeights& skinningWeights = model.skinningWeights;
 
     jointSelectValue.resize(skeleton.jointNumber(), 1.0);
     std::vector<JointId> descendantJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
@@ -302,11 +300,9 @@ void computeDetachSelectValues(
     typedef typename Model::Skeleton Skeleton;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Skeleton::JointId JointId;
-    typedef typename Model::SkinningWeights SkinningWeights;
 
     const Mesh& mesh = model.mesh;
     const Skeleton& skeleton = model.skeleton;
-    const SkinningWeights& skinningWeights = model.skinningWeights;
 
     jointSelectValue.resize(skeleton.jointNumber(), 0.0);
     std::vector<JointId> descendantJoints = nvl::skeletonJointDescendants(skeleton, targetJoint);
