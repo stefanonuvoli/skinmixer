@@ -2,7 +2,6 @@
 
 #include "internal/skinmixer_attach_borders.h"
 #include "internal/skinmixer_field.h"
-#include "internal/skinmixer_morphological_operations.h"
 
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/transformations.h>
@@ -17,6 +16,7 @@
 #include <nvl/models/algorithms/mesh_smoothing.h>
 #include <nvl/models/algorithms/mesh_differentiation.h>
 #include <nvl/models/algorithms/mesh_normals.h>
+#include <nvl/models/algorithms/mesh_morphological_operations.h>
 
 #include <nvl/vcglib/vcg_convert.h>
 #include <nvl/vcglib/vcg_triangle_mesh.h>
@@ -604,8 +604,8 @@ void blendSurfaces(
             const Mesh& mesh = models[cId]->mesh;
 
             for (int i = 0; i < PRESERVE_REGULARIZATION_ITERATIONS; ++i) {
-                internal::meshOpenFaceSelectionNoBorders(mesh, preservedFaces[cId]);
-                internal::meshCloseFaceSelectionNoBorders(mesh, preservedFaces[cId]);
+                nvl::meshOpenFaceSelection(mesh, preservedFaces[cId], true);
+                nvl::meshCloseFaceSelection(mesh, preservedFaces[cId], true);
             }
         }
 
@@ -1083,8 +1083,8 @@ void blendSurfaces(
             const Mesh& mesh = models[cId]->mesh;
 
             for (int i = 0; i < PRESERVE_REGULARIZATION_ITERATIONS; ++i) {
-                internal::meshOpenFaceSelectionNoBorders(mesh, preservedFaces[cId]);
-                internal::meshCloseFaceSelectionNoBorders(mesh, preservedFaces[cId]);
+                nvl::meshOpenFaceSelection(mesh, preservedFaces[cId], true);
+                nvl::meshCloseFaceSelection(mesh, preservedFaces[cId], true);
             }
         }
 

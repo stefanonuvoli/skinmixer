@@ -235,7 +235,7 @@ Mesh attachMeshesByBorders(
     }
 
     //Find components splitted by the chain
-    std::vector<std::vector<typename Mesh::FaceId>> chainComponents;
+    std::vector<std::vector<std::vector<typename Mesh::FaceId>>> chainComponents(mConnectedComponents.size());
     std::stack<FaceId> stack;
     std::vector<bool> visited(mesh.nextFaceId(), false);
     for (const Index& cId : mUsedComponents) {
@@ -280,34 +280,49 @@ Mesh attachMeshesByBorders(
                 }
             }
 
-            chainComponents.push_back(currentComponent);
+            chainComponents[cId].push_back(currentComponent);
         }
     }
 
     //Delete component with less new surface faces
-    for (Index i = 0; i < chainComponents.size(); ++i) {
-        std::vector<FaceId>& chainComponentFaces = chainComponents[i];
+    for (const Index& cId : mUsedComponents) {
+        double bestScore = nvl::minLimitValue<double>();
+        Index bestComponentId = nvl::NULL_ID;
 
-#ifdef SKINMIXER_DEBUG_SAVE_MESHES
-        Mesh chainComponentMesh;
-        nvl::meshTransferFaces(mesh, chainComponentFaces, chainComponentMesh);
-        nvl::meshSaveToFile("results/attaching_1_component_" + std::to_string(i) + ".obj", chainComponentMesh);
-#endif
+        for (Index i = 0; i < chainComponents[cId].size(); ++i) {
+            std::vector<FaceId>& chainComponentFaces = chainComponents[cId][i];
 
-        double score = 0.0;
-        for (const FaceId& fId : chainComponentFaces) {
-            if (newSurfaceFaces.find(fId) != newSurfaceFaces.end()) {
-                score += 1.0;
-            }
-        }
+    #ifdef SKINMIXER_DEBUG_SAVE_MESHES
+            Mesh chainComponentMesh;
+            nvl::meshTransferFaces(mesh, chainComponentFaces, chainComponentMesh);
+            nvl::meshSaveToFile("results/attaching_1_component_" + std::to_string(i) + ".obj", chainComponentMesh);
+    #endif
 
-        score /= chainComponentFaces.size();
-
-        if (score < 0.5) {
+            double score = 0.0;
             for (const FaceId& fId : chainComponentFaces) {
-                facesToDelete.insert(fId);
+                if (newSurfaceFaces.find(fId) != newSurfaceFaces.end()) {
+                    score += 1.0;
+                }
+            }
+
+            score /= chainComponentFaces.size();
+
+            if (score > 0.05 && score > bestScore) {
+                bestScore = score;
+                bestComponentId = i;
             }
         }
+
+        for (Index i = 0; i < chainComponents[cId].size(); ++i) {
+            if (bestComponentId != i) {
+                std::vector<FaceId>& chainComponentFaces = chainComponents[cId][i];
+
+                for (const FaceId& fId : chainComponentFaces) {
+                    facesToDelete.insert(fId);
+                }
+            }
+        }
+
     }
 
 
@@ -593,7 +608,10 @@ Mesh attachMeshesByBorders(
     nvl::meshSaveToFile("results/newMesh_1_cleaned.obj", newMesh);
 #endif
 
-    std::vector<std::vector<FaceId>> meshVFAdj = nvl::meshVertexFaceAdjacencies(newMesh);
+    if (newMesh.faceNumber() == 0)
+        return newMesh;
+
+    std::vector<std::vector<FaceId>> newMeshVFAdj = nvl::meshVertexFaceAdjacencies(newMesh);
 
     std::vector<VertexId> fixedBorderVertices;
 
@@ -627,7 +645,7 @@ Mesh attachMeshesByBorders(
                 currentMVertexId = mChain[currentI];
             }
 
-            VertexId newNVertexId = nvl::meshSplitEdge(newMesh, currentMVertexId, mChain[nextI], jPoint, meshVFAdj);
+            VertexId newNVertexId = nvl::meshSplitEdge(newMesh, currentMVertexId, mChain[nextI], jPoint, newMeshVFAdj);
             mChain.insert(mChain.begin() + nextI, newNVertexId);
 
             newSnappedVertices.insert(newNVertexId);
