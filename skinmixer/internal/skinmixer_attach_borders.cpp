@@ -63,7 +63,7 @@ Mesh attachMeshesByBorders(
     for (Index chainId = 0; chainId < dBorderVertexChains.size(); ++chainId) {
         const std::vector<VertexId>& vertexChain = dBorderVertexChains[chainId];
 
-        bool snappable = true;;
+        bool snappable = true;
 
         for (const VertexId& vId : vertexChain) {
             if (destNonSnappableVertices.find(vId) != destNonSnappableVertices.end()) {
