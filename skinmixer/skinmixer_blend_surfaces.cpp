@@ -2085,10 +2085,10 @@ Mesh quadrangulateMesh(
             }
         }
         else {
-            FaceId fId = result.addFace(tmpResult.face(fId));
-            result.unsetFaceMaterial(fId);
-            result.unsetFaceWedgeNormals(fId);
-            result.unsetFaceWedgeUVs(fId);
+            FaceId newFId = result.addFace(tmpResult.face(fId));
+            result.unsetFaceMaterial(newFId);
+            result.unsetFaceWedgeNormals(newFId);
+            result.unsetFaceWedgeUVs(newFId);
         }
     }
 

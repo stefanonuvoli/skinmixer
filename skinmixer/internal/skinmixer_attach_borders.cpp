@@ -688,7 +688,7 @@ Mesh attachMeshesByBorders(
 
             Index startingVertex = nvl::NULL_ID;
             for (Index i = 0; i < newMChain.size() && startingVertex == nvl::NULL_ID; ++i) {
-                if (collapseVertexMap[newMChain[startingVertex]] == nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[startingVertex]]) == nonCollapsedSet.end()) {
+                if (collapseVertexMap[newMChain[startingVertex]] != nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[startingVertex]]) == nonCollapsedSet.end()) {
                     startingVertex = i;
                 }
             }
@@ -708,7 +708,7 @@ Mesh attachMeshesByBorders(
                 }
             }
             else {
-                std::cout << std::endl << "*** WARNING: " << nonCollapsed.size() << " none of the vertices was collapsed. Impossible to close the shape." << std::endl;
+                std::cout << std::endl << "*** WARNING: none of the vertices was collapsed. Impossible to close the shape." << std::endl;
             }
         }
 
