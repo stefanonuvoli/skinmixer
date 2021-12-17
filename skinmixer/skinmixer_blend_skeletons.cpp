@@ -540,6 +540,7 @@ double skeletonMatchingConfidence(
 
             double bestPathScore = nvl::minLimitValue<double>();
             const std::vector<std::pair<Index, Index>>& currentPassingPaths = currentPaths.jointToPaths[currentJId];
+
             for (const std::pair<Index, Index>& currentPassingPath : currentPassingPaths) {
                 JointId currentLastJointInPath = currentPaths.paths[currentPassingPath.first][currentPaths.paths[currentPassingPath.first].size() - 1];
                 double currentMaxDistance = currentPaths.pathDistance[currentPassingPath.first].at(currentLastJointInPath);
@@ -553,8 +554,11 @@ double skeletonMatchingConfidence(
                 }
             }
 
-            pathScore += bestPathScore;
+            if (bestPathScore > nvl::minLimitValue<double>()) {
+                pathScore += bestPathScore;
+            }
         }
+
         pathScore /= static_cast<double>(targetPassingPaths.size());
     }
     assert(pathScore >= 0 - nvl::EPSILON && pathScore <= 1 + nvl::EPSILON);
