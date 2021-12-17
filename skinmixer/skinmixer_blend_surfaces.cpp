@@ -2022,6 +2022,8 @@ Mesh quadrangulateMesh(
         int vcgPreMeshFId = vcgPreservedFaceMap[vcgResultFId];
         if (vcgPreMeshFId >= 0) {
             const FaceId& preFId = vcgPreBirthFace[vcgPreMeshFId];
+            assert(preFId != nvl::NULL_ID);
+
             const Face& preFace = preMesh.face(preFId);
 
             const std::vector<VertexId>& vertexIds = tmpResult.faceVertexIds(fId);
@@ -2085,10 +2087,7 @@ Mesh quadrangulateMesh(
             }
         }
         else {
-            FaceId newFId = result.addFace(tmpResult.face(fId));
-            result.unsetFaceMaterial(newFId);
-            result.unsetFaceWedgeNormals(newFId);
-            result.unsetFaceWedgeUVs(newFId);
+            result.addFace(tmpResult.face(fId));
         }
     }
 
