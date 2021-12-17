@@ -670,6 +670,7 @@ Mesh attachMeshesByBorders(
 
     std::vector<VertexId> collapsedBirthVertex;
     std::vector<FaceId> collapsedBirthFace;
+    nvl::Size oldNewMeshVertexNumber = newMesh.nextVertexId();
     std::vector<VertexId> nonCollapsed = nvl::collapseBorders(newMesh, fixedBorderVertices, collapsedBirthVertex, collapsedBirthFace);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
@@ -681,7 +682,7 @@ Mesh attachMeshesByBorders(
 
         std::unordered_set<VertexId> nonCollapsedSet(nonCollapsed.begin(), nonCollapsed.end());
 
-        std::vector<VertexId> collapseVertexMap = nvl::inverseMap(collapsedBirthVertex, newMesh.nextVertexId());
+        std::vector<VertexId> collapseVertexMap = nvl::inverseMap(collapsedBirthVertex, oldNewMeshVertexNumber);
 
         for (Index chainId = 0; chainId < newMChains.size(); ++chainId) {
             const std::vector<VertexId>& newMChain = newMChains[chainId];
@@ -691,18 +692,18 @@ Mesh attachMeshesByBorders(
                     Index j;
 
                     Index prevI = nvl::NULL_ID;
-                    j = (i == 0 ? i - 1 : newMChain.size() - 1);
-                    while (j != i && prevI != nvl::NULL_ID) {
-                        if (collapseVertexMap[newMChain[i]] != nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[j]]) == nonCollapsedSet.end()) {
+                    j = (i > 0 ? i - 1 : newMChain.size() - 1);
+                    while (j != i && prevI == nvl::NULL_ID) {
+                        if (collapseVertexMap[newMChain[j]] != nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[j]]) == nonCollapsedSet.end()) {
                             prevI = j;
                         }
-                        j = (j == 0 ? j - 1 : newMChain.size() - 1);
+                        j = (j > 0 ? j - 1 : newMChain.size() - 1);
                     }
 
                     Index nextI = nvl::NULL_ID;
                     j = (i + 1) % newMChain.size();
-                    while (j != i && nextI != nvl::NULL_ID) {
-                        if (collapseVertexMap[newMChain[i]] != nvl::NULL_ID) {
+                    while (j != i && nextI == nvl::NULL_ID) {
+                        if (collapseVertexMap[newMChain[j]] != nvl::NULL_ID) {
                             nextI = j;
                         }
                         j = (j + 1) % newMChain.size();

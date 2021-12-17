@@ -740,6 +740,8 @@ void SkinMixerManager::updateView()
             const Index& eId = birthEntries[cId];
             Model* currentModel = vSkinMixerData.entry(eId).model;
 
+            QLabel* animationNameLabel = new QLabel(currentModel->name.c_str());
+
             QComboBox* animationModeCombo = new QComboBox(this);
             animationModeCombo->addItem("Fixed pose");
             animationModeCombo->addItem("Best keyframes");
@@ -789,6 +791,7 @@ void SkinMixerManager::updateView()
             QFrame* frame = new QFrame();
             QVBoxLayout *layout = new QVBoxLayout;
             frame->setLayout(layout);
+            frame->layout()->addWidget(animationNameLabel);
             frame->layout()->addWidget(animationModeCombo);
             frame->layout()->addWidget(animationIdCombo);
 
