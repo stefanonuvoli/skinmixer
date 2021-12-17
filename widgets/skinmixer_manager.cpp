@@ -247,6 +247,8 @@ void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::
 
 void SkinMixerManager::slot_animationSelectionChanged(const Index& selectedAnimation)
 {
+    NVL_SUPPRESS_UNUSEDVARIABLE(selectedAnimation);
+
     updateView();
 }
 
@@ -440,6 +442,7 @@ void SkinMixerManager::blendAnimations()
     skinmixer::MixAnimationParameters parameters;
 
     parameters.samplingFPS = ui->animationBlendingFPSSpinBox->value();
+    parameters.rotationWeight = ui->animationBlendingRotationWeightSpinBox->value();
     parameters.globalWeight = ui->animationBlendingGlobalSpinBox->value();
     parameters.localWeight = ui->animationBlendingLocalSpinBox->value();
     parameters.globalDerivativeWeight = ui->animationBlendingGlobalDerivativeSpinBox->value();

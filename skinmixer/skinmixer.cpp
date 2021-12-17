@@ -22,7 +22,6 @@ std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data,
         const MixMode& mixMode)
 {
-    typedef typename Model::Mesh Mesh;
     typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::Action Action;
     typedef typename SkinMixerData<Model>::Entry Entry;
@@ -71,7 +70,7 @@ std::vector<nvl::Index> mix(
         for (Index cId : cluster) {
             std::cout << cId << " ";
         }
-        std::cout << "---------" << std::endl << std::endl;
+        std::cout << "---------" << std::endl;
 
         //New model
         Model* resultModel = new Model();
@@ -177,6 +176,7 @@ void mixAnimations(
                 entry,
                 resultAnimations,
                 parameters.samplingFPS,
+                parameters.rotationWeight,
                 parameters.globalWeight,
                 parameters.localWeight,
                 parameters.globalDerivativeWeight,

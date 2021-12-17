@@ -15,10 +15,11 @@ std::vector<nvl::Index> mix(
 struct MixAnimationParameters {
     MixAnimationParameters() :
         samplingFPS(30.0),
-        globalWeight(0.5),
-        localWeight(0.2),
-        globalDerivativeWeight(0.2),
-        localDerivativeWeight(0.1),
+        rotationWeight(0.5),
+        globalWeight(0.9),
+        localWeight(0.0),
+        globalDerivativeWeight(0.1),
+        localDerivativeWeight(0.0),
         windowSize(1),
         windowMainWeight(0.6)
     {
@@ -26,6 +27,7 @@ struct MixAnimationParameters {
     }
 
     double samplingFPS;
+    double rotationWeight;
     double globalWeight;
     double localWeight;
     double globalDerivativeWeight;

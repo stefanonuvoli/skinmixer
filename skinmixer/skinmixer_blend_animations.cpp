@@ -29,19 +29,26 @@ typename Frame::Transformation computeMappedTransformation(
 
 
 template<class Frame, class JointId>
-std::vector<nvl::Quaterniond> computeWindow(
+void computeWindow(
         const std::vector<Frame>& frames,
         const nvl::Index& fId,
         const unsigned int& windowSize,
         const std::vector<JointId>& mappedJoints,
-        const std::vector<double>& mappedJointConfidence);
+        const std::vector<double>& mappedJointConfidence,
+        std::vector<nvl::Quaterniond>& quaternionWindow,
+        std::vector<nvl::Translation3d>& translationWindow);
 
-double windowSimilarity(
-        const std::vector<nvl::Quaterniond>& global1,
-        const std::vector<nvl::Quaterniond>& global2,
-        const std::vector<nvl::Quaterniond>& local1,
-        const std::vector<nvl::Quaterniond>& local2,
+inline double windowSimilarity(
+        const std::vector<nvl::Quaterniond>& globalQ1,
+        const std::vector<nvl::Quaterniond>& globalQ2,
+        const std::vector<nvl::Quaterniond>& localQ1,
+        const std::vector<nvl::Quaterniond>& localQ2,
+        const std::vector<nvl::Translation3d>& globalT1,
+        const std::vector<nvl::Translation3d>& globalT2,
+        const std::vector<nvl::Translation3d>& localT1,
+        const std::vector<nvl::Translation3d>& localT2,
         const std::vector<double>& windowWeights,
+        const double& rotationWeight,
         const double& globalWeight,
         const double& localWeight,
         const double& globalDerivativeWeight,
@@ -50,6 +57,10 @@ double windowSimilarity(
 double quaternionSimilarity(
         const nvl::Quaterniond& q1,
         const nvl::Quaterniond& q2);
+
+double translationSimilarity(
+        const nvl::Translation3d& t1,
+        const nvl::Translation3d& t2);
 
 double computeDistanceWeight(const double distance);
 
@@ -130,6 +141,7 @@ void blendAnimations(
         typename SkinMixerData<Model>::Entry& entry,
         std::vector<std::pair<nvl::Index, nvl::Index>>& resultAnimations,
         const double& samplingFPS,
+        const double& rotationWeight,
         const double& globalWeight,
         const double& localWeight,
         const double& globalDerivativeWeight,
@@ -150,7 +162,8 @@ void blendAnimations(
     typedef typename Animation::Frame Frame;
     typedef typename Animation::Transformation Transformation;
 
-    typedef nvl::Quaterniond Quaternion;
+    typedef nvl::Quaterniond Quaterniond;
+    typedef nvl::Translation3d Translation3d;
 
 
     double sigma = 1.5; //Gaussian sigma
@@ -342,6 +355,20 @@ void blendAnimations(
 
     // ------------------------------------------ BEST LOOP ------------------------------------------
 
+    double maxFixedDuration = 0;
+    for (Index cId = 0; cId < cluster.size(); ++cId) {
+        Index eId = cluster[cId];
+        const Entry& currentEntry = data.entry(eId);
+        const Model* currentModel = currentEntry.model;
+
+        Index animationMode = animationModes[cId];
+        Index animationId = animationIds[cId];
+
+        if (animationMode == BLEND_ANIMATION_FIXED && animationId != BLEND_ANIMATION_NONE) {
+            const Animation& currentAnimation = currentModel->animation(animationId);
+            maxFixedDuration = std::max(currentAnimation.duration(), maxFixedDuration);
+        }
+    }
 
     //Compute best frames for select best keyframe animation
     for (Index cId = 0; cId < cluster.size(); ++cId) {
@@ -349,7 +376,9 @@ void blendAnimations(
         Index animationId = animationIds[cId];
 
         if (animationMode == BLEND_ANIMATION_LOOP) {
-            const Model* currentModel = data.entry(cluster[cId]).model;
+            Index eId = cluster[cId];
+            const Entry& currentEntry = data.entry(eId);
+            const Model* currentModel = currentEntry.model;
 
             std::vector<Index> candidateAnimations;
             if (animationId == BLEND_ANIMATION_NONE) {
@@ -366,103 +395,116 @@ void blendAnimations(
             Index bestLoopStartingFrame = nvl::NULL_ID;
             std::vector<double> bestLoopScoreSingle;
 
-            for (const Index& candidateAId : candidateAnimations) {
-                const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][candidateAId];
-                const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][candidateAId];
+            const std::vector<double> speedMultiplicators = {1.0, 0.25, 0.33, 0.5, 2, 3, 4};
 
-                for (Index startingFId = 0; startingFId < currentGlobalCandidateFrames.size(); startingFId++) {
-                    const double startingTime = currentGlobalCandidateFrames[startingFId].time();
+            for (const double& speedMultiplicator : speedMultiplicators) {
+                for (const Index& candidateAId : candidateAnimations) {
+                    const double speed = maxFixedDuration / currentModel->animation(candidateAId).duration() * speedMultiplicator;
 
-                    Index loopFrameId = startingFId;
-                    double loopFrameOffset = -startingTime;
+                    const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][candidateAId];
+                    const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][candidateAId];
 
-                    double loopScore = 0.0;
-                    std::vector<double> loopScoreSingle(times.size(), 0.0);
+                    for (Index startingFId = 0; startingFId < currentGlobalCandidateFrames.size(); startingFId++) {
+                        const double startingTime = currentGlobalCandidateFrames[startingFId].time();
 
-                    for (Index i = 0; i < times.size(); ++i) {
-                        const double& currentTime = times[i];
+                        Index loopFrameId = startingFId;
+                        double loopFrameOffset = -startingTime;
 
-                        while (loopFrameId < currentGlobalCandidateFrames.size() && currentGlobalCandidateFrames[loopFrameId].time() + loopFrameOffset <= currentTime) {
-                            ++loopFrameId;
+                        double loopScore = 0.0;
+                        std::vector<double> loopScoreSingle(times.size(), 0.0);
 
-                            if (loopFrameId >= currentGlobalCandidateFrames.size()) {
-                                loopFrameOffset += currentGlobalCandidateFrames[currentGlobalCandidateFrames.size() - 1].time();
-                                loopFrameId = 0;
-                            }
-                        }
+                        for (Index i = 0; i < times.size(); ++i) {
+                            const double& currentTime = times[i];
 
-                        //For each joint
-                        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-                            unsigned int numOtherAnimations = 0;
-                            double jointFrameScore = 0.0;
+                            while (loopFrameId < currentGlobalCandidateFrames.size() && currentGlobalCandidateFrames[loopFrameId].time() * speed + loopFrameOffset <= currentTime) {
+                                ++loopFrameId;
 
-                            const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
-
-                            //Compute distance weights
-                            double distanceWeight = internal::computeDistanceWeight(targetJointDistance[jId]);
-                            if (distanceWeight == 0.0) {
-                                continue;
-                            }
-
-                            //Calculate mapped joints and their weights for each entry
-                            std::vector<std::vector<JointId>> mappedJoints(cluster.size());
-                            std::vector<std::vector<double>> mappedJointConfidence(cluster.size());
-                            for (JointInfo jointInfo : jointInfos) {
-                                mappedJoints[clusterMap[jointInfo.eId]].push_back(jointInfo.jId);
-                                mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
-                            }
-
-                            std::vector<Quaternion> candidateGlobalWindow;
-                            if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
-                                candidateGlobalWindow = internal::computeWindow(currentGlobalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId]);
-                            }
-                            std::vector<Quaternion> candidateLocalWindow;
-                            if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
-                                candidateLocalWindow = internal::computeWindow(currentLocalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId]);
-                            }
-
-                            for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
-                                Index otherAnimationMode = animationModes[otherCId];
-                                Index otherAnimationId = animationIds[otherCId];
-                                if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
-                                    const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
-                                    const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
-
-                                    std::vector<Quaternion> fixedGlobalWindow;
-                                    if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
-                                        fixedGlobalWindow = internal::computeWindow(currentGlobalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-                                    }
-                                    std::vector<Quaternion> fixedLocalWindow;
-                                    if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
-                                        fixedLocalWindow = internal::computeWindow(currentLocalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
-                                    }
-
-
-
-                                    double similarity = internal::windowSimilarity(candidateGlobalWindow, fixedGlobalWindow, candidateLocalWindow, fixedLocalWindow, windowWeights, globalWeight, localWeight, globalDerivativeWeight, localDerivativeWeight);
-                                    assert(similarity >= 0 && similarity <= 1);
-
-                                    jointFrameScore += similarity;
-
-                                    numOtherAnimations++;
+                                if (loopFrameId >= currentGlobalCandidateFrames.size()) {
+                                    loopFrameOffset += currentGlobalCandidateFrames[currentGlobalCandidateFrames.size() - 1].time();
+                                    loopFrameId = 0;
                                 }
                             }
 
-                            if (numOtherAnimations > 0) {
-                                jointFrameScore /= static_cast<double>(numOtherAnimations);
+                            //For each joint
+                            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+                                unsigned int numOtherAnimations = 0;
+                                double jointFrameScore = 0.0;
+
+                                const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+
+                                //Compute distance weights
+                                double distanceWeight = internal::computeDistanceWeight(targetJointDistance[jId]);
+                                if (distanceWeight == 0.0) {
+                                    continue;
+                                }
+
+                                //Calculate mapped joints and their weights for each entry
+                                std::vector<std::vector<JointId>> mappedJoints(cluster.size());
+                                std::vector<std::vector<double>> mappedJointConfidence(cluster.size());
+                                for (JointInfo jointInfo : jointInfos) {
+                                    mappedJoints[clusterMap[jointInfo.eId]].push_back(jointInfo.jId);
+                                    mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
+                                }
+
+                                std::vector<Quaterniond> candidateGlobalQuaternionWindow;
+                                std::vector<Translation3d> candidateGlobalTranslationWindow;
+                                if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
+                                    internal::computeWindow(currentGlobalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateGlobalQuaternionWindow, candidateGlobalTranslationWindow);
+                                }
+
+                                std::vector<Quaterniond> candidateLocalQuaternionWindow;
+                                std::vector<Translation3d> candidateLocalTranslationWindow;
+                                if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
+                                    internal::computeWindow(currentLocalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateLocalQuaternionWindow, candidateLocalTranslationWindow);
+                                }
+
+                                for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
+                                    Index otherAnimationMode = animationModes[otherCId];
+                                    Index otherAnimationId = animationIds[otherCId];
+                                    if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
+                                        const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
+                                        const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
+
+                                        std::vector<Quaterniond> fixedGlobalQuaternionWindow;
+                                        std::vector<Translation3d> fixedGlobalTranslationWindow;
+                                        if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
+                                            internal::computeWindow(currentGlobalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedGlobalQuaternionWindow, fixedGlobalTranslationWindow);
+                                        }
+                                        std::vector<Quaterniond> fixedLocalQuaternionWindow;
+                                        std::vector<Translation3d> fixedLocalTranslationWindow;
+                                        if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
+                                            internal::computeWindow(currentLocalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedLocalQuaternionWindow, fixedLocalTranslationWindow);
+                                        }
+
+                                        double similarity = internal::windowSimilarity(
+                                                    candidateGlobalQuaternionWindow, fixedGlobalQuaternionWindow, candidateLocalQuaternionWindow, fixedLocalQuaternionWindow,
+                                                    candidateGlobalTranslationWindow, fixedGlobalTranslationWindow, candidateLocalTranslationWindow, fixedLocalTranslationWindow,
+                                                    windowWeights, rotationWeight, globalWeight, localWeight, globalDerivativeWeight, localDerivativeWeight);
+
+                                        assert(similarity >= 0 && similarity <= 1);
+
+                                        jointFrameScore += similarity;
+
+                                        numOtherAnimations++;
+                                    }
+                                }
+
+                                if (numOtherAnimations > 0) {
+                                    jointFrameScore /= static_cast<double>(numOtherAnimations);
+                                }
+
+                                assert(jointFrameScore >= 0 && jointFrameScore <= 1);
+                                loopScore += distanceWeight * jointFrameScore;
+                                loopScoreSingle[i] = distanceWeight * jointFrameScore;
                             }
-
-                            assert(jointFrameScore >= 0 && jointFrameScore <= 1);
-                            loopScore += distanceWeight * jointFrameScore;
-                            loopScoreSingle[i] = distanceWeight * jointFrameScore;
                         }
-                    }
 
-                    if (loopScore > bestLoopScore) {
-                        bestLoopScore = loopScore;
-                        bestLoopAnimationId = candidateAId;
-                        bestLoopStartingFrame = startingFId;
-                        bestLoopScoreSingle = loopScoreSingle;
+                        if (loopScore > bestLoopScore) {
+                            bestLoopScore = loopScore;
+                            bestLoopAnimationId = candidateAId;
+                            bestLoopStartingFrame = startingFId;
+                            bestLoopScoreSingle = loopScoreSingle;
+                        }
                     }
                 }
             }
@@ -546,14 +588,16 @@ void blendAnimations(
                                 mappedJoints[clusterMap[jointInfo.eId]].push_back(jointInfo.jId);
                                 mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
                             }
-
-                            std::vector<Quaternion> candidateGlobalWindow;
+                            std::vector<Quaterniond> candidateGlobalQuaternionWindow;
+                            std::vector<Translation3d> candidateGlobalTranslationWindow;
                             if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
-                                candidateGlobalWindow = internal::computeWindow(currentGlobalCandidateFrames, candidateFId, windowSize, mappedJoints[cId], mappedJointConfidence[cId]);
+                                internal::computeWindow(currentGlobalCandidateFrames, candidateFId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateGlobalQuaternionWindow, candidateGlobalTranslationWindow);
                             }
-                            std::vector<Quaternion> candidateLocalWindow;
+
+                            std::vector<Quaterniond> candidateLocalQuaternionWindow;
+                            std::vector<Translation3d> candidateLocalTranslationWindow;
                             if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
-                                candidateLocalWindow = internal::computeWindow(currentLocalCandidateFrames, candidateFId, windowSize, mappedJoints[cId], mappedJointConfidence[cId]);
+                                internal::computeWindow(currentLocalCandidateFrames, candidateFId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateLocalQuaternionWindow, candidateLocalTranslationWindow);
                             }
 
                             for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
@@ -563,17 +607,24 @@ void blendAnimations(
                                     const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
                                     const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
 
-                                    std::vector<Quaternion> fixedGlobalWindow;
+                                    std::vector<Quaterniond> fixedGlobalQuaternionWindow;
+                                    std::vector<Translation3d> fixedGlobalTranslationWindow;
                                     if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
-                                        fixedGlobalWindow = internal::computeWindow(currentGlobalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
+                                        internal::computeWindow(currentGlobalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedGlobalQuaternionWindow, fixedGlobalTranslationWindow);
                                     }
-                                    std::vector<Quaternion> fixedLocalWindow;
+                                    std::vector<Quaterniond> fixedLocalQuaternionWindow;
+                                    std::vector<Translation3d> fixedLocalTranslationWindow;
                                     if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
-                                        fixedLocalWindow = internal::computeWindow(currentLocalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId]);
+                                        internal::computeWindow(currentLocalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedLocalQuaternionWindow, fixedLocalTranslationWindow);
                                     }
 
-                                    double similarity = internal::windowSimilarity(candidateGlobalWindow, fixedGlobalWindow, candidateLocalWindow, fixedLocalWindow, windowWeights, globalWeight, localWeight, globalDerivativeWeight, localDerivativeWeight);
+                                    double similarity = internal::windowSimilarity(
+                                                candidateGlobalQuaternionWindow, fixedGlobalQuaternionWindow, candidateLocalQuaternionWindow, fixedLocalQuaternionWindow,
+                                                candidateGlobalTranslationWindow, fixedGlobalTranslationWindow, candidateLocalTranslationWindow, fixedLocalTranslationWindow,
+                                                windowWeights, rotationWeight, globalWeight, localWeight, globalDerivativeWeight, localDerivativeWeight);
+
                                     assert(similarity >= 0 && similarity <= 1);
+
 
                                     jointFrameScore += similarity;
 
@@ -842,7 +893,7 @@ void blendAnimations(
             const Skeleton& currentSkeleton = currentModel->skeleton;
 
             //Local bind pose of the current skeleton
-            std::vector<SkeletonTransformation> currentLocalBindPose = nvl::skeletonLocalBindPose(targetSkeleton);
+            std::vector<SkeletonTransformation> currentLocalBindPose = nvl::skeletonLocalBindPose(currentSkeleton);
 
             std::vector<Transformation> clusterTransformations(currentSkeleton.jointNumber());
 
@@ -1000,17 +1051,21 @@ typename Frame::Transformation computeMappedTransformation(
 
 
 template<class Frame, class JointId>
-std::vector<nvl::Quaterniond> computeWindow(
+void computeWindow(
         const std::vector<Frame>& frames,
         const nvl::Index& fId,
         const unsigned int& windowSize,
         const std::vector<JointId>& mappedJoints,
-        const std::vector<double>& mappedJointConfidence)
+        const std::vector<double>& mappedJointConfidence,
+        std::vector<nvl::Quaterniond>& quaternionWindow,
+        std::vector<nvl::Translation3d>& translationWindow)
 {
     typedef typename Frame::Transformation Transformation;
     typedef nvl::Quaterniond Quaternion;
+    typedef nvl::Translation3d Translation3d;
 
-    std::vector<Quaternion> quaternions;
+    quaternionWindow.clear();
+    translationWindow.clear();
 
     for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
         long long int id = fId + w;
@@ -1027,11 +1082,11 @@ std::vector<nvl::Quaterniond> computeWindow(
         Transformation transformation = internal::computeMappedTransformation(frame, mappedJoints, mappedJointConfidence);
 
         Quaternion quaternion(transformation.rotation());
+        Translation3d translation(transformation.translation());
 
-        quaternions.push_back(quaternion);
+        quaternionWindow.push_back(quaternion);
+        translationWindow.push_back(translation);
     }
-
-    return quaternions;
 }
 
 
@@ -1040,7 +1095,12 @@ inline double windowSimilarity(
         const std::vector<nvl::Quaterniond>& globalQ2,
         const std::vector<nvl::Quaterniond>& localQ1,
         const std::vector<nvl::Quaterniond>& localQ2,
+        const std::vector<nvl::Translation3d>& globalT1,
+        const std::vector<nvl::Translation3d>& globalT2,
+        const std::vector<nvl::Translation3d>& localT1,
+        const std::vector<nvl::Translation3d>& localT2,
         const std::vector<double>& windowWeights,
+        const double& rotationWeight,
         const double& globalWeight,
         const double& localWeight,
         const double& globalDerivativeWeight,
@@ -1048,14 +1108,22 @@ inline double windowSimilarity(
 {
     typedef nvl::Index Index;
     typedef nvl::Quaterniond Quaternion;
+    typedef nvl::Translation3d Translation3d;
+
+    const double translationWeight = 1.0 - rotationWeight;
 
     double globalScore = 0.0;
     if (globalWeight > 0.0) {
         assert(globalQ1.size() == globalQ2.size());
         assert(globalQ1.size() == windowWeights.size());
 
-        for (Index i = 0; i < globalQ1.size(); i++) {
-            globalScore += windowWeights[i] * quaternionSimilarity(globalQ1[i], globalQ2[i]);
+        for (Index i = 0; i < globalQ1.size(); i++) {            
+            if (rotationWeight > 0.0) {
+                globalScore += rotationWeight * windowWeights[i] * quaternionSimilarity(globalQ1[i], globalQ2[i]);
+            }
+            if (translationWeight > 0.0) {
+                globalScore += translationWeight * windowWeights[i] * translationSimilarity(globalT1[i], globalT2[i]);
+            }
         }
     }
 
@@ -1066,19 +1134,38 @@ inline double windowSimilarity(
 
         const Index mid = globalQ1.size() / 2;
         for (Index i = 0; i < globalQ1.size(); i++) {
-            Quaternion d1;
-            Quaternion d2;
+            Quaternion dQ1, dQ2;
+            Translation3d dT1, dT2;
 
             if (i <= mid) {
-                d1 = globalQ1[i + 1] * globalQ1[i].inverse();
-                d2 = globalQ2[i + 1] * globalQ2[i].inverse();
+                if (rotationWeight > 0.0) {
+                    dQ1 = globalQ1[i + 1] * globalQ1[i].inverse();
+                    dQ2 = globalQ2[i + 1] * globalQ2[i].inverse();
+                }
+
+                if (translationWeight > 0.0) {
+                    dT1 = globalT1[i + 1] * globalT1[i].inverse();
+                    dT2 = globalT2[i + 1] * globalT2[i].inverse();
+                }
             }
             else {
-                d1 = globalQ1[i] * globalQ1[i - 1].inverse();
-                d2 = globalQ2[i] * globalQ2[i - 1].inverse();
+                if (rotationWeight > 0.0) {
+                    dQ1 = globalQ1[i] * globalQ1[i - 1].inverse();
+                    dQ2 = globalQ2[i] * globalQ2[i - 1].inverse();
+                }
+
+                if (translationWeight > 0.0) {
+                    dT1 = globalT1[i] * globalT1[i - 1].inverse();
+                    dT2 = globalT2[i] * globalT2[i - 1].inverse();
+                }
             }
 
-            globalDerivativeScore += windowWeights[i] * quaternionSimilarity(d1, d2);
+            if (rotationWeight > 0.0) {
+                globalDerivativeScore += rotationWeight * windowWeights[i] * quaternionSimilarity(dQ1, dQ2);
+            }
+            if (translationWeight > 0.0) {
+                globalDerivativeScore += translationWeight * windowWeights[i] * translationSimilarity(dT1, dT2);
+            }
         }
     }
 
@@ -1095,7 +1182,12 @@ inline double windowSimilarity(
         assert(localQ1.size() == windowWeights.size());
 
         for (Index i = 0; i < localQ1.size(); i++) {
-            localScore += windowWeights[i] * quaternionSimilarity(localQ1[i], localQ2[i]);
+            if (rotationWeight > 0.0) {
+                localScore += rotationWeight * windowWeights[i] * quaternionSimilarity(localQ1[i], localQ2[i]);
+            }
+            if (translationWeight > 0.0) {
+                localScore += translationWeight * windowWeights[i] * translationSimilarity(localT1[i], localT2[i]);
+            }
         }
     }
 
@@ -1106,19 +1198,38 @@ inline double windowSimilarity(
 
         const Index mid = localQ1.size() / 2;
         for (Index i = 0; i < localQ1.size(); i++) {
-            Quaternion d1;
-            Quaternion d2;
+            Quaternion dQ1, dQ2;
+            Translation3d dT1, dT2;
 
             if (i <= mid) {
-                d1 = localQ1[i + 1] * localQ1[i].inverse();
-                d2 = localQ2[i + 1] * localQ2[i].inverse();
+                if (rotationWeight > 0.0) {
+                    dQ1 = localQ1[i + 1] * localQ1[i].inverse();
+                    dQ2 = localQ2[i + 1] * localQ2[i].inverse();
+                }
+
+                if (translationWeight > 0.0) {
+                    dT1 = localT1[i + 1] * localT1[i].inverse();
+                    dT2 = localT2[i + 1] * localT2[i].inverse();
+                }
             }
             else {
-                d1 = localQ1[i] * localQ1[i - 1].inverse();
-                d2 = localQ2[i] * localQ2[i - 1].inverse();
+                if (rotationWeight > 0.0) {
+                    dQ1 = localQ1[i] * localQ1[i - 1].inverse();
+                    dQ2 = localQ2[i] * localQ2[i - 1].inverse();
+                }
+
+                if (translationWeight > 0.0) {
+                    dT1 = localT1[i] * localT1[i - 1].inverse();
+                    dT2 = localT2[i] * localT2[i - 1].inverse();
+                }
             }
 
-            localDerivativeScore += windowWeights[i] * quaternionSimilarity(d1, d2);
+            if (rotationWeight > 0.0) {
+                localDerivativeScore += rotationWeight * windowWeights[i] * quaternionSimilarity(dQ1, dQ2);
+            }
+            if (translationWeight > 0.0) {
+                localDerivativeScore += translationWeight * windowWeights[i] * translationSimilarity(dT1, dT2);
+            }
         }
     }
 
@@ -1145,6 +1256,34 @@ inline double quaternionSimilarity(
         score = 1.0;
     else if (nvl::epsEqual(score, 0.0))
         score = 0.0;
+    assert(score >= 0.0 && score <= 1.0);
+
+    return score;
+}
+
+
+inline double translationSimilarity(
+        const nvl::Translation3d& t1,
+        const nvl::Translation3d& t2)
+{
+    typedef nvl::Vector3d Vector;
+
+    const double dirWeight = 0.8;
+    const double normWeight = 1.0 - dirWeight;
+
+    Vector vec1 = t1 * Vector::Zero();
+    Vector vec2 = t2 * Vector::Zero();
+
+    double norm1 = vec1.norm();
+    double norm2 = vec2.norm();
+    double normScore = (norm1 == norm2 ? 1.0 : (norm1 < norm2 ? norm1 / norm2 : norm2 / norm1));
+    assert(normScore >= 0.0 && normScore <= 1.0);
+
+    double dirScore = vec1.normalized().dot(vec2.normalized());
+    dirScore = (dirScore + 1) / 2.0;
+    assert(dirScore >= 0.0 && dirScore <= 1.0);
+
+    double score = dirWeight * dirScore + normWeight * normScore;
     assert(score >= 0.0 && score <= 1.0);
 
     return score;

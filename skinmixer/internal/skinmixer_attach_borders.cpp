@@ -305,8 +305,6 @@ Mesh attachMeshesByBorders(
                 }
             }
 
-            score /= chainComponentFaces.size();
-
             if (score > 0.05 && score > bestScore) {
                 bestScore = score;
                 bestComponentId = i;
@@ -615,9 +613,14 @@ Mesh attachMeshesByBorders(
 
     std::vector<VertexId> fixedBorderVertices;
 
+    std::vector<std::vector<VertexId>> newMChains = mChains;
+
     for (Index chainId = 0; chainId < dChains.size(); ++chainId) {
         const std::vector<VertexId>& dChain = dChains[chainId];
-        std::vector<VertexId>& mChain = mChains[chainId];
+        const std::vector<VertexId>& mChain = mChains[chainId];
+        std::vector<VertexId>& newMChain = newMChains[chainId];
+        Index newMChainOffset = 0;
+
         const std::vector<double>& mParametrization = mFinalParametrization[chainId];
         const std::vector<double>& dParametrization = dFinalParametrization[chainId];
 
@@ -646,14 +649,17 @@ Mesh attachMeshesByBorders(
             }
 
             VertexId newNVertexId = nvl::meshSplitEdge(newMesh, currentMVertexId, mChain[nextI], jPoint, newMeshVFAdj);
-            mChain.insert(mChain.begin() + nextI, newNVertexId);
+            if (newNVertexId != nvl::NULL_ID) {
+                newMChain.insert(newMChain.begin() + nextI + newMChainOffset, newNVertexId);
+                newMChainOffset++;
 
-            newSnappedVertices.insert(newNVertexId);
-            preSnappedVertices.insert(destVertexId);
+                newSnappedVertices.insert(newNVertexId);
+                preSnappedVertices.insert(destVertexId);
 
-            fixedBorderVertices.push_back(newNVertexId);
+                fixedBorderVertices.push_back(newNVertexId);
 
-            currentMVertexId = newNVertexId;
+                currentMVertexId = newNVertexId;
+            }
         }
     }
 
@@ -662,7 +668,9 @@ Mesh attachMeshesByBorders(
     nvl::meshSaveToFile("results/newMesh_2_splitted.obj", newMesh);
 #endif
 
-    std::vector<VertexId> nonCollapsed = nvl::collapseBorders(newMesh, fixedBorderVertices);
+    std::vector<VertexId> collapseBirthVertex;
+    std::vector<FaceId> collapseBirthFace;
+    std::vector<VertexId> nonCollapsed = nvl::collapseBorders(newMesh, fixedBorderVertices, collapseBirthVertex, collapseBirthFace);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
     nvl::meshSaveToFile("results/newMesh_3_collapsed.obj", newMesh);
@@ -673,36 +681,40 @@ Mesh attachMeshesByBorders(
 
         std::unordered_set<VertexId> nonCollapsedSet(nonCollapsed.begin(), nonCollapsed.end());
 
-        for (Index chainId = 0; chainId < mChains.size(); ++chainId) {
-            const std::vector<VertexId>& mChain = mChains[chainId];
+        std::vector<VertexId> collapseVertexMap = nvl::inverseMap(collapseBirthVertex, newMesh.nextVertexId());
 
-            Index lastCollapsed = mChain.size() - 1;
-            while (lastCollapsed != nvl::NULL_ID && nonCollapsedSet.find(mChain[lastCollapsed]) != nonCollapsedSet.end()) {
-                if (lastCollapsed == 0) {
-                    lastCollapsed = nvl::NULL_ID;
-                }
-                else {
-                    lastCollapsed--;
+        for (Index chainId = 0; chainId < newMChains.size(); ++chainId) {
+            const std::vector<VertexId>& newMChain = newMChains[chainId];
+
+            Index startingVertex = nvl::NULL_ID;
+            for (Index i = 0; i < newMChain.size() && startingVertex == nvl::NULL_ID; ++i) {
+                if (collapseVertexMap[newMChain[startingVertex]] == nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[startingVertex]]) == nonCollapsedSet.end()) {
+                    startingVertex = i;
                 }
             }
-            if (lastCollapsed == nvl::NULL_ID)  {
+
+            if (startingVertex != nvl::NULL_ID)  {
+                Index lastCollapsed = startingVertex;
+
+                for (Index i = (startingVertex + 1) % newMChain.size(); i != startingVertex; i = (i + 1) % newMChain.size()) {
+                    if (collapseVertexMap[newMChain[i]] != nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[i]]) != nonCollapsedSet.end()) {
+                        Index nextI = (i + 1) % newMChain.size();
+
+                        newMesh.addFace(collapseVertexMap[newMChain[lastCollapsed]], collapseVertexMap[newMChain[i]], collapseVertexMap[newMChain[nextI]]);
+                    }
+                    else {
+                        lastCollapsed = i;
+                    }
+                }
+            }
+            else {
                 std::cout << std::endl << "*** WARNING: " << nonCollapsed.size() << " none of the vertices was collapsed. Impossible to close the shape." << std::endl;
             }
-
-            else {
-                for (Index i = 0; i < mChain.size(); ++i) {
-                    if (nonCollapsedSet.find(mChain[i]) != nonCollapsedSet.end()) {
-                        Index nextI = (i + 1) % mChain.size();
-
-                        newMesh.addFace(mChain[lastCollapsed], mChain[i], mChain[nextI]);
-
-                        nonCollapsedSet.erase(mChain[i]);
-                    }
-
-                    lastCollapsed = i;
-                }
-            }
         }
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+    nvl::meshSaveToFile("results/newMesh_3_solved_non_collapsed.obj", newMesh);
+#endif
     }
 
     return newMesh;

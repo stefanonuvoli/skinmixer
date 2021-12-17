@@ -603,11 +603,18 @@ void blendSurfaces(
         for (Index cId = 0; cId < cluster.size(); ++cId) {
             const Mesh& mesh = models[cId]->mesh;
 
+            std::vector<std::vector<FaceId>> meshFFAdj = nvl::meshFaceFaceAdjacencies(mesh);
+
             for (int i = 0; i < PRESERVE_REGULARIZATION_ITERATIONS; ++i) {
-                nvl::meshOpenFaceSelection(mesh, preservedFaces[cId], true);
-                nvl::meshCloseFaceSelection(mesh, preservedFaces[cId], true);
+                nvl::meshOpenFaceSelection(mesh, preservedFaces[cId], meshFFAdj, true);
+                nvl::meshCloseFaceSelection(mesh, preservedFaces[cId], meshFFAdj, true);
             }
         }
+
+#ifdef SKINMIXER_DEBUG_SAVE_MESHES
+        preMesh = internal::computePreservedMesh(data, cluster, preservedFaces, preBirthVertex, preBirthFace);
+        nvl::meshSaveToFile("results/premesh_3_regularized.obj", preMesh);
+#endif
 
 #ifdef STEP_TIMES
         duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
@@ -1989,7 +1996,6 @@ Mesh quadrangulateMesh(
     std::vector<WedgeNormalId> wedgeNormalMap;
     std::vector<WedgeUVId> wedgeUVMap;
 
-
     if (preMesh.hasFaceNormals()) {
         result.enableFaceNormals();
     }
@@ -2030,6 +2036,7 @@ Mesh quadrangulateMesh(
 
             if (preMesh.hasFaceMaterials() && !preMesh.faceMaterialIsNull(preFId)) {
                 const MaterialId& preMId = preMesh.faceMaterial(preFId);
+                assert(preMId != nvl::NULL_ID);
 
                 if (materialMap[preMId] == nvl::NULL_ID) {
                     MaterialId newMId = result.addMaterial(preMesh.material(preMId));
@@ -2078,7 +2085,10 @@ Mesh quadrangulateMesh(
             }
         }
         else {
-            result.addFace(tmpResult.face(fId));
+            FaceId fId = result.addFace(tmpResult.face(fId));
+            result.unsetFaceMaterial(fId);
+            result.unsetFaceWedgeNormals(fId);
+            result.unsetFaceWedgeUVs(fId);
         }
     }
 
