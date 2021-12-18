@@ -613,13 +613,12 @@ Mesh attachMeshesByBorders(
 
     std::vector<VertexId> fixedBorderVertices;
 
-    std::vector<std::vector<VertexId>> newMChains = mChains;
+    std::vector<std::vector<VertexId>> splittedMChains = mChains;
 
     for (Index chainId = 0; chainId < dChains.size(); ++chainId) {
         const std::vector<VertexId>& dChain = dChains[chainId];
         const std::vector<VertexId>& mChain = mChains[chainId];
-        std::vector<VertexId>& newMChain = newMChains[chainId];
-        Index newMChainOffset = 0;
+        std::vector<VertexId>& splittedMChain = splittedMChains[chainId];
 
         const std::vector<double>& mParametrization = mFinalParametrization[chainId];
         const std::vector<double>& dParametrization = dFinalParametrization[chainId];
@@ -650,8 +649,15 @@ Mesh attachMeshesByBorders(
 
             VertexId newNVertexId = nvl::meshSplitEdge(newMesh, currentMVertexId, mChain[nextI], jPoint, newMeshVFAdj);
             if (newNVertexId != nvl::NULL_ID) {
-                newMChain.insert(newMChain.begin() + nextI + newMChainOffset, newNVertexId);
-                newMChainOffset++;
+                typename std::vector<VertexId>::iterator it = std::find(splittedMChain.begin(), splittedMChain.end(), currentMVertexId);
+                assert(it != splittedMChain.end());
+
+                ++it;
+                if (it == splittedMChain.end()) {
+                    it = splittedMChain.begin();
+                }
+
+                splittedMChain.insert(it, newNVertexId);
 
                 newSnappedVertices.insert(newNVertexId);
                 preSnappedVertices.insert(destVertexId);
@@ -682,35 +688,36 @@ Mesh attachMeshesByBorders(
 
         std::unordered_set<VertexId> nonCollapsedSet(nonCollapsed.begin(), nonCollapsed.end());
 
-        std::vector<VertexId> collapseVertexMap = nvl::inverseMap(collapsedBirthVertex, oldNewMeshVertexNumber);
+        std::vector<VertexId> collapsedVertexMap = nvl::inverseMap(collapsedBirthVertex, oldNewMeshVertexNumber);
 
-        for (Index chainId = 0; chainId < newMChains.size(); ++chainId) {
-            const std::vector<VertexId>& newMChain = newMChains[chainId];
+        for (Index chainId = 0; chainId < splittedMChains.size(); ++chainId) {
+            const std::vector<VertexId>& splittedMChain = splittedMChains[chainId];
 
-            for (Index i = 0; i < newMChain.size(); ++i) {
-                if (collapseVertexMap[newMChain[i]] != nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[i]]) != nonCollapsedSet.end()) {
+            for (Index i = 0; i < splittedMChain.size(); ++i) {
+                assert(splittedMChain[i] != nvl::NULL_ID);
+                if (collapsedVertexMap[splittedMChain[i]] != nvl::NULL_ID && nonCollapsedSet.find(collapsedVertexMap[splittedMChain[i]]) != nonCollapsedSet.end()) {
                     Index j;
 
                     Index prevI = nvl::NULL_ID;
-                    j = (i > 0 ? i - 1 : newMChain.size() - 1);
+                    j = (i > 0 ? i - 1 : splittedMChain.size() - 1);
                     while (j != i && prevI == nvl::NULL_ID) {
-                        if (collapseVertexMap[newMChain[j]] != nvl::NULL_ID && nonCollapsedSet.find(collapseVertexMap[newMChain[j]]) == nonCollapsedSet.end()) {
+                        if (collapsedVertexMap[splittedMChain[j]] != nvl::NULL_ID && nonCollapsedSet.find(collapsedVertexMap[splittedMChain[j]]) == nonCollapsedSet.end()) {
                             prevI = j;
                         }
-                        j = (j > 0 ? j - 1 : newMChain.size() - 1);
+                        j = (j > 0 ? j - 1 : splittedMChain.size() - 1);
                     }
 
                     Index nextI = nvl::NULL_ID;
-                    j = (i + 1) % newMChain.size();
+                    j = (i + 1) % splittedMChain.size();
                     while (j != i && nextI == nvl::NULL_ID) {
-                        if (collapseVertexMap[newMChain[j]] != nvl::NULL_ID) {
+                        if (collapsedVertexMap[splittedMChain[j]] != nvl::NULL_ID) {
                             nextI = j;
                         }
-                        j = (j + 1) % newMChain.size();
+                        j = (j + 1) % splittedMChain.size();
                     }
 
                     if (prevI != nvl::NULL_ID && nextI != nvl::NULL_ID && prevI != nextI) {
-                        newMesh.addFace(collapseVertexMap[newMChain[prevI]], collapseVertexMap[newMChain[i]], collapseVertexMap[newMChain[nextI]]);
+                        newMesh.addFace(collapsedVertexMap[splittedMChain[prevI]], collapsedVertexMap[splittedMChain[i]], collapsedVertexMap[splittedMChain[nextI]]);
                     }
                     else {
                         std::cout << std::endl << "*** WARNING: none of the vertices was collapsed. Impossible to close the shape." << std::endl;
