@@ -73,6 +73,7 @@ public:
         std::vector<Index> blendingAnimationModes;
         std::vector<Index> blendingAnimationIds;
         std::vector<std::vector<double>> blendingAnimationWeights;
+        std::vector<double> blendingAnimationSpeeds;
 
         std::vector<nvl::DualQuaterniond> deformation;
 

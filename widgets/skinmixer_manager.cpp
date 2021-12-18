@@ -717,8 +717,6 @@ void SkinMixerManager::updateView()
 
     ui->updateJointsBirthButton->setEnabled(blendedModelSelected && jointSelected);
 
-    ui->animationBlendingPage->setEnabled(!animationBlending);
-
     clearLayout(ui->animationSelectGroupBox->layout());
     clearLayout(ui->animationJointGroupBox->layout());
     ui->animationJointMeshComboBox->clear();
@@ -730,12 +728,14 @@ void SkinMixerManager::updateView()
 
     if (blendedModelSelected) {
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
+        std::vector<double>& animationSpeeds = entry.blendingAnimationSpeeds;
 
         const std::vector<Index>& birthEntries = entry.birth.entries;
 
         std::vector<Index>& animationIds = entry.blendingAnimationIds;
         std::vector<Index>& animationModes = entry.blendingAnimationModes;
 
+        std::vector<QDoubleSpinBox*> animationSpeedSpinBoxes(birthEntries.size());
         for (Index cId = 0; cId < birthEntries.size(); ++cId) {
             const Index& eId = birthEntries[cId];
             Model* currentModel = vSkinMixerData.entry(eId).model;
@@ -762,6 +762,13 @@ void SkinMixerManager::updateView()
                 animationIdCombo->setCurrentIndex(animationIds[cId] + 1);
             }
 
+            QDoubleSpinBox* animationSpeedSpinBox = new QDoubleSpinBox(this);
+            animationSpeedSpinBox->setMinimum(0.0);
+            animationSpeedSpinBox->setSingleStep(0.05);
+            animationSpeedSpinBox->setMaximum(100.0);
+            animationSpeedSpinBox->setValue(animationSpeeds[cId]);
+            animationSpeedSpinBoxes[cId] = animationSpeedSpinBox;
+
 
             QComboBox::connect(animationModeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             [&animationModes, cId, this](int index) {
@@ -771,8 +778,6 @@ void SkinMixerManager::updateView()
                     blendAnimations();
                 }
             });
-
-
 
             QComboBox::connect(animationIdCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             [&animationIds, cId, this](int index) {
@@ -788,12 +793,24 @@ void SkinMixerManager::updateView()
                 }
             });
 
+            void (QDoubleSpinBox:: *signal)(double) = static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged);
+            QSlider::connect(animationSpeedSpinBox, signal,
+            [&animationSpeeds, cId, entry, this](double value) {
+                animationSpeeds[cId] = value;
+
+                if (!vBlendingAnimations.empty()) {
+                    blendAnimations();
+                }
+            });
+
+
             QFrame* frame = new QFrame();
             QVBoxLayout *layout = new QVBoxLayout;
             frame->setLayout(layout);
             frame->layout()->addWidget(animationNameLabel);
             frame->layout()->addWidget(animationModeCombo);
             frame->layout()->addWidget(animationIdCombo);
+            frame->layout()->addWidget(animationSpeedSpinBox);
 
             ui->animationSelectGroupBox->layout()->addWidget(frame);
         }

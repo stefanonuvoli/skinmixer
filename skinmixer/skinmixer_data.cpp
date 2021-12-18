@@ -311,6 +311,7 @@ void SkinMixerData<Model>::Entry::clear()
     blendingAnimationIds.clear();
     blendingAnimationModes.clear();
     blendingAnimationWeights.clear();
+    blendingAnimationSpeeds.clear();
 }
 
 template<class Model>
