@@ -32,7 +32,9 @@ void blendAnimations(
         const double& globalDerivativeWeight,
         const double& localDerivativeWeight,
         const unsigned int& windowSize,
-        const double& mainFrameWeight);
+        const double& mainFrameWeight,
+        const unsigned int& smoothingIterations,
+        const double& smoothingThreshold);
 
 //template<class Model>
 //nvl::Index findBestAnimation(

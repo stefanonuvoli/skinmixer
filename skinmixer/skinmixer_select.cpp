@@ -161,7 +161,7 @@ void computeSelectValues(
             }
             avgSelectValue /= componentVertices.size();
 
-            double selectValue = avgSelectValue >= 0.5 ? 1.0 : 0.0;
+            const double selectValue = avgSelectValue >= 0.5 ? 1.0 : 0.0;
             for (VertexId vId : componentVertices) {
                 vertexSelectValue[vId] = selectValue;
             }

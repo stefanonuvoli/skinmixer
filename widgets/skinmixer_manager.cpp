@@ -449,6 +449,8 @@ void SkinMixerManager::blendAnimations()
     parameters.localDerivativeWeight = ui->animationBlendingLocalDerivativeSpinBox->value();
     parameters.windowSize = ui->animationBlendingWindowSpinBox->value();
     parameters.windowMainWeight = ui->animationBlendingMainWeightSpinBox->value();
+    parameters.smoothingIterations = ui->animationBlendingSmoothIterationsSpinBox->value();
+    parameters.smoothingThreshold = ui->animationBlendingSmoothThresholdSpinBox->value();
     skinmixer::mixAnimations(vSkinMixerData, entry, vBlendingAnimations, parameters);
 
     vCanvas->stopAnimations();
@@ -766,6 +768,7 @@ void SkinMixerManager::updateView()
             animationSpeedSpinBox->setMinimum(0.0);
             animationSpeedSpinBox->setSingleStep(0.05);
             animationSpeedSpinBox->setMaximum(100.0);
+            animationSpeedSpinBox->setDecimals(5);
             animationSpeedSpinBox->setValue(animationSpeeds[cId]);
             animationSpeedSpinBoxes[cId] = animationSpeedSpinBox;
 

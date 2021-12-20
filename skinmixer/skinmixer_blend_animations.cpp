@@ -7,6 +7,7 @@
 
 #include <nvl/models/algorithms/animation_poses.h>
 #include <nvl/models/algorithms/animation_blend.h>
+#include <nvl/models/algorithms/animation_smoothing.h>
 #include <nvl/models/algorithms/animation_transformations.h>
 #include <nvl/models/algorithms/skeleton_bind_pose.h>
 
@@ -62,7 +63,8 @@ double translationSimilarity(
         const nvl::Translation3d& t1,
         const nvl::Translation3d& t2);
 
-double computeDistanceWeight(const double distance);
+template<class S>
+inline std::vector<double> computeDistanceWeights(const S& skeleton, const std::vector<typename S::JointId>& seeds);
 
 }
 
@@ -149,7 +151,9 @@ void blendAnimations(
         const double& globalDerivativeWeight,
         const double& localDerivativeWeight,
         const unsigned int& windowSize,
-        const double& mainFrameWeight)
+        const double& mainFrameWeight,
+        const unsigned int& smoothingIterations,
+        const double& smoothingThreshold)
 {
     typedef typename nvl::Index Index;
 
@@ -369,9 +373,7 @@ void blendAnimations(
     }
 
     //Joint distance from the merge joints
-    std::vector<unsigned int> targetJointDistance = nvl::skeletonJointDistance(targetSkeleton, entry.birth.mergeJoints);
-
-
+    std::vector<double> jointDistanceWeight = internal::computeDistanceWeights(targetSkeleton, entry.birth.mergeJoints);
 
 
     // ------------------------------------------ BEST LOOP ------------------------------------------
@@ -402,111 +404,112 @@ void blendAnimations(
             std::vector<double> bestLoopScoreSingle;
 
             for (const Index& candidateAId : candidateAnimations) {
-                    const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][candidateAId];
-                    const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][candidateAId];
+                const std::vector<Frame>& currentGlobalCandidateFrames = globalCandidateFrames[cId][candidateAId];
+                const std::vector<Frame>& currentLocalCandidateFrames = localCandidateFrames[cId][candidateAId];
 
-                    for (Index startingFId = 0; startingFId < currentGlobalCandidateFrames.size(); startingFId++) {
-                        const double startingTime = currentGlobalCandidateFrames[startingFId].time();
+                for (Index startingFId = 0; startingFId < currentGlobalCandidateFrames.size(); startingFId++) {
+                    const double startingTime = currentGlobalCandidateFrames[startingFId].time();
 
-                        Index loopFrameId = startingFId;
-                        double loopFrameOffset = -startingTime;
+                    Index loopFrameId = startingFId;
+                    double loopFrameOffset = -startingTime;
 
-                        double loopScore = 0.0;
-                        std::vector<double> loopScoreSingle(times.size(), 0.0);
+                    double loopScore = 0.0;
+                    std::vector<double> loopScoreSingle(times.size(), 0.0);
 
-                        for (Index i = 0; i < times.size(); ++i) {
-                            const double& currentTime = times[i];
+                    for (Index i = 0; i < times.size(); ++i) {
+                        const double& currentTime = times[i];
 
-                            while (loopFrameId < currentGlobalCandidateFrames.size() && currentGlobalCandidateFrames[loopFrameId].time() + loopFrameOffset <= currentTime) {
-                                ++loopFrameId;
+                        while (loopFrameId < currentGlobalCandidateFrames.size() && currentGlobalCandidateFrames[loopFrameId].time() + loopFrameOffset <= currentTime) {
+                            ++loopFrameId;
 
-                                if (loopFrameId >= currentGlobalCandidateFrames.size()) {
-                                    loopFrameOffset += currentGlobalCandidateFrames[currentGlobalCandidateFrames.size() - 1].time();
-                                    loopFrameId = 0;
-                                }
-                            }
-
-                            //For each joint
-                            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
-                                unsigned int numOtherAnimations = 0;
-                                double jointFrameScore = 0.0;
-
-                                const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
-
-                                //Compute distance weights
-                                double distanceWeight = internal::computeDistanceWeight(targetJointDistance[jId]);
-                                if (distanceWeight == 0.0) {
-                                    continue;
-                                }
-
-                                //Calculate mapped joints and their weights for each entry
-                                std::vector<std::vector<JointId>> mappedJoints(cluster.size());
-                                std::vector<std::vector<double>> mappedJointConfidence(cluster.size());
-                                for (JointInfo jointInfo : jointInfos) {
-                                    mappedJoints[clusterMap[jointInfo.eId]].push_back(jointInfo.jId);
-                                    mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
-                                }
-
-                                std::vector<Quaterniond> candidateGlobalQuaternionWindow;
-                                std::vector<Translation3d> candidateGlobalTranslationWindow;
-                                if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
-                                    internal::computeWindow(currentGlobalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateGlobalQuaternionWindow, candidateGlobalTranslationWindow);
-                                }
-
-                                std::vector<Quaterniond> candidateLocalQuaternionWindow;
-                                std::vector<Translation3d> candidateLocalTranslationWindow;
-                                if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
-                                    internal::computeWindow(currentLocalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateLocalQuaternionWindow, candidateLocalTranslationWindow);
-                                }
-
-                                for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
-                                    Index otherAnimationMode = animationModes[otherCId];
-                                    Index otherAnimationId = animationIds[otherCId];
-                                    if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
-                                        const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
-                                        const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
-
-                                        std::vector<Quaterniond> fixedGlobalQuaternionWindow;
-                                        std::vector<Translation3d> fixedGlobalTranslationWindow;
-                                        if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
-                                            internal::computeWindow(currentGlobalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedGlobalQuaternionWindow, fixedGlobalTranslationWindow);
-                                        }
-                                        std::vector<Quaterniond> fixedLocalQuaternionWindow;
-                                        std::vector<Translation3d> fixedLocalTranslationWindow;
-                                        if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
-                                            internal::computeWindow(currentLocalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedLocalQuaternionWindow, fixedLocalTranslationWindow);
-                                        }
-
-                                        double similarity = internal::windowSimilarity(
-                                                    candidateGlobalQuaternionWindow, fixedGlobalQuaternionWindow, candidateLocalQuaternionWindow, fixedLocalQuaternionWindow,
-                                                    candidateGlobalTranslationWindow, fixedGlobalTranslationWindow, candidateLocalTranslationWindow, fixedLocalTranslationWindow,
-                                                    windowWeights, rotationWeight, globalWeight, localWeight, globalDerivativeWeight, localDerivativeWeight);
-
-                                        assert(similarity >= 0 && similarity <= 1);
-
-                                        jointFrameScore += similarity;
-
-                                        numOtherAnimations++;
-                                    }
-                                }
-
-                                if (numOtherAnimations > 0) {
-                                    jointFrameScore /= static_cast<double>(numOtherAnimations);
-                                }
-
-                                assert(jointFrameScore >= 0 && jointFrameScore <= 1);
-                                loopScore += distanceWeight * jointFrameScore;
-                                loopScoreSingle[i] = distanceWeight * jointFrameScore;
+                            if (loopFrameId >= currentGlobalCandidateFrames.size()) {
+                                loopFrameOffset += currentGlobalCandidateFrames[currentGlobalCandidateFrames.size() - 1].time();
+                                loopFrameId = 0;
                             }
                         }
 
-                        if (loopScore > bestLoopScore) {
-                            bestLoopScore = loopScore;
-                            bestLoopAnimationId = candidateAId;
-                            bestLoopStartingFrame = startingFId;
-                            bestLoopScoreSingle = loopScoreSingle;
+                        //For each joint
+                        for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+                            unsigned int numOtherAnimations = 0;
+                            double jointFrameScore = 0.0;
+
+                            const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
+
+                            const double& distanceWeight = jointDistanceWeight[jId];
+                            if (distanceWeight == 0.0) {
+                                continue;
+                            }
+
+                            //Calculate mapped joints and their weights for each entry
+                            std::vector<std::vector<JointId>> mappedJoints(cluster.size());
+                            std::vector<std::vector<double>> mappedJointConfidence(cluster.size());
+                            for (JointInfo jointInfo : jointInfos) {
+                                mappedJoints[clusterMap[jointInfo.eId]].push_back(jointInfo.jId);
+                                mappedJointConfidence[clusterMap[jointInfo.eId]].push_back(jointInfo.confidence);
+                            }
+
+                            std::vector<Quaterniond> candidateGlobalQuaternionWindow;
+                            std::vector<Translation3d> candidateGlobalTranslationWindow;
+                            if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
+                                internal::computeWindow(currentGlobalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateGlobalQuaternionWindow, candidateGlobalTranslationWindow);
+                            }
+
+                            std::vector<Quaterniond> candidateLocalQuaternionWindow;
+                            std::vector<Translation3d> candidateLocalTranslationWindow;
+                            if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
+                                internal::computeWindow(currentLocalCandidateFrames, loopFrameId, windowSize, mappedJoints[cId], mappedJointConfidence[cId], candidateLocalQuaternionWindow, candidateLocalTranslationWindow);
+                            }
+
+                            for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
+                                Index otherAnimationMode = animationModes[otherCId];
+                                Index otherAnimationId = animationIds[otherCId];
+                                if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
+                                    const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
+                                    const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
+
+                                    std::vector<Quaterniond> fixedGlobalQuaternionWindow;
+                                    std::vector<Translation3d> fixedGlobalTranslationWindow;
+                                    if (globalWeight > 0.0 || globalDerivativeWeight > 0.0) {
+                                        internal::computeWindow(currentGlobalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedGlobalQuaternionWindow, fixedGlobalTranslationWindow);
+                                    }
+                                    std::vector<Quaterniond> fixedLocalQuaternionWindow;
+                                    std::vector<Translation3d> fixedLocalTranslationWindow;
+                                    if (localWeight > 0.0 || localDerivativeWeight > 0.0) {
+                                        internal::computeWindow(currentLocalFixedFrames, currentFrameId[i][otherCId], windowSize, mappedJoints[otherCId], mappedJointConfidence[otherCId], fixedLocalQuaternionWindow, fixedLocalTranslationWindow);
+                                    }
+
+                                    double similarity = internal::windowSimilarity(
+                                                candidateGlobalQuaternionWindow, fixedGlobalQuaternionWindow, candidateLocalQuaternionWindow, fixedLocalQuaternionWindow,
+                                                candidateGlobalTranslationWindow, fixedGlobalTranslationWindow, candidateLocalTranslationWindow, fixedLocalTranslationWindow,
+                                                windowWeights, rotationWeight, globalWeight, localWeight, globalDerivativeWeight, localDerivativeWeight);
+
+                                    assert(similarity >= 0 && similarity <= 1);
+
+                                    jointFrameScore += similarity;
+
+                                    numOtherAnimations++;
+                                }
+                            }
+
+                            if (numOtherAnimations > 0) {
+                                jointFrameScore /= static_cast<double>(numOtherAnimations);
+                            }
+                            assert(jointFrameScore >= 0 && jointFrameScore <= 1);
+
+                            loopScoreSingle[i] = distanceWeight * jointFrameScore;
+                            assert(loopScoreSingle[i] >= 0 && loopScoreSingle[i]<= 1);
+
+                            loopScore += loopScoreSingle[i];
                         }
                     }
+
+                    if (loopScore > bestLoopScore) {
+                        bestLoopScore = loopScore;
+                        bestLoopAnimationId = candidateAId;
+                        bestLoopStartingFrame = startingFId;
+                        bestLoopScoreSingle = loopScoreSingle;
+                    }
+                }
             }
 
             if (bestLoopAnimationId != nvl::NULL_ID) {
@@ -517,6 +520,11 @@ void blendAnimations(
                 Index loopFrameId = bestLoopStartingFrame;
                 double loopFrameOffset = -startingTime;
                 for (Index i = 0; i < times.size(); ++i) {
+                    Index& bestAId = bestKeyframeAnimation[i][cId];
+                    Index& bestFId = bestKeyframe[i][cId];
+                    double& bestAlpha = bestKeyframeAlpha[i][cId];
+                    double& bestScore = bestKeyframeScore[i][cId];
+
                     const double& currentTime = times[i];
 
                     while (loopFrameId < currentGlobalCandidateFrames.size() && currentGlobalCandidateFrames[loopFrameId].time() + loopFrameOffset <= currentTime) {
@@ -528,10 +536,10 @@ void blendAnimations(
                         }
                     }
 
-                    bestKeyframeScore[i][cId] = bestLoopScoreSingle[i];
-                    bestKeyframeAnimation[i][cId] = bestLoopAnimationId;
-                    bestKeyframe[i][cId] = loopFrameId;
-                    bestKeyframeAlpha[i][cId] = 1.0;
+                    bestScore = bestLoopScoreSingle[i];
+                    bestAId = bestLoopAnimationId;
+                    bestFId = loopFrameId;
+                    bestAlpha = 1.0;
                 }
             }
         }
@@ -580,8 +588,7 @@ void blendAnimations(
 
                             const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
 
-                            //Compute distance weights
-                            double distanceWeight = internal::computeDistanceWeight(targetJointDistance[jId]);
+                            const double& distanceWeight = jointDistanceWeight[jId];
                             if (distanceWeight == 0.0) {
                                 continue;
                             }
@@ -640,10 +647,11 @@ void blendAnimations(
                             if (numOtherAnimations > 0) {
                                 jointFrameScore /= static_cast<double>(numOtherAnimations);
                             }
-
                             assert(jointFrameScore >= 0 && jointFrameScore <= 1);
+                            
                             frameScore += distanceWeight * jointFrameScore;
                         }
+                        assert(frameScore >= 0 && frameScore <= 1);
 
                         if (frameScore > bestKeyframeScore[i][cId]) {
                             bestAId = candidateAId;
@@ -708,9 +716,6 @@ void blendAnimations(
         }
     }
 
-
-
-
 #ifdef KEYFRAME_SELECTION_VERBOSITY
     std::cout << std::endl << "Animation blending: " << std::endl;
 
@@ -729,13 +734,14 @@ void blendAnimations(
             if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
                 const Index& bestAId = bestKeyframeAnimation[i][cId];
                 const Index& bestFId = bestKeyframe[i][cId];
+                const double& bestScore = bestKeyframeScore[i][cId];
 
                 if (bestAId != nvl::NULL_ID) {
                     if (bestAId == DUPLICATE_KEYFRAME_TO_BLEND) {
                         std::cout << "B";
                     }
                     else {
-                        std::cout << "(" << bestAId << ", " << bestFId << ")";
+                        std::cout << "(" << bestAId << ", " << bestFId << ", " << bestScore << ")";
                     }
                 }
             }
@@ -749,13 +755,77 @@ void blendAnimations(
 #endif
 
 
+    // ------------------------------------------ DETERMINING SMOOTHING ALPHAS ------------------------------------------
+
+    std::vector<std::vector<double>> keyframeSmoothAlpha;
+
+    if (smoothingIterations > 0) {
+        keyframeSmoothAlpha.resize(times.size(), std::vector<double>(targetSkeleton.jointNumber(), 0.0));
+
+        for (Index i = 0; i < times.size(); ++i) {
+            for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
+                std::vector<double> clusterKeyframeWeight(cluster.size(), 0.0);
+                std::vector<double> weights(cluster.size(), 0.0);
+
+                for (Index cId = 0; cId < cluster.size(); ++cId) {
+                    const Index& animationMode = animationModes[cId];
+
+                    //Avoid numerical errors
+                    if (!nvl::epsEqual(animationWeights[jId][cId], 0.0)) {
+                        weights[cId] = animationWeights[jId][cId];
+
+                        //Fixed
+                        if (animationMode == BLEND_ANIMATION_FIXED) {
+                            clusterKeyframeWeight[cId] = 1.0;
+                        }
+                        else if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
+                            const Index& bestAId = bestKeyframeAnimation[i][cId];
+                            const double& bestScore = bestKeyframeScore[i][cId];
+
+                            if (bestAId == DUPLICATE_KEYFRAME_TO_BLEND) {
+                                clusterKeyframeWeight[cId] = 0.0;
+                            }
+                            else if (bestAId != nvl::NULL_ID) {
+                                assert(bestAId != nvl::NULL_ID);
+                                assert(bestScore < nvl::maxLimitValue<double>());
+
+                                clusterKeyframeWeight[cId] = bestScore;
+                            }
+                            else {
+                                clusterKeyframeWeight[cId] = 0.0;
+                            }
+                        }
+                    }
+                }
+
+                nvl::normalize(weights);
+
+                double sum = 0.0;
+                for (const double& value : weights) {
+                    sum += value;
+                }
+                if (nvl::epsEqual(sum, 0.0)) {
+                    for (double& value : weights) {
+                        value = 1.0 / weights.size();
+                    }
+                }
+
+                keyframeSmoothAlpha[i][jId] = nvl::interpolateLinear(clusterKeyframeWeight, weights);
+                if (keyframeSmoothAlpha[i][jId] > smoothingThreshold) {
+                    keyframeSmoothAlpha[i][jId] = 1.0;
+                }
+            }
+        }
+    }
 
 
 
-    // ------------------------------------------ FILLING TRANSFORMATIONS ------------------------------------------
 
     for (Index i = 0; i < times.size(); ++i) {
         const double& currentTime = times[i];
+
+        // ------------------------------------------ FILLING TRANSFORMATIONS ------------------------------------------
+
         std::vector<Transformation> blendedTransformations(targetSkeleton.jointNumber());
 
         //For each joint blend transformations
@@ -768,9 +838,6 @@ void blendAnimations(
             for (Index cId = 0; cId < cluster.size(); ++cId) {
                 const Index& animationMode = animationModes[cId];
                 const Index& animationId = animationIds[cId];
-
-                const Index& bestAId = bestKeyframeAnimation[i][cId];
-                const Index& bestFId = bestKeyframe[i][cId];
 
                 //Calculate mapped joints and their weights for each entry
                 std::vector<std::vector<JointId>> mappedJoints(cluster.size());
@@ -811,6 +878,9 @@ void blendAnimations(
                         }
                     }
                     else if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
+                        const Index& bestAId = bestKeyframeAnimation[i][cId];
+                        const Index& bestFId = bestKeyframe[i][cId];
+
                         if (bestAId == DUPLICATE_KEYFRAME_TO_BLEND) {
                             assert(animationMode == BLEND_ANIMATION_KEYFRAME);
 
@@ -892,14 +962,8 @@ void blendAnimations(
         }
 
         Frame targetFrame(currentTime, blendedTransformations);
-
         nvl::animationFrameApplyTransformation(targetFrame, targetLocalBindPose);
-        nvl::animationFrameGlobalFromLocal(targetSkeleton, targetFrame);
-
         targetAnimation.addKeyframe(targetFrame);
-
-
-
 
 
 
@@ -1015,14 +1079,17 @@ void blendAnimations(
             }
 
             Frame clusterFrame(currentTime, clusterTransformations);
-
             nvl::animationFrameApplyTransformation(clusterFrame, currentLocalBindPose);
-            nvl::animationFrameGlobalFromLocal(currentSkeleton, clusterFrame);
-
             clusterAnimations[cId].addKeyframe(clusterFrame);
-
         }
     }
+
+    if (smoothingIterations > 0) {
+        std::cout << "Smoothing keyframes:" << std::endl;
+        nvl::animationLaplacianSmoothing(targetAnimation, smoothingIterations, keyframeSmoothAlpha);
+    }
+
+    nvl::animationGlobalFromLocal(targetSkeleton, targetAnimation);
 
     targetAnimation.setName("Blended");
     Index targetAnimationId = targetModel->addAnimation(targetAnimation);
@@ -1031,6 +1098,9 @@ void blendAnimations(
     for (Index cId = 0; cId < cluster.size(); ++cId) {
         const Index& eId = cluster[cId];
         Model* currentModel = data.entry(cluster[cId]).model;
+        const Skeleton& currentSkeleton = currentModel->skeleton;
+
+        nvl::animationGlobalFromLocal(currentSkeleton, clusterAnimations[cId]);
 
         clusterAnimations[cId].setName("Selected keyframe");
         Index clusterAnimationId = currentModel->addAnimation(clusterAnimations[cId]);
@@ -1093,9 +1163,10 @@ void computeWindow(
     typedef nvl::Quaterniond Quaternion;
     typedef nvl::Translation3d Translation3d;
 
-    quaternionWindow.clear();
-    translationWindow.clear();
+    quaternionWindow.resize(windowSize * 2 + 1);
+    translationWindow.resize(windowSize * 2 + 1);
 
+    nvl::Index i = 0;
     for (int w = -static_cast<int>(windowSize); w <= +static_cast<int>(windowSize); w++) {
         long long int id = fId + w;
 
@@ -1113,9 +1184,12 @@ void computeWindow(
         Quaternion quaternion(transformation.rotation());
         Translation3d translation(transformation.translation());
 
-        quaternionWindow.push_back(quaternion);
-        translationWindow.push_back(translation);
+        quaternionWindow[i] = quaternion;
+        translationWindow[i] = translation;
+
+        ++i;
     }
+    assert(i == windowSize * 2 + 1);
 }
 
 
@@ -1319,22 +1393,39 @@ inline double translationSimilarity(
 }
 
 
-inline double computeDistanceWeight(const double distance)
-{
-    const unsigned int minDistance = 2;
+template<class S>
+inline std::vector<double> computeDistanceWeights(const S& skeleton, const std::vector<typename S::JointId>& seeds)
+{    
+    typedef typename S::JointId JointId;
 
-    double distanceWeight = 1.0;
-    if (distance > minDistance) {
-        if (distance > 8) {
-            distanceWeight = 0.0;
+    std::vector<double> distanceWeights(skeleton.jointNumber(), 0.0);
+
+    //Joint distance from the merge joints
+    std::vector<unsigned int> targetJointDistance = nvl::skeletonJointDistance(skeleton, seeds);
+
+    const unsigned int minDistance = 2;
+    const unsigned int maxDistance = 8;
+
+    for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
+        const double& distance = targetJointDistance[jId];
+
+        double distanceWeight = 1.0;
+        if (distance > minDistance) {
+            if (distance > maxDistance) {
+                distanceWeight = 0.0;
+            }
+            else {
+                double exponent = -(static_cast<double>(distance) - static_cast<double>(minDistance));
+                distanceWeight = nvl::pow(2.0, exponent);
+            }
         }
-        else {
-            double exponent = -(static_cast<double>(distance) - static_cast<double>(minDistance));
-            distanceWeight = nvl::pow(2.0, exponent);
-        }
+
+        distanceWeights[jId] = distanceWeight;
     }
 
-    return distanceWeight;
+    nvl::normalize(distanceWeights);
+
+    return distanceWeights;
 }
 
 }

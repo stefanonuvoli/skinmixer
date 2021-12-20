@@ -15,13 +15,15 @@ std::vector<nvl::Index> mix(
 struct MixAnimationParameters {
     MixAnimationParameters() :
         samplingFPS(30.0),
-        rotationWeight(0.5),
+        rotationWeight(0.7),
         globalWeight(0.9),
         localWeight(0.0),
         globalDerivativeWeight(0.1),
         localDerivativeWeight(0.0),
         windowSize(1),
-        windowMainWeight(0.6)
+        windowMainWeight(0.6),
+        smoothingIterations(10),
+        smoothingThreshold(0.95)
     {
 
     }
@@ -34,6 +36,8 @@ struct MixAnimationParameters {
     double localDerivativeWeight;
     unsigned int windowSize;
     double windowMainWeight;
+    unsigned int smoothingIterations;
+    double smoothingThreshold;
 };
 
 template<class Model>

@@ -182,7 +182,9 @@ void mixAnimations(
                 parameters.globalDerivativeWeight,
                 parameters.localDerivativeWeight,
                 parameters.windowSize,
-                parameters.windowMainWeight);
+                parameters.windowMainWeight,
+                parameters.smoothingIterations,
+                parameters.smoothingThreshold);
 
 #ifdef GLOBAL_TIMES
     duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
