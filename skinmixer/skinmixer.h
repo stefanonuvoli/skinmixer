@@ -15,7 +15,7 @@ std::vector<nvl::Index> mix(
 struct MixAnimationParameters {
     MixAnimationParameters() :
         samplingFPS(30.0),
-        rotationWeight(0.7),
+        rotationWeight(0.8),
         globalWeight(0.9),
         localWeight(0.0),
         globalDerivativeWeight(0.1),
