@@ -1,9 +1,9 @@
 #include "skinmixer_attach_borders.h"
 
-#include <nvl/vcglib/vcg_collapse_borders.h>
-#include <nvl/vcglib/vcg_convert.h>
-#include <nvl/vcglib/vcg_triangle_mesh.h>
-#include <nvl/vcglib/vcg_polygon_mesh.h>
+#include <nvl/models/algorithms/mesh_collapse_borders.h>
+#include <nvl/models/algorithms/mesh_vcg_convert.h>
+#include <nvl/models/structures/vcg_triangle_mesh.h>
+#include <nvl/models/structures/vcg_polygon_mesh.h>
 
 #include <nvl/models/algorithms/mesh_adjacencies.h>
 #include <nvl/models/algorithms/mesh_borders.h>

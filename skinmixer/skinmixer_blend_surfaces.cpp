@@ -6,8 +6,6 @@
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/transformations.h>
 
-#include <nvl/vcglib/vcg_remeshing.h>
-
 #include <nvl/models/algorithms/mesh_geometric_information.h>
 #include <nvl/models/algorithms/mesh_transformations.h>
 #include <nvl/models/algorithms/mesh_adjacencies.h>
@@ -18,10 +16,11 @@
 #include <nvl/models/algorithms/mesh_normals.h>
 #include <nvl/models/algorithms/mesh_morphological_operations.h>
 
-#include <nvl/vcglib/vcg_convert.h>
-#include <nvl/vcglib/vcg_triangle_mesh.h>
-#include <nvl/vcglib/vcg_polygon_mesh.h>
-#include <nvl/vcglib/vcg_grid.h>
+#include <nvl/models/algorithms/mesh_vcg_convert.h>
+#include <nvl/models/algorithms/mesh_grid.h>
+#include <nvl/models/algorithms/mesh_remeshing.h>
+#include <nvl/models/structures/vcg_triangle_mesh.h>
+#include <nvl/models/structures/vcg_polygon_mesh.h>
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
 #include <nvl/models/io/mesh_io.h>
