@@ -11,7 +11,7 @@
 #include <nvl/models/algorithms/model_deformation.h>
 #include <nvl/models/algorithms/mesh_normals.h>
 
-#include <nvl/structures/disjoint_set.h>
+#include <nvl/structures/containers/disjoint_set.h>
 
 #include <chrono>
 

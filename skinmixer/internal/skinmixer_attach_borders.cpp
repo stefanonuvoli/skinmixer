@@ -14,8 +14,8 @@
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/closest_point.h>
 
-#include <nvl/structures/graph.h>
-#include <nvl/structures/dijkstra.h>
+#include <nvl/structures/graphs/graph.h>
+#include <nvl/structures/graphs/dijkstra.h>
 
 #include <numeric>
 #include <gurobi_c++.h>
