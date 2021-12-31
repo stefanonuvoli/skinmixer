@@ -221,7 +221,7 @@ void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::
         vSelectedModelDrawer->skeletonDrawer().resetRenderingJointColor(vSelectedJoint);
     }
     if (vFirstSelectedModelDrawer != nullptr && vFirstSelectedJoint != nvl::NULL_ID) {
-        vSelectedModelDrawer->skeletonDrawer().resetRenderingJointColor(vFirstSelectedJoint);
+        vFirstSelectedModelDrawer->skeletonDrawer().resetRenderingJointColor(vFirstSelectedJoint);
     }
 
     vSelectedModelDrawer = getSelectedModelDrawer();
