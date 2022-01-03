@@ -5,6 +5,10 @@
 
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/transformations.h>
+#include <nvl/math/normalization.h>
+#include <nvl/math/smoothing.h>
+
+#include <nvl/utilities/color_utils.h>
 
 #include <nvl/models/algorithms/mesh_geometric_information.h>
 #include <nvl/models/algorithms/mesh_transformations.h>
@@ -30,6 +34,8 @@
 
 #include <vector>
 
+#include <QImage>
+
 #define FACE_KEEP_THRESHOLD 0.999
 
 #define VOXEL_SIZE_FACTOR 0.8
@@ -52,6 +58,9 @@
 #define PRESERVE_REGULARIZATION_ITERATIONS 2
 #define PRESERVE_SELECT_VALUE 0.999
 #define PRESERVE_ATTACH_RADIUS 2
+
+#define VERTEX_COLOR_SMOOTHING_ITERATIONS 10
+#define VERTEX_COLOR_SMOOTHING_ALPHA 0.7
 
 namespace skinmixer {
 
@@ -76,6 +85,13 @@ Mesh quadrangulateMesh(
         std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& birthVertex,
         std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace);
 
+template<class Mesh>
+nvl::Color interpolateFaceColors(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const typename Mesh::Point& point,
+        const std::vector<nvl::Color>& colors);
+
 }
 
 template<class Model>
@@ -83,14 +99,19 @@ void blendSurfaces(
         SkinMixerData<Model>& data,
         std::vector<nvl::Index> cluster,
         typename SkinMixerData<Model>::Entry& resultEntry,
-        const MixMode& mixMode)
+        const MixMode& mixMode,
+        const bool blendColorFromTextures)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::FaceId FaceId;
     typedef typename Mesh::FaceNormal FaceNormal;
+    typedef typename Mesh::MaterialId MaterialId;
+    typedef typename Mesh::Material Material;
     typedef typename Mesh::Point Point;
     typedef typename Mesh::Scalar Scalar;
+    typedef typename Mesh::WedgeUVId WedgeUVId;
+    typedef typename Mesh::VertexUV VertexUV;
     typedef typename nvl::Index Index;
     typedef typename nvl::Vector3d Vector;
     typedef typename SkinMixerData<Model>::BirthInfo::VertexInfo VertexInfo;
@@ -1683,14 +1704,188 @@ void blendSurfaces(
     }
 
 #ifdef STEP_TIMES
-        duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
-        std::cout << duration << " ms" << std::endl;
-        totalDuration += duration;
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << duration << " ms" << std::endl;
+    totalDuration += duration;
 #endif
 
 
+    // --------------------------------------- UV TO VERTEX COLOR ---------------------------------------
+
+    if (blendColorFromTextures) {
+
+#ifdef STEP_TIMES
+        start = chrono::steady_clock::now();
+        std::cout << "Blending vertex colors from textures...";
+#endif
+
+        std::vector<std::vector<std::vector<FaceId>>> vfAdjs(models.size());
+        std::vector<std::vector<QImage>> imgs(models.size());
+
+        if (resultMesh.hasVertexColors()) {
+            std::unordered_set<VertexId> colorVertices;
+            std::unordered_map<VertexId, FaceId> vertexFaceMap;
+            for (FaceId fId = 0; fId < resultMesh.nextFaceId(); ++fId) {
+                if (resultMesh.isFaceDeleted(fId))
+                    continue;
+
+                Index birthFId = resultPreBirthFace[fId].second;
+                if (birthFId == nvl::NULL_ID) {
+                    for (const VertexId& vId : resultMesh.faceVertexIds(fId)) {
+                        colorVertices.insert(vId);
+                        vertexFaceMap[vId] = fId;
+                    }
+                }
+            }
+
+            for (Index cId = 0; cId < models.size(); ++cId) {
+                const Mesh& mesh = models[cId]->mesh;
+
+                vfAdjs[cId] = nvl::meshVertexFaceAdjacencies(mesh);
+
+                imgs[cId].resize(mesh.nextMaterialId(), QImage());
+
+                for (MaterialId mId = 0; mId < mesh.nextMaterialId(); ++mId) {
+                    if (mesh.isMaterialDeleted(mId))
+                        continue;
+
+                    const Material& mat = mesh.material(mId);
+
+                    QImage img;
+                    bool imageLoaded = img.load(mat.diffuseMap().c_str());
+                    if (imageLoaded) {
+                        imgs[cId][mId] = img;
+                    }
+                }
+            }
+
+            std::vector<double> vertexColorWeights(resultMesh.nextVertexId(), 1.0);
+            for (const VertexId& vId : colorVertices) {
+                if (resultMesh.isVertexDeleted(vId))
+                    continue;
+
+                const std::vector<VertexInfo>& vertexInfo = resultEntry.birth.vertex[vId];
+
+                std::vector<nvl::Color> colors;
+                std::vector<double> colorWeights;
+
+                for (Index i = 0; i < vertexInfo.size(); ++i) {
+                    const VertexInfo& info = vertexInfo[i];
+
+                    assert(info.eId != nvl::NULL_ID);
+                    const Index cId = clusterMap.at(info.eId);
+                    const Mesh& mesh = models[cId]->mesh;
+                    FaceId fId = nvl::NULL_ID;
+                    Index birthVId = resultPreBirthVertex[vId].second;
+                    if (birthVId == nvl::NULL_ID) {
+                        fId = info.closestFaceId;
+                        vertexColorWeights[vId] = VERTEX_COLOR_SMOOTHING_ALPHA;
+                    }
+                    else {
+                        const std::vector<FaceId>& faces = vfAdjs[cId][birthVId];
+                        for (const FaceId& adjFId : faces) {
+                            if (!mesh.faceMaterialIsNull(adjFId)) {
+                                fId = adjFId;
+                                break;
+                            }
+                        }
+                    }
 
 
+                    if (fId == nvl::NULL_ID || !mesh.hasFaceMaterials() || mesh.faceMaterialIsNull(fId) || (!mesh.hasVertexUVs() && !mesh.hasWedgeUVs()))
+                        continue;
+
+                    const MaterialId& mId = mesh.faceMaterial(fId);
+
+                    if (mId == nvl::NULL_ID)
+                        continue;
+
+                    std::vector<nvl::Color> faceTexColors(mesh.faceVertexNumber(fId));
+
+                    for (Index j = 0; j < mesh.faceVertexNumber(fId); ++j) {
+                        const VertexId& vId = mesh.faceVertexId(fId, j);
+
+                        VertexUV uv = VertexUV::Zero();
+
+                        if (mesh.hasWedgeUVs() && !mesh.faceWedgeUVsAreNull(fId)) {
+                            const std::vector<WedgeUVId>& wedgeUVIds = mesh.faceWedgeUVs(fId);
+                            if (wedgeUVIds.size() > j) {
+                                const WedgeUVId& wedgeUVId = wedgeUVIds[j];
+
+                                if (wedgeUVId != nvl::NULL_ID) {
+                                    uv = mesh.wedgeUV(wedgeUVId);
+                                }
+                                else if (mesh.hasVertexUVs()) {
+                                    uv = mesh.vertexUV(vId);
+                                }
+                            }
+                        }
+                        else if (mesh.hasVertexUVs()) {
+                            uv = mesh.vertexUV(vId);
+                        }
+
+                        const QImage& img = imgs[cId][mId];
+                        QColor qColor(img.pixel(nvl::round(nvl::fmod(uv.x(), 1) * img.width()), nvl::round(nvl::fmod(1 - uv.y(), 1) * img.height())));
+                        faceTexColors[j] = nvl::Color(qColor);
+                    }
+
+                    if (!faceTexColors.empty()) {
+                        colors.push_back(internal::interpolateFaceColors(mesh, fId, resultMesh.vertexPoint(vId), faceTexColors));
+                        colorWeights.push_back(info.weight);
+                    }
+                }
+
+                if (!colors.empty()) {
+                    nvl::normalize(colorWeights);
+                    resultMesh.setVertexColor(vId, nvl::interpolateColor(colors, colorWeights));
+                }
+            }
+
+            //Smooth colors
+            if (VERTEX_COLOR_SMOOTHING_ITERATIONS > 0) {
+                std::vector<std::vector<VertexId>> resultVVAdj = nvl::meshVertexVertexAdjacencies(resultMesh);
+
+                std::vector<float> redValues(resultMesh.nextVertexId());
+                std::vector<float> greenValues(resultMesh.nextVertexId());
+                std::vector<float> blueValues(resultMesh.nextVertexId());
+                std::vector<float> alphaValues(resultMesh.nextVertexId());
+
+                for (const VertexId& vId : colorVertices) {
+                    const nvl::Color& color = resultMesh.vertexColor(vId);
+
+                    redValues[vId] = color.redF();
+                    greenValues[vId] = color.greenF();
+                    blueValues[vId] = color.blueF();
+                    alphaValues[vId] = color.alphaF();
+                }
+
+                nvl::laplacianSmoothing(redValues, resultVVAdj, VERTEX_COLOR_SMOOTHING_ITERATIONS, vertexColorWeights);
+                nvl::laplacianSmoothing(greenValues, resultVVAdj, VERTEX_COLOR_SMOOTHING_ITERATIONS, vertexColorWeights);
+                nvl::laplacianSmoothing(blueValues, resultVVAdj, VERTEX_COLOR_SMOOTHING_ITERATIONS, vertexColorWeights);
+                nvl::laplacianSmoothing(alphaValues, resultVVAdj, VERTEX_COLOR_SMOOTHING_ITERATIONS, vertexColorWeights);
+
+                for (const VertexId& vId : colorVertices) {
+                    nvl::Color color;
+
+                    color.setRedF(redValues[vId]);
+                    color.setGreenF(greenValues[vId]);
+                    color.setBlueF(blueValues[vId]);
+                    color.setAlphaF(alphaValues[vId]);
+
+                    resultMesh.setVertexColor(vId, color);
+                }
+
+            }
+        }
+    }
+
+
+
+#ifdef STEP_TIMES
+    duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+    std::cout << duration << " ms" << std::endl;
+    totalDuration += duration;
+#endif
 
     // --------------------------------------- CLEAN GRIDS ---------------------------------------
 
@@ -1855,8 +2050,8 @@ Mesh quadrangulateMesh(
     nvl::convertMeshToVCGMesh(newMesh, vcgNewMesh);
     nvl::convertMeshToVCGMesh(blendedMesh, vcgBlendedMesh);
 
-    std::vector<nvl::Index> vcgPreBirthVertex;
-    std::vector<nvl::Index> vcgPreBirthFace;
+    std::vector<VertexId> vcgPreBirthVertex;
+    std::vector<FaceId> vcgPreBirthFace;
     nvl::convertMeshToVCGMesh(preMesh, vcgPreMesh, vcgPreBirthVertex, vcgPreBirthFace);
 
     QuadRetopology::Parameters par;
@@ -2091,6 +2286,101 @@ Mesh quadrangulateMesh(
     }
 
     return result;
+}
+
+template<class Mesh>
+nvl::Color interpolateFaceColors(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
+        const typename Mesh::Point& point,
+        const std::vector<nvl::Color>& colors)
+{
+    typedef typename Mesh::VertexId VertexId;
+    typedef typename Mesh::Face Face;
+    typedef typename Mesh::Point Point;
+
+    nvl::Color value;
+
+    //Get polygon points and select values
+    const Face& face = mesh.face(faceId);
+
+    std::vector<Point> polygon(face.vertexNumber());
+    std::vector<float> redValues(face.vertexNumber());
+    std::vector<float> greenValues(face.vertexNumber());
+    std::vector<float> blueValues(face.vertexNumber());
+    std::vector<float> alphaValues(face.vertexNumber());
+    for (VertexId j = 0; j < face.vertexNumber(); ++j) {
+        const VertexId& vId = face.vertexId(j);
+
+        polygon[j] = mesh.vertexPoint(vId);
+        redValues[j] = colors[j].redF();
+        greenValues[j] = colors[j].greenF();
+        blueValues[j] = colors[j].blueF();
+        alphaValues[j] = colors[j].alphaF();
+    }
+
+    //Interpolation on polygon using barycenter subdivision
+    float redValue = nvl::barycentricInterpolationBarycenterSubdivision(
+        polygon,
+        point,
+        redValues,
+        true);
+
+    if (nvl::epsEqual(redValue, 0.0)) {
+        redValue = 0.0;
+    }
+    else if (nvl::epsEqual(redValue, 1.0)) {
+        redValue = 1.0;
+    }
+
+    //Interpolation on polygon using barycenter subdivision
+    float greenValue = nvl::barycentricInterpolationBarycenterSubdivision(
+        polygon,
+        point,
+        greenValues,
+        true);
+
+    if (nvl::epsEqual(greenValue, 0.0)) {
+        greenValue = 0.0;
+    }
+    else if (nvl::epsEqual(greenValue, 1.0)) {
+        greenValue = 1.0;
+    }
+
+    //Interpolation on polygon using barycenter subdivision
+    float blueValue = nvl::barycentricInterpolationBarycenterSubdivision(
+        polygon,
+        point,
+        blueValues,
+        true);
+
+    if (nvl::epsEqual(blueValue, 0.0)) {
+        blueValue = 0.0;
+    }
+    else if (nvl::epsEqual(blueValue, 1.0)) {
+        blueValue = 1.0;
+    }
+
+    //Interpolation on polygon using barycenter subdivision
+    float alphaValue = nvl::barycentricInterpolationBarycenterSubdivision(
+        polygon,
+        point,
+        alphaValues,
+        true);
+
+    if (nvl::epsEqual(alphaValue, 0.0)) {
+        alphaValue = 0.0;
+    }
+    else if (nvl::epsEqual(alphaValue, 1.0)) {
+        alphaValue = 1.0;
+    }
+
+    value.setRedF(redValue);
+    value.setGreenF(greenValue);
+    value.setBlueF(blueValue);
+    value.setAlphaF(alphaValue);
+
+    return value;
 }
 
 }

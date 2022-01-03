@@ -111,16 +111,16 @@ typename Model::Mesh getRemoveDetachMesh(
         const openvdb::math::Coord& maxCoord);
 
 template<class Mesh>
-double averageFaceSelectValue(
-        const Mesh& mesh,
-        const typename Mesh::FaceId& faceId,
-        const std::vector<double>& vertexSelectValue);
-
-template<class Mesh>
 double interpolateFaceSelectValue(
         const Mesh& mesh,
         const typename Mesh::FaceId& faceId,
         const typename Mesh::Point& point,
+        const std::vector<double>& vertexSelectValue);
+
+template<class Mesh>
+double averageFaceSelectValue(
+        const Mesh& mesh,
+        const typename Mesh::FaceId& faceId,
         const std::vector<double>& vertexSelectValue);
 
 template<class Mesh>

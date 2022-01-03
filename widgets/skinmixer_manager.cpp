@@ -2,7 +2,7 @@
 #include "ui_skinmixer_manager.h"
 
 #include <nvl/utilities/timer.h>
-#include <nvl/utilities/colorize.h>
+#include <nvl/utilities/color_utils.h>
 
 #include <nvl/models/io/model_io.h>
 
@@ -403,8 +403,10 @@ nvl::Index SkinMixerManager::getCurrentAnimationFrame()
 
 void SkinMixerManager::mix()
 {
+    bool blendColorsFromTextures = ui->blendColorsFromTexturesCheckBox->isChecked();
     const MixMode mixMode = ui->mixModeMeshingRadioBox->isChecked() ? MixMode::MESHING :  ui->mixModeMorphingRadioBox->isChecked() ? MixMode::MORPHING : MixMode::PREVIEW;
-    std::vector<nvl::Index> newEntries = skinmixer::mix(vSkinMixerData, mixMode);
+
+    std::vector<nvl::Index> newEntries = skinmixer::mix(vSkinMixerData, mixMode, blendColorsFromTextures);
 
     for (nvl::Index eId : newEntries) {
         SkinMixerEntry& newEntry = vSkinMixerData.entry(eId);

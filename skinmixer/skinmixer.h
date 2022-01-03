@@ -10,7 +10,8 @@ namespace skinmixer {
 template<class Model>
 std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data,
-        const MixMode& mixMode);
+        const MixMode& mixMode,
+        const bool blendColorsFromTextures);
 
 struct MixAnimationParameters {
     MixAnimationParameters() :

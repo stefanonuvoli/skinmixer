@@ -14,7 +14,8 @@ void blendSurfaces(
         SkinMixerData<Model>& data,
         std::vector<nvl::Index> cluster,
         typename SkinMixerData<Model>::Entry& resultEntry,
-        const MixMode& mixMode);
+        const MixMode& mixMode,
+        const bool blendColorFromTextures);
 
 }
 

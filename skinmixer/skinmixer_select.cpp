@@ -80,26 +80,24 @@ void computeSelectValues(
 
     //For each component, we check rigidity
     for (const std::vector<FaceId>& componentFaces : connectedComponents) {
-        std::vector<VertexId> componentVertices;
+        std::unordered_set<VertexId> componentVertices;
         for (const FaceId& fId : componentFaces) {
-            componentVertices.insert(componentVertices.end(), mesh.faceVertexIds(fId).begin(), mesh.faceVertexIds(fId).end());
+            componentVertices.insert(mesh.faceVertexIds(fId).begin(), mesh.faceVertexIds(fId).end());
         }
-        std::sort(componentVertices.begin(), componentVertices.end());
-        componentVertices.erase(std::unique(componentVertices.begin(), componentVertices.end()), componentVertices.end());
 
         unsigned int numOnes = 0;
         unsigned int numZeros = 0;
 
         std::vector<double> significantSelectValues;
-        for (nvl::Index i = 0; i < componentVertices.size(); ++i) {
-            if (nvl::epsEqual(vertexSelectValue[componentVertices[i]], 0.0)) {
+        for (VertexId vId : componentVertices) {
+            if (nvl::epsEqual(vertexSelectValue[vId], 0.0)) {
                 ++numZeros;
             }
-            else if (nvl::epsEqual(vertexSelectValue[componentVertices[i]], 1.0)) {
+            else if (nvl::epsEqual(vertexSelectValue[vId], 1.0)) {
                 ++numOnes;
             }
             else {
-                significantSelectValues.push_back(vertexSelectValue[componentVertices[i]]);
+                significantSelectValues.push_back(vertexSelectValue[vId]);
             }
         }
 
@@ -149,20 +147,20 @@ void computeSelectValues(
         }
 
         //Compute hardness
-        for (VertexId vId : componentVertices) {
+        for (const VertexId& vId : componentVertices) {
             vertexSelectValue[vId] = internal::computeHardness(vertexSelectValue[vId], hardness);
         }
 
         //Rigid: 1.0 or 0.0 depending on avg value
         if (keepOrDiscard) {
             double avgSelectValue = 0.0;
-            for (VertexId vId : componentVertices) {
+            for (const VertexId& vId : componentVertices) {
                 avgSelectValue += vertexSelectValue[vId];
             }
             avgSelectValue /= componentVertices.size();
 
             const double selectValue = avgSelectValue >= 0.5 ? 1.0 : 0.0;
-            for (VertexId vId : componentVertices) {
+            for (const VertexId& vId : componentVertices) {
                 vertexSelectValue[vId] = selectValue;
             }
         }
