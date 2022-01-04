@@ -7,11 +7,29 @@
 
 namespace skinmixer {
 
-template<class Model>
-std::vector<nvl::Index> mix(
-        SkinMixerData<Model>& data,
-        const MixMode& mixMode,
-        const bool blendColorsFromTextures);
+struct MixParameters {
+    MixParameters() :
+        mixMode(MixMode::MESHING),
+        blendColorsFromTextures(true),
+        smoothingBorderIterations(30),
+        smoothingBorderThreshold(0.8),
+        smoothingInnerIterations(15),
+        smoothingInnerAlpha(0.8),
+        voxelSize(0.8),
+        voxelDistance(30.0)
+    {
+
+    }
+
+    MixMode mixMode;
+    bool blendColorsFromTextures;
+    unsigned int smoothingBorderIterations;
+    double smoothingBorderThreshold;
+    unsigned int smoothingInnerIterations;
+    double smoothingInnerAlpha;
+    double voxelSize;
+    double voxelDistance;
+};
 
 struct MixAnimationParameters {
     MixAnimationParameters() :
@@ -40,6 +58,12 @@ struct MixAnimationParameters {
     unsigned int smoothingIterations;
     double smoothingThreshold;
 };
+
+template<class Model>
+std::vector<nvl::Index> mix(
+        SkinMixerData<Model>& data,
+        const MixParameters& par);
+
 
 template<class Model>
 void mixAnimations(

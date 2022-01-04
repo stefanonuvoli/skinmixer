@@ -38,14 +38,6 @@
 
 #define FACE_KEEP_THRESHOLD 0.999
 
-#define VOXEL_SIZE_FACTOR 0.8
-#define MAX_VOXEL_DISTANCE 30.0
-
-#define SMOOTHING_THRESHOLD 0.8
-#define SMOOTHING_BORDER_ITERATIONS 30
-#define SMOOTHING_INNER_ITERATIONS 15
-#define SMOOTHING_INNER_WEIGHT 0.8
-
 #define NEWSURFACE_DISTANCE_THRESHOLD 0.001
 #define NEWSURFACE_REMESHING_FACTOR 0.8
 #define NEWSURFACE_REMESHING_ITERATIONS 3
@@ -60,7 +52,7 @@
 #define PRESERVE_ATTACH_RADIUS 2
 
 #define VERTEX_COLOR_SMOOTHING_ITERATIONS 10
-#define VERTEX_COLOR_SMOOTHING_ALPHA 0.7
+#define VERTEX_COLOR_SMOOTHING_ALPHA 0.8
 
 namespace skinmixer {
 
@@ -99,8 +91,14 @@ void blendSurfaces(
         SkinMixerData<Model>& data,
         std::vector<nvl::Index> cluster,
         typename SkinMixerData<Model>::Entry& resultEntry,
-        const MixMode& mixMode,
-        const bool blendColorFromTextures)
+        const MixMode mixMode,
+        const bool blendColorFromTextures,
+        const unsigned int smoothingBorderIterations,
+        const double smoothingBorderThreshold,
+        const unsigned int smoothingInnerIterations,
+        const double smoothingInnerAlpha,
+        const double voxelSizeFactor,
+        const double voxelDistanceFactor)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
@@ -202,12 +200,12 @@ void blendSurfaces(
         actions.insert(actions.end(), entry.relatedActions.begin(), entry.relatedActions.end());
 
         Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
-        voxelSize = std::min(voxelSize, avgLength * VOXEL_SIZE_FACTOR);
+        voxelSize = std::min(voxelSize, avgLength * voxelSizeFactor);
     }
 
     //Calculate scale factor and transform
     scaleFactor = voxelSize;
-    maxDistance = MAX_VOXEL_DISTANCE * scaleFactor;
+    maxDistance = voxelDistanceFactor * scaleFactor;
 
     //Remove duplicate actions
     std::sort(actions.begin(), actions.end());
@@ -923,8 +921,8 @@ void blendSurfaces(
                 }
             }
 
-            if (maxSelectValue >= SMOOTHING_THRESHOLD) {
-                const double borderSmoothingAlpha = 1.0 - (maxSelectValue - SMOOTHING_THRESHOLD) / (1.0 - SMOOTHING_THRESHOLD);
+            if (maxSelectValue >= smoothingBorderThreshold) {
+                const double borderSmoothingAlpha = 1.0 - (maxSelectValue - smoothingBorderThreshold) / (1.0 - smoothingBorderThreshold);
                 assert(borderSmoothingAlpha >= 0.0 && borderSmoothingAlpha <= 1.0);
                 borderVerticesToSmooth.push_back(vId);
                 borderVerticesToSmoothAlpha.push_back(borderSmoothingAlpha);
@@ -934,14 +932,14 @@ void blendSurfaces(
         }
 
         //Laplacian adaptive
-        nvl::meshLaplacianSmoothing(newMesh, borderVerticesToSmooth, SMOOTHING_BORDER_ITERATIONS, borderVerticesToSmoothAlpha);
+        nvl::meshLaplacianSmoothing(newMesh, borderVerticesToSmooth, smoothingBorderIterations, borderVerticesToSmoothAlpha);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/newMesh_5_smoothing.obj", newMesh);
 #endif
 
         //Total laplacian
-        nvl::meshLaplacianSmoothing(newMesh, innerVerticesToSmooth, SMOOTHING_INNER_ITERATIONS, SMOOTHING_INNER_WEIGHT);
+        nvl::meshLaplacianSmoothing(newMesh, innerVerticesToSmooth, smoothingInnerIterations, smoothingInnerAlpha);
 
 #ifdef SKINMIXER_DEBUG_SAVE_MESHES
         nvl::meshSaveToFile("results/newMesh_6_laplacian.obj", newMesh);
@@ -1867,6 +1865,35 @@ void blendSurfaces(
                 for (const VertexId& vId : colorVertices) {
                     nvl::Color color;
 
+                    if (nvl::epsEqual(redValues[vId], 0.0)) {
+                        redValues[vId] = 0.0;
+                    }
+                    else if (nvl::epsEqual(redValues[vId], 1.0)) {
+                        redValues[vId] = 1.0;
+                    }
+
+                    if (nvl::epsEqual(greenValues[vId], 0.0)) {
+                        greenValues[vId] = 0.0;
+                    }
+                    else if (nvl::epsEqual(greenValues[vId], 1.0)) {
+                        greenValues[vId] = 1.0;
+                    }
+
+                    if (nvl::epsEqual(blueValues[vId], 0.0)) {
+                        blueValues[vId] = 0.0;
+                    }
+                    else if (nvl::epsEqual(blueValues[vId], 1.0)) {
+                        blueValues[vId] = 1.0;
+                    }
+
+                    if (nvl::epsEqual(alphaValues[vId], 0.0)) {
+                        alphaValues[vId] = 0.0;
+                    }
+                    else if (nvl::epsEqual(alphaValues[vId], 1.0)) {
+                        alphaValues[vId] = 1.0;
+                    }
+
+
                     color.setRedF(redValues[vId]);
                     color.setGreenF(greenValues[vId]);
                     color.setBlueF(blueValues[vId]);
@@ -2234,10 +2261,14 @@ Mesh quadrangulateMesh(
                 const MaterialId& preMId = preMesh.faceMaterial(preFId);
                 assert(preMId != nvl::NULL_ID);
 
+                assert(preMId < preMesh.nextMaterialId());
+
                 if (materialMap[preMId] == nvl::NULL_ID) {
                     MaterialId newMId = result.addMaterial(preMesh.material(preMId));
                     materialMap[preMId] = newMId;
                 }
+
+                assert(materialMap[preMId] < result.nextMaterialId());
 
                 result.setFaceMaterial(newFId, materialMap[preMId]);
             }

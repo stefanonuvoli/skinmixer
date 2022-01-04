@@ -403,10 +403,17 @@ nvl::Index SkinMixerManager::getCurrentAnimationFrame()
 
 void SkinMixerManager::mix()
 {
-    bool blendColorsFromTextures = ui->blendColorsFromTexturesCheckBox->isChecked();
-    const MixMode mixMode = ui->mixModeMeshingRadioBox->isChecked() ? MixMode::MESHING :  ui->mixModeMorphingRadioBox->isChecked() ? MixMode::MORPHING : MixMode::PREVIEW;
+    skinmixer::MixParameters par;
+    par.mixMode = ui->mixModeMeshingRadioBox->isChecked() ? MixMode::MESHING :  ui->mixModeMorphingRadioBox->isChecked() ? MixMode::MORPHING : MixMode::PREVIEW;
+    par.blendColorsFromTextures = ui->blendColorsFromTexturesCheckBox->isChecked();
+    par.smoothingBorderIterations = ui->surfaceSmoothingBorderIterationsSpinBox->value();
+    par.smoothingBorderThreshold = ui->surfaceSmoothingBorderThresholdSpinBox->value();
+    par.smoothingInnerIterations = ui->surfaceSmoothingInnerIterationsSpinBox->value();
+    par.smoothingInnerAlpha = ui->surfaceSmoothingInnerAlphaSpinBox->value();
+    par.voxelSize = ui->surfaceVoxelSizeSpinBox->value();
+    par.voxelDistance = ui->surfaceVoxelDistanceSpinBox->value();
 
-    std::vector<nvl::Index> newEntries = skinmixer::mix(vSkinMixerData, mixMode, blendColorsFromTextures);
+    std::vector<nvl::Index> newEntries = skinmixer::mix(vSkinMixerData, par);
 
     for (nvl::Index eId : newEntries) {
         SkinMixerEntry& newEntry = vSkinMixerData.entry(eId);

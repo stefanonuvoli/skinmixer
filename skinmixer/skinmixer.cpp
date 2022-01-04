@@ -20,8 +20,7 @@ namespace skinmixer {
 template<class Model>
 std::vector<nvl::Index> mix(
         SkinMixerData<Model>& data,
-        const MixMode& mixMode,
-        const bool blendColorsFromTextures)
+        const MixParameters& par)
 {
     typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -87,7 +86,18 @@ std::vector<nvl::Index> mix(
 #endif
 
         //Blend surface
-        blendSurfaces(data, cluster, resultEntry, mixMode, blendColorsFromTextures);
+        blendSurfaces(
+                    data,
+                    cluster,
+                    resultEntry,
+                    par.mixMode,
+                    par.blendColorsFromTextures,
+                    par.smoothingBorderIterations,
+                    par.smoothingBorderThreshold,
+                    par.smoothingInnerIterations,
+                    par.smoothingInnerAlpha,
+                    par.voxelSize,
+                    par.voxelDistance);
 
 #ifdef GLOBAL_TIMES
         duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();

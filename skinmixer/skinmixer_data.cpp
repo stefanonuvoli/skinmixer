@@ -351,7 +351,6 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
     globalSelectInfo.vertex.resize(entry.model->mesh.nextVertexId(), 1.0);
     globalSelectInfo.joint.resize(entry.model->skeleton.jointNumber(), 1.0);
 
-
     for (Index aId : entry.relatedActions) {
         Action& action = this->action(aId);
 
