@@ -710,7 +710,7 @@ void SkinMixerManager::updateView()
     ));
 
     ui->hardness1Slider->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE && vCurrentOperation != OperationType::ATTACH);
-    ui->hardness2Slider->setEnabled(jointSelected && (vCurrentOperation == OperationType::REPLACE || vCurrentOperation != OperationType::ATTACH));
+    ui->hardness2Slider->setEnabled(jointSelected && (vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH));
 
     ui->mixButton->setEnabled(vCurrentOperation == OperationType::NONE && !vSkinMixerData.actions().empty());
 
@@ -1048,7 +1048,7 @@ void SkinMixerManager::colorizeBySelectValues(
             vertexC = modelDrawer->meshDrawer().renderingVertexColor(vId);
         }
         else {
-            vertexC = nvl::Color(0.7, 0.7, 0.7);
+            vertexC = nvl::Color(1.0, 1.0, 1.0);
         }
 
         vertexC.setAlphaF(std::max(minAlpha, value));

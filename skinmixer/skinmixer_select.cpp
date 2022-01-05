@@ -267,8 +267,10 @@ void computeRemoveSelectValues(
         vertexSelectValue);
 
     //We reset them: this value will be used in blending skeletons
-    jointSelectValue[targetJoint] = 1.0;
-    if (includeParent) {
+    if (!includeParent) {
+        jointSelectValue[targetJoint] = 1.0;
+    }
+    else {
         jointSelectValue[skeleton.parentId(targetJoint)] = 1.0;
     }
 
