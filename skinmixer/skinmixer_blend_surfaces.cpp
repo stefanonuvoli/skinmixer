@@ -75,7 +75,8 @@ Mesh quadrangulateMesh(
         const std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
         const std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace,
         std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& birthVertex,
-        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace);
+        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace,
+        const unsigned int smoothingResultIterations);
 
 template<class Mesh>
 nvl::Color interpolateFaceColors(
@@ -97,6 +98,7 @@ void blendSurfaces(
         const double smoothingBorderThreshold,
         const unsigned int smoothingInnerIterations,
         const double smoothingInnerAlpha,
+        const unsigned int smoothingResultIterations,
         const double voxelSizeFactor,
         const double voxelDistanceFactor)
 {
@@ -289,7 +291,7 @@ void blendSurfaces(
 
         //Get final mesh
         Mesh quadrangulation;
-        resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
+        resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace, smoothingResultIterations);
 
 
         //Compute and fill the birth infos
@@ -983,7 +985,7 @@ void blendSurfaces(
 
         //Get final mesh
         Mesh quadrangulation;
-        resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace);
+        resultMesh = internal::quadrangulateMesh(newMesh, preMesh, blendedMesh, quadrangulation, preBirthVertex, preBirthFace, resultPreBirthVertex, resultPreBirthFace, smoothingResultIterations);
 
 
 
@@ -2053,7 +2055,8 @@ Mesh quadrangulateMesh(
         const std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& preBirthVertex,
         const std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& preBirthFace,
         std::vector<std::pair<nvl::Index, typename Mesh::VertexId>>& birthVertex,
-        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace)
+        std::vector<std::pair<nvl::Index, typename Mesh::FaceId>>& birthFace,
+        const unsigned int smoothingResultIterations)
 {
     typedef typename Mesh::VertexId VertexId;
     typedef typename Mesh::Vertex Vertex;
@@ -2106,7 +2109,7 @@ Mesh quadrangulateMesh(
     par.doubletRemoval = true;
     par.resultSmoothingIterations = 5;
     par.resultSmoothingNRing = 0;
-    par.resultSmoothingLaplacianIterations = 3;
+    par.resultSmoothingLaplacianIterations = smoothingResultIterations;
     par.resultSmoothingLaplacianNRing = 0;
 
     //Get patch decomposition of the new surface

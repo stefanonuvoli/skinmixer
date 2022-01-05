@@ -20,6 +20,7 @@ void blendSurfaces(
         const double smoothingBorderThreshold,
         const unsigned int smoothingInnerIterations,
         const double smoothingInnerAlpha,
+        const unsigned int smoothingResultIterations,
         const double voxelSizeFactor,
         const double voxelDistanceFactor);
 

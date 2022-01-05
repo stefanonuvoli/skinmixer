@@ -410,6 +410,7 @@ void SkinMixerManager::mix()
     par.smoothingBorderThreshold = ui->surfaceSmoothingBorderThresholdSpinBox->value();
     par.smoothingInnerIterations = ui->surfaceSmoothingInnerIterationsSpinBox->value();
     par.smoothingInnerAlpha = ui->surfaceSmoothingInnerAlphaSpinBox->value();
+    par.smoothingResultIterations = ui->surfaceSmoothingResultIterationsSpinBox->value();
     par.voxelSize = ui->surfaceVoxelSizeSpinBox->value();
     par.voxelDistance = ui->surfaceVoxelDistanceSpinBox->value();
 

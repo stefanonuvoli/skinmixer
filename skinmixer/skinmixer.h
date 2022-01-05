@@ -15,6 +15,7 @@ struct MixParameters {
         smoothingBorderThreshold(0.8),
         smoothingInnerIterations(15),
         smoothingInnerAlpha(0.8),
+        smoothingResultIterations(3),
         voxelSize(0.8),
         voxelDistance(30.0)
     {
@@ -27,6 +28,7 @@ struct MixParameters {
     double smoothingBorderThreshold;
     unsigned int smoothingInnerIterations;
     double smoothingInnerAlpha;
+    unsigned int smoothingResultIterations;
     double voxelSize;
     double voxelDistance;
 };

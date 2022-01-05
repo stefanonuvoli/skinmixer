@@ -96,6 +96,7 @@ std::vector<nvl::Index> mix(
                     par.smoothingBorderThreshold,
                     par.smoothingInnerIterations,
                     par.smoothingInnerAlpha,
+                    par.smoothingResultIterations,
                     par.voxelSize,
                     par.voxelDistance);
 
