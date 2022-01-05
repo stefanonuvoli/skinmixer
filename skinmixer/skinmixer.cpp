@@ -211,7 +211,7 @@ nvl::Index replace(
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
         const ReplaceMode& replaceMode,
-        const unsigned int functionSmoothingIterations,
+        const unsigned int weightSmoothingIterations,
         const double rigidity,
         const double hardness1,
         const double hardness2,
@@ -234,7 +234,7 @@ nvl::Index replace(
     std::vector<double> jointValues1;
     std::vector<double> vertexValues2;
     std::vector<double> jointValues2;
-    skinmixer::computeReplaceSelectValues(*model1, *model2, targetJoint1, targetJoint2, functionSmoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vertexValues1, jointValues1, vertexValues2, jointValues2);
+    skinmixer::computeReplaceSelectValues(*model1, *model2, targetJoint1, targetJoint2, weightSmoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vertexValues1, jointValues1, vertexValues2, jointValues2);
 
     Action action;
     action.operation = OperationType::REPLACE;
@@ -266,7 +266,7 @@ nvl::Index attach(
         Model* model2,
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
-        const unsigned int functionSmoothingIterations,
+        const unsigned int weightSmoothingIterations,
         const double rigidity,
         const double hardness2,
         const bool includeParent1,
@@ -288,7 +288,7 @@ nvl::Index attach(
     std::vector<double> jointValues1;
     std::vector<double> vertexValues2;
     std::vector<double> jointValues2;
-    skinmixer::computeAttachSelectValues(*model1, *model2, (includeParent1 ? model1->skeleton.parentId(targetJoint1) : targetJoint1), targetJoint2, functionSmoothingIterations, rigidity, hardness2, includeParent2, vertexValues1, jointValues1, vertexValues2, jointValues2);
+    skinmixer::computeAttachSelectValues(*model1, *model2, (includeParent1 ? model1->skeleton.parentId(targetJoint1) : targetJoint1), targetJoint2, weightSmoothingIterations, rigidity, hardness2, includeParent2, vertexValues1, jointValues1, vertexValues2, jointValues2);
 
     Action action;
     action.operation = OperationType::ATTACH;
@@ -316,7 +316,7 @@ nvl::Index remove(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int functionSmoothingIterations,
+        const unsigned int weightSmoothingIterations,
         const double rigidity,
         const double hardness,
         const bool includeParent)
@@ -329,7 +329,7 @@ nvl::Index remove(
 
     std::vector<double> vertexValues;
     std::vector<double> jointValues;
-    computeRemoveSelectValues(*model, targetJoint, functionSmoothingIterations, rigidity, hardness, includeParent, 0.5, vertexValues, jointValues);
+    computeRemoveSelectValues(*model, targetJoint, weightSmoothingIterations, rigidity, hardness, includeParent, 0.5, vertexValues, jointValues);
 
     Action action;
     action.operation = OperationType::REMOVE;
@@ -352,7 +352,7 @@ nvl::Index detach(
         SkinMixerData<Model>& data,
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
-        const unsigned int smoothingIterations,
+        const unsigned int weightSmoothingIterations,
         const double rigidity,
         const double hardness,
         const bool includeParent)
@@ -365,7 +365,7 @@ nvl::Index detach(
 
     std::vector<double> vertexValues;
     std::vector<double> jointValues;
-    computeDetachSelectValues(*model, targetJoint, smoothingIterations, rigidity, hardness, includeParent, 0.5, vertexValues, jointValues);
+    computeDetachSelectValues(*model, targetJoint, weightSmoothingIterations, rigidity, hardness, includeParent, 0.5, vertexValues, jointValues);
 
     Action action;
     action.operation = OperationType::DETACH;

@@ -1745,6 +1745,4 @@ void SkinMixerManager::on_modelAnimationRemoveButton_clicked()
      vCanvas->updateGL();
 
      emit signal_selectedDrawableUpdated();
-
 }
-

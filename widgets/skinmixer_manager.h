@@ -89,7 +89,6 @@ private slots:
     void on_parent1CheckBox_stateChanged(int arg1);
     void on_parent2CheckBox_stateChanged(int arg1);
 
-
     void on_operationDetachButton_clicked();
     void on_operationRemoveButton_clicked();
     void on_operationReplaceButton_clicked();
@@ -112,9 +111,7 @@ private slots:
     void on_updateJointsResetButton_clicked();
     void on_updateJointsBirthButton_clicked();
 
-
     void on_modelAnimationPoseButton_clicked();
-
     void on_modelAnimationRemoveButton_clicked();
 
 private:
