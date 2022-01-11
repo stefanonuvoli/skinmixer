@@ -114,6 +114,8 @@ private slots:
     void on_modelAnimationPoseButton_clicked();
     void on_modelAnimationRemoveButton_clicked();
 
+    void on_modelAnimationRemoveRootMotionButton_clicked();
+
 private:
 
     ModelDrawer* getSelectedModelDrawer();

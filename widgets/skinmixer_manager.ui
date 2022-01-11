@@ -176,7 +176,7 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="0" colspan="2">
+      <item row="3" column="0">
        <widget class="QPushButton" name="modelAnimationPoseButton">
         <property name="minimumSize">
          <size>
@@ -191,11 +191,11 @@
          </size>
         </property>
         <property name="text">
-         <string>Animation pose</string>
+         <string>Anim pose</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="3" colspan="2">
+      <item row="3" column="1">
        <widget class="QPushButton" name="modelAnimationRemoveButton">
         <property name="minimumSize">
          <size>
@@ -210,7 +210,14 @@
          </size>
         </property>
         <property name="text">
-         <string>Animation remove</string>
+         <string>Anim remove</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3" colspan="2">
+       <widget class="QPushButton" name="modelAnimationRemoveRootMotionButton">
+        <property name="text">
+         <string>Anim delete root motion</string>
         </property>
        </widget>
       </item>
@@ -1099,6 +1106,62 @@
           <string>Animation blend</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_8">
+          <item row="2" column="6">
+           <widget class="QSpinBox" name="animationBlendingSmoothIterationsSpinBox">
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="value">
+             <number>30</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="2">
+           <widget class="QLabel" name="animationBlendingLocalDerivativeLabel">
+            <property name="text">
+             <string>Deriv:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QDoubleSpinBox" name="animationBlendingGlobalSpinBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="maximum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.900000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="4">
+           <widget class="QLabel" name="animationBlendingSmoothLabel">
+            <property name="text">
+             <string>Smooth:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="animationBlendingGlobalLabel">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Global:</string>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="2">
            <widget class="QLabel" name="animationBlendingMainWeightLabel">
             <property name="maximumSize">
@@ -1128,8 +1191,8 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="2">
-           <widget class="QLabel" name="animationBlendingGlobalDerivativeLabel">
+          <item row="0" column="4">
+           <widget class="QLabel" name="animationBlendingFPSLabel">
             <property name="maximumSize">
              <size>
               <width>16777215</width>
@@ -1137,27 +1200,20 @@
              </size>
             </property>
             <property name="text">
-             <string>Deriv:</string>
+             <string>FPS:</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="10">
-           <widget class="QDoubleSpinBox" name="animationBlendingSmoothThresholdSpinBox">
-            <property name="maximum">
-             <double>1.000000000000000</double>
+          <item row="2" column="0">
+           <widget class="QLabel" name="animationBlendingLocalLabel">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
             </property>
-            <property name="singleStep">
-             <double>0.050000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.950000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="4">
-           <widget class="QLabel" name="animationBlendingSmoothLabel">
             <property name="text">
-             <string>Smooth:</string>
+             <string>Local:</string>
             </property>
            </widget>
           </item>
@@ -1173,6 +1229,48 @@
              </size>
             </property>
            </spacer>
+          </item>
+          <item row="2" column="10">
+           <widget class="QDoubleSpinBox" name="animationBlendingSmoothThresholdSpinBox">
+            <property name="maximum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.050000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.990000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="animationBlendingWindowLabel">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Window:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QDoubleSpinBox" name="animationBlendingMainWeightSpinBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="maximum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.600000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="1" column="4">
            <widget class="QLabel" name="animationBlendingRotationWeightLabel">
@@ -1194,6 +1292,19 @@
             </property>
            </widget>
           </item>
+          <item row="1" column="2">
+           <widget class="QLabel" name="animationBlendingGlobalDerivativeLabel">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Deriv:</string>
+            </property>
+           </widget>
+          </item>
           <item row="1" column="3">
            <widget class="QDoubleSpinBox" name="animationBlendingGlobalDerivativeSpinBox">
             <property name="maximumSize">
@@ -1210,132 +1321,6 @@
             </property>
             <property name="value">
              <double>0.100000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="animationBlendingLocalLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Local:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="2">
-           <widget class="QLabel" name="animationBlendingLocalDerivativeLabel">
-            <property name="text">
-             <string>Deriv:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="animationBlendingLocalSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="10">
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="0" column="3">
-           <widget class="QDoubleSpinBox" name="animationBlendingMainWeightSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.600000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="4">
-           <widget class="QLabel" name="animationBlendingFPSLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>FPS:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="animationBlendingWindowLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Window:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="animationBlendingGlobalLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Global:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="animationBlendingGlobalSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.900000000000000</double>
             </property>
            </widget>
           </item>
@@ -1371,15 +1356,37 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="6">
-           <widget class="QSpinBox" name="animationBlendingSmoothIterationsSpinBox">
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="animationBlendingLocalSpinBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
             <property name="maximum">
-             <number>100</number>
+             <double>1.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
             </property>
             <property name="value">
-             <number>20</number>
+             <double>0.000000000000000</double>
             </property>
            </widget>
+          </item>
+          <item row="2" column="11">
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
          </layout>
         </widget>

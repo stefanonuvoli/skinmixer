@@ -699,6 +699,7 @@ void SkinMixerManager::updateView()
     ui->modelCopyButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelAnimationPoseButton->setEnabled(animationSelected);
     ui->modelAnimationRemoveButton->setEnabled(animationSelected);
+    ui->modelAnimationRemoveRootMotionButton->setEnabled(animationSelected);
 
     ui->operationDetachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationRemoveButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
@@ -1747,3 +1748,22 @@ void SkinMixerManager::on_modelAnimationRemoveButton_clicked()
 
      emit signal_selectedDrawableUpdated();
 }
+
+void SkinMixerManager::on_modelAnimationRemoveRootMotionButton_clicked()
+{
+    ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    Model* model = vSelectedModelDrawer->model();
+    if (model == nullptr)
+        return;
+
+    Index aId = getSelectedAnimation();
+    if (aId == nvl::NULL_ID)
+        return;
+
+    nvl::animationRemoveRootMotion(model->skeleton, model->animation(aId));
+    vSelectedModelDrawer->reloadAnimation();
+}
+

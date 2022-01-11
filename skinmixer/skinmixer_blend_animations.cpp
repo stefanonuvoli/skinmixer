@@ -206,7 +206,7 @@ void blendAnimations(
 #endif
 
 
-
+    std::string animationName;
 
     Model* targetModel = entry.model;
     Skeleton& targetSkeleton = targetModel->skeleton;
@@ -265,6 +265,9 @@ void blendAnimations(
         if (animationMode == BLEND_ANIMATION_FIXED) {
             if (animationId != BLEND_ANIMATION_NONE) {
                 const Animation& currentAnimation = currentModel->animation(animationId);
+
+                animationName += " - " + currentModel->name + "@" + currentAnimation.name().c_str() + " (F)";
+
                 for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
                     Frame frame = currentAnimation.keyframe(fId);
 
@@ -278,6 +281,15 @@ void blendAnimations(
         //Best keyframe or best sliding mode
         else if (animationMode == BLEND_ANIMATION_KEYFRAME || animationMode == BLEND_ANIMATION_LOOP) {
             localCandidateFrames[cId].resize(currentModel->animationNumber());
+
+            if (animationMode == BLEND_ANIMATION_KEYFRAME) {
+                animationName += " - " + currentModel->name + " (K)";
+            }
+            else {
+                assert(animationMode == BLEND_ANIMATION_LOOP);
+                animationName += " - " + currentModel->name + " (B)";
+            }
+
             for (Index aId = 0; aId < currentModel->animationNumber(); ++aId) {
                 if (animationId == BLEND_ANIMATION_NONE|| animationId == aId) {
                     assert(animationId == BLEND_ANIMATION_NONE || (animationId != nvl::NULL_ID && animationId < currentModel->animationNumber()));
@@ -1091,7 +1103,7 @@ void blendAnimations(
 
     nvl::animationGlobalFromLocal(targetSkeleton, targetAnimation);
 
-    targetAnimation.setName("Blended");
+    targetAnimation.setName("B " + animationName);
     Index targetAnimationId = targetModel->addAnimation(targetAnimation);
     resultAnimations.push_back(std::make_pair(entry.id, targetAnimationId));
 
@@ -1102,7 +1114,7 @@ void blendAnimations(
 
         nvl::animationGlobalFromLocal(currentSkeleton, clusterAnimations[cId]);
 
-        clusterAnimations[cId].setName("Selected keyframe");
+        clusterAnimations[cId].setName("S " + animationName);
         Index clusterAnimationId = currentModel->addAnimation(clusterAnimations[cId]);
         resultAnimations.push_back(std::make_pair(eId, clusterAnimationId));
     }
