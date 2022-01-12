@@ -1099,7 +1099,7 @@ void blendAnimations(
     }
 
     if (smoothingIterations > 0) {
-        std::cout << "Smoothing keyframes:" << std::endl;
+        std::cout << "Smoothing keyframes..." << std::endl;
         nvl::animationLaplacianSmoothing(targetAnimation, smoothingIterations, keyframeSmoothAlpha);
     }
 
