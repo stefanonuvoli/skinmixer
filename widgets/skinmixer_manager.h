@@ -102,6 +102,7 @@ private slots:
     void on_animationBlendButton_clicked();
     void on_animationConfirmButton_clicked();
     void on_animationAbortButton_clicked();
+    void on_animationBlendLoopFixedButton_clicked();
 
     void on_updateValuesResetButton_clicked();
     void on_updateValuesWeightsButton_clicked();
@@ -114,6 +115,7 @@ private slots:
     void on_modelAnimationPoseButton_clicked();
     void on_modelAnimationRemoveButton_clicked();
     void on_modelAnimationRemoveRootMotionButton_clicked();
+
 
 private:
 

@@ -30,6 +30,8 @@ nvl::Index SkinMixerData<Model>::addEntry(Model* model)
 
     entry.model = model;
 
+    entry.lastOriginalAnimationId = model->animationNumber();
+
     vEntries.push_back(entry);
     vModelMap.insert(std::make_pair(model, entry.id));
 

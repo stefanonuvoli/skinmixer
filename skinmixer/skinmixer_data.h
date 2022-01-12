@@ -77,6 +77,7 @@ public:
 
         std::vector<nvl::DualQuaterniond> deformation;
 
+        Index lastOriginalAnimationId;
 
         void clear();
     };    

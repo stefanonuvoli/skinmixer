@@ -722,6 +722,7 @@ void SkinMixerManager::updateView()
     ui->animationBlendingFrame->setEnabled(blendedModelSelected);
     ui->animationSelectGroupBox->setEnabled(blendedModelSelected && !animationBlending);
     ui->animationBlendButton->setEnabled(blendedModelSelected && !animationBlending);
+    ui->animationBlendLoopFixedButton->setEnabled(blendedModelSelected && !animationBlending);
     ui->animationConfirmButton->setEnabled(animationBlending);
     ui->animationAbortButton->setEnabled(animationBlending);
 
@@ -768,7 +769,7 @@ void SkinMixerManager::updateView()
             }
 
             animationModeCombo->setCurrentIndex(animationModes[cId]);
-            if (animationIds[cId] == nvl::NULL_ID) {
+            if (animationIds[cId] == BLEND_ANIMATION_NONE) {
                 animationIdCombo->setCurrentIndex(0);
             }
             else {
@@ -1665,6 +1666,39 @@ void SkinMixerManager::on_animationAbortButton_clicked()
     updatePreview();
     updateView();
 
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_animationBlendLoopFixedButton_clicked()
+{
+    ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
+
+    const std::vector<Index>& birthEntries = entry.birth.entries;
+    std::vector<Index>& animationIds = entry.blendingAnimationIds;
+    const std::vector<Index>& animationModes = entry.blendingAnimationModes;
+
+    for (Index i = 0; i < birthEntries.size(); ++i) {
+        if (animationModes[i] == BLEND_ANIMATION_FIXED && animationIds[i] == BLEND_ANIMATION_NONE) {
+            for (Index aId = 0; aId < vSkinMixerData.entry(birthEntries[i]).lastOriginalAnimationId; ++aId) {
+                animationIds[i] = aId;
+                blendAnimations();
+
+                vSelectedModelDrawer->unloadAnimation();
+                vCanvas->stopAnimations();
+
+                vBlendingAnimations.clear();
+            }
+
+            animationIds[i] = BLEND_ANIMATION_NONE;
+        }
+    }
+
+    updatePreview();
+    updateView();
     vCanvas->updateGL();
 }
 

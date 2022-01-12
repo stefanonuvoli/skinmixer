@@ -171,34 +171,7 @@ void blendAnimations(
     typedef nvl::Quaterniond Quaterniond;
     typedef nvl::Translation3d Translation3d;
 
-
-    double sigma = 1.5; //Gaussian sigma
-
-    //Calculate window weights
-    std::vector<double> windowWeights(windowSize * 2 + 1, 0.0);
-    for (int i = 0; i < static_cast<int>(windowWeights.size()); ++i) {
-        if (i == static_cast<int>(windowSize))
-            continue;
-
-        windowWeights[i] =
-            std::exp(-0.5 * (std::pow((i - static_cast<int>(windowSize))/sigma, 2.0))) / (2 * M_PI * sigma * sigma);
-    }
-
-    nvl::normalize(windowWeights);
-
-    for (int i = 0; i < static_cast<int>(windowWeights.size()); ++i) {
-        if (i == static_cast<int>(windowSize)) {
-            windowWeights[i] = mainFrameWeight;
-        }
-        else {
-            windowWeights[i] *= 1.0 - mainFrameWeight;
-        }
-    }
-
-    nvl::normalize(windowWeights);
-
-    std::string animationName;
-
+    //Get data
     Model* targetModel = entry.model;
     Skeleton& targetSkeleton = targetModel->skeleton;
     std::vector<Index>& cluster = entry.birth.entries;
@@ -206,6 +179,9 @@ void blendAnimations(
     const std::vector<Index>& animationModes = entry.blendingAnimationModes;
     const std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
     const std::vector<double>& animationSpeeds = entry.blendingAnimationSpeeds;
+
+    //Name of the animation
+    std::string animationName;
 
     //Get max duration of fixed animations
     double maxFixedDuration = 0;
@@ -321,6 +297,31 @@ void blendAnimations(
 
 
 
+    //Calculate window weights
+    const double sigma = 1.5; //Gaussian sigma
+
+    std::vector<double> windowWeights(windowSize * 2 + 1, 0.0);
+    for (int i = 0; i < static_cast<int>(windowWeights.size()); ++i) {
+        if (i == static_cast<int>(windowSize))
+            continue;
+
+        windowWeights[i] =
+            std::exp(-0.5 * (std::pow((i - static_cast<int>(windowSize))/sigma, 2.0))) / (2 * M_PI * sigma * sigma);
+    }
+
+    nvl::normalize(windowWeights);
+
+    for (int i = 0; i < static_cast<int>(windowWeights.size()); ++i) {
+        if (i == static_cast<int>(windowSize)) {
+            windowWeights[i] = mainFrameWeight;
+        }
+        else {
+            windowWeights[i] *= 1.0 - mainFrameWeight;
+        }
+    }
+
+    nvl::normalize(windowWeights);
+
 #ifdef KEYFRAME_SELECTION_VERBOSITY
     std::cout << std::endl << "--------- B" << animationName << "---------" << std::endl;
     std::cout << "Window weights: ";
@@ -329,6 +330,7 @@ void blendAnimations(
     }
     std::cout << std::endl;
 #endif
+
 
 
     //Compute global frames
