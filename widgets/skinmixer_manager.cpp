@@ -920,7 +920,7 @@ void SkinMixerManager::updateView()
                     }
                     else if (ui->animationJointMeshComboBox->currentIndex() > 0) {
                         Index selectedIndex = static_cast<Index>(ui->animationJointMeshComboBox->currentIndex() - 1);
-                        std::vector<Index> clusterMap = nvl::inverseMap(entry.birth.entries);
+                        std::vector<Index> clusterMap = nvl::inverseFunction(entry.birth.entries);
                         for (JointId jId = 0; jId < vSelectedModelDrawer->model()->skeleton.jointNumber(); jId++) {
                             if (jId != vSelectedJoint) {
                                 const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];
@@ -1609,7 +1609,7 @@ void SkinMixerManager::on_animationJointMeshComboBox_currentIndexChanged(int ind
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
         std::vector<std::vector<double>>& animationWeights = entry.blendingAnimationWeights;
 
-        std::vector<Index> clusterMap = nvl::inverseMap(entry.birth.entries);
+        std::vector<Index> clusterMap = nvl::inverseFunction(entry.birth.entries);
         for (JointId jId = 0; jId < vSelectedModelDrawer->model()->skeleton.jointNumber(); jId++) {
             if (jId != vSelectedJoint) {
                 const std::vector<JointInfo>& jointInfos = entry.birth.joint[jId];

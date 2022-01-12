@@ -1,6 +1,6 @@
 #include "skinmixer_blend_animations.h"
 
-#include <nvl/math/inverse_map.h>
+#include <nvl/math/inverse_function.h>
 #include <nvl/math/normalization.h>
 #include <nvl/math/interpolation.h>
 #include <nvl/math/numeric_limits.h>
@@ -92,7 +92,7 @@ void initializeAnimationWeights(
     animationWeights.resize(targetSkeleton.jointNumber(), std::vector<double>(cluster.size(), 0.0));
     animationSpeeds.resize(cluster.size(), 1.0);
 
-    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
+    std::vector<Index> clusterMap = nvl::inverseFunction(cluster);
     for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
         const std::vector<JointInfo>& jointInfos = resultEntry.birth.joint[jId];
 
@@ -197,15 +197,6 @@ void blendAnimations(
 
     nvl::normalize(windowWeights);
 
-#ifdef KEYFRAME_SELECTION_VERBOSITY
-    std::cout << "Window weights: ";
-    for (Index wId = 0; wId < windowWeights.size(); wId++) {
-        std::cout << windowWeights[wId] << " ";
-    }
-    std::cout << std::endl;
-#endif
-
-
     std::string animationName;
 
     Model* targetModel = entry.model;
@@ -233,7 +224,7 @@ void blendAnimations(
     }
 
     //Cluster to entry map
-    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
+    std::vector<Index> clusterMap = nvl::inverseFunction(cluster);
 
     //Resulting animations
     Animation targetAnimation;
@@ -327,6 +318,17 @@ void blendAnimations(
     //Sort and remove duplicates
     std::sort(times.begin(), times.end());
     times.erase(std::unique(times.begin(), times.end()), times.end());
+
+
+
+#ifdef KEYFRAME_SELECTION_VERBOSITY
+    std::cout << std::endl << "--------- B" << animationName << "---------" << std::endl;
+    std::cout << "Window weights: ";
+    for (Index wId = 0; wId < windowWeights.size(); wId++) {
+        std::cout << windowWeights[wId] << " ";
+    }
+    std::cout << std::endl;
+#endif
 
 
     //Compute global frames
@@ -1103,7 +1105,7 @@ void blendAnimations(
 
     nvl::animationGlobalFromLocal(targetSkeleton, targetAnimation);
 
-    targetAnimation.setName("B " + animationName);
+    targetAnimation.setName("B" + animationName);
     Index targetAnimationId = targetModel->addAnimation(targetAnimation);
     resultAnimations.push_back(std::make_pair(entry.id, targetAnimationId));
 
@@ -1114,7 +1116,7 @@ void blendAnimations(
 
         nvl::animationGlobalFromLocal(currentSkeleton, clusterAnimations[cId]);
 
-        clusterAnimations[cId].setName("S " + animationName);
+        clusterAnimations[cId].setName("S" + animationName);
         Index clusterAnimationId = currentModel->addAnimation(clusterAnimations[cId]);
         resultAnimations.push_back(std::make_pair(eId, clusterAnimationId));
     }

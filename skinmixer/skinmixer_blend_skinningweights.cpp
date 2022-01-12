@@ -6,7 +6,7 @@
 #include <nvl/math/numeric_limits.h>
 #include <nvl/math/closest_point.h>
 #include <nvl/math/barycentric_interpolation.h>
-#include <nvl/math/inverse_map.h>
+#include <nvl/math/inverse_function.h>
 
 namespace skinmixer {
 
@@ -39,7 +39,7 @@ void blendSkinningWeights(
     typedef typename Mesh::Point Point;
     typedef nvl::Index Index;
 
-    std::vector<Index> clusterMap = nvl::inverseMap(cluster);
+    std::vector<Index> clusterMap = nvl::inverseFunction(cluster);
 
     Model* targetModel = resultEntry.model;
     SkinningWeights& targetSkinningWeights = targetModel->skinningWeights;

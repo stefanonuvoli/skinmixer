@@ -2314,7 +2314,9 @@ Mesh quadrangulateMesh(
             }
         }
         else {
-            result.addFace(tmpResult.face(fId));
+            FaceId newFId = result.addFace(tmpResult.face(fId));
+
+            assert(!result.hasFaceMaterials() || result.faceMaterialIsNull(newFId));
         }
     }
 

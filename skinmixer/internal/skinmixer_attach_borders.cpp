@@ -593,7 +593,7 @@ Mesh attachMeshesByBorders(
     std::vector<FaceId> cleaningBirthFace;
     nvl::meshTransferFaces(mesh, facesToKeep, newMesh, cleaningBirthVertex, cleaningBirthFace);
 
-    std::vector<VertexId> cleaningVertexMap = nvl::inverseMap(cleaningBirthVertex, mesh.nextVertexId());
+    std::vector<VertexId> cleaningVertexMap = nvl::inverseFunction(cleaningBirthVertex, mesh.nextVertexId());
 
     for (Index chainId = 0; chainId < mChains.size(); ++chainId) {
         std::vector<VertexId>& mChain = mChains[chainId];
@@ -688,7 +688,7 @@ Mesh attachMeshesByBorders(
 
         std::unordered_set<VertexId> nonCollapsedSet(nonCollapsed.begin(), nonCollapsed.end());
 
-        std::vector<VertexId> collapsedVertexMap = nvl::inverseMap(collapsedBirthVertex, oldNewMeshVertexNumber);
+        std::vector<VertexId> collapsedVertexMap = nvl::inverseFunction(collapsedBirthVertex, oldNewMeshVertexNumber);
 
         for (Index chainId = 0; chainId < splittedMChains.size(); ++chainId) {
             const std::vector<VertexId>& splittedMChain = splittedMChains[chainId];
