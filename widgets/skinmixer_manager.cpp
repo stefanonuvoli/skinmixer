@@ -697,6 +697,7 @@ void SkinMixerManager::updateView()
     ui->modelSaveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelMoveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelCopyButton->setEnabled(atLeastOneDrawableSelected);
+    ui->scaleOn1AndCenterButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelAnimationPoseButton->setEnabled(animationSelected);
     ui->modelAnimationRemoveButton->setEnabled(animationSelected);
     ui->modelAnimationRemoveRootMotionButton->setEnabled(animationSelected);
@@ -1359,6 +1360,32 @@ void SkinMixerManager::on_modelCopyButton_clicked()
     vCanvas->updateGL();
 }
 
+void SkinMixerManager::on_scaleOn1AndCenterButton_clicked()
+{
+    const std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
+    for (Index selected : selectedDrawables) {
+        ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(vCanvas->drawable(selected));
+        if (modelDrawer != nullptr) {
+            Model* modelPtr = modelDrawer->model();
+
+            nvl::AlignedBox3d bbox = nvl::meshBoundingBox(modelPtr->mesh);
+            double scaleFactor = 1.0 / bbox.diagonal().norm();
+            nvl::Point3d translateVector = -bbox.center();
+
+            nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
+            nvl::Translation3d translateTransform(translateVector);
+
+            std::cout << modelPtr->name << " (V: " << modelPtr->mesh.vertexNumber() << ", F: " << modelPtr->mesh.faceNumber() << ") -> Scale: " << scaleFactor << ", Translation: " << translateTransform.translation().transpose() << std::endl;
+
+            nvl::Affine3d transformation(scaleTransform * translateTransform);
+            nvl::modelApplyTransformation(*modelPtr, transformation);
+
+            modelDrawer->update();
+        }
+    }
+
+    vCanvas->updateGL();
+}
 
 void SkinMixerManager::on_weightSmoothingSlider_valueChanged(int value)
 {
@@ -1529,20 +1556,6 @@ void SkinMixerManager::clear()
 
 void SkinMixerManager::initializeLoadedModel(Model* model)
 {
-    if (ui->scaleOn1AndCenterCheckBox->isChecked()) {
-        nvl::AlignedBox3d bbox = nvl::meshBoundingBox(model->mesh);
-        double scaleFactor = 1.0 / bbox.diagonal().norm();
-        nvl::Point3d translateVector = -bbox.center();
-
-        nvl::Scaling3d scaleTransform(scaleFactor, scaleFactor, scaleFactor);
-        nvl::Translation3d translateTransform(translateVector);
-
-        std::cout << model->name << " (V: " << model->mesh.vertexNumber() << ", F: " << model->mesh.faceNumber() << ") -> Scale: " << scaleFactor << ", Translation: " << translateTransform.translation().transpose() << std::endl;
-
-        nvl::Affine3d transformation(scaleTransform * translateTransform);
-        nvl::modelApplyTransformation(*model, transformation);
-    }
-
     if (ui->updateFaceNormalsCheckBox->isChecked()) {
         model->mesh.computeFaceNormals();
     }

@@ -79,6 +79,8 @@ private slots:
     void on_modelSaveButton_clicked();
     void on_modelMoveButton_clicked();
     void on_modelCopyButton_clicked();
+    void on_scaleOn1AndCenterButton_clicked();
+
 
     void on_weightSmoothingSlider_valueChanged(int value);
     void on_rigiditySlider_valueChanged(int value);
@@ -115,7 +117,6 @@ private slots:
     void on_modelAnimationPoseButton_clicked();
     void on_modelAnimationRemoveButton_clicked();
     void on_modelAnimationRemoveRootMotionButton_clicked();
-
 
 private:
 
