@@ -209,28 +209,29 @@ Mesh attachMeshesByBorders(
             }
         }
 
-        assert(mComponentId < nvl::NULL_ID);
-        mUsedComponents.insert(mComponentId);
+        if (mComponentId < nvl::NULL_ID) {
+            mUsedComponents.insert(mComponentId);
 
-        //Delete nodes from graph
-        for (const VertexId& vId : mChain) {
-            meshGraph.deleteNode(vId);
-        }
-
-        verticesInChains.insert(mChain.begin(), mChain.end());
-
-        //Save chain edges
-        for (Index i = 0; i < mChain.size(); ++i) {
-            const Index nextI = (i + 1) % mChain.size();
-            VertexId v1 = mChain[i];
-            VertexId v2 = mChain[nextI];
-
-            assert(v1 != v2);
-            if (v1 > v2) {
-                std::swap(v1, v2);
+            //Delete nodes from graph
+            for (const VertexId& vId : mChain) {
+                meshGraph.deleteNode(vId);
             }
 
-            edgesInChains.insert(std::make_pair(v1, v2));
+            verticesInChains.insert(mChain.begin(), mChain.end());
+
+            //Save chain edges
+            for (Index i = 0; i < mChain.size(); ++i) {
+                const Index nextI = (i + 1) % mChain.size();
+                VertexId v1 = mChain[i];
+                VertexId v2 = mChain[nextI];
+
+                assert(v1 != v2);
+                if (v1 > v2) {
+                    std::swap(v1, v2);
+                }
+
+                edgesInChains.insert(std::make_pair(v1, v2));
+            }
         }
     }
 
@@ -388,6 +389,9 @@ Mesh attachMeshesByBorders(
     for (Index chainId = 0; chainId < dChains.size(); ++chainId) {
         const std::vector<VertexId>& dChain = dChains[chainId];
         const std::vector<VertexId>& mChain = mChains[chainId];
+
+        if (mChain.empty())
+            continue;
 
         const Index& startI = chainStartI[chainId];
         const Index& startJ = chainStartJ[chainId];
@@ -618,6 +622,10 @@ Mesh attachMeshesByBorders(
     for (Index chainId = 0; chainId < dChains.size(); ++chainId) {
         const std::vector<VertexId>& dChain = dChains[chainId];
         const std::vector<VertexId>& mChain = mChains[chainId];
+
+        if (mChain.empty())
+            continue;
+
         std::vector<VertexId>& splittedMChain = splittedMChains[chainId];
 
         const std::vector<double>& mParametrization = mFinalParametrization[chainId];
@@ -692,6 +700,9 @@ Mesh attachMeshesByBorders(
 
         for (Index chainId = 0; chainId < splittedMChains.size(); ++chainId) {
             const std::vector<VertexId>& splittedMChain = splittedMChains[chainId];
+
+            if (splittedMChain.empty())
+                continue;
 
             for (Index i = 0; i < splittedMChain.size(); ++i) {
                 assert(splittedMChain[i] != nvl::NULL_ID);
