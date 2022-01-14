@@ -8,7 +8,6 @@
 #include "skinmixer/skinmixer_blend_animations.h"
 
 #include <nvl/models/algorithms/model_transformations.h>
-#include <nvl/models/algorithms/model_deformation.h>
 #include <nvl/models/algorithms/mesh_normals.h>
 
 #include <nvl/structures/containers/disjoint_set.h>
@@ -32,23 +31,9 @@ std::vector<nvl::Index> mix(
     long totalDuration = 0;
 #endif
 
-    //Remove non standard deformations
-    for (Entry entry : data.entries()) {
-        if (entry.relatedActions.size() > 0) {
-            nvl::modelRemoveNonStandardTransformations(*entry.model);
-        }
-    }
-
-    //Deform models
-    for (Entry entry : data.entries()) {
-        if (entry.relatedActions.size() > 0) {
-            nvl::modelRemoveNonStandardTransformations(*entry.model);
-            data.computeDeformation(entry);
-            if (!entry.deformation.empty()) {
-                nvl::modelDeformDualQuaternionSkinning(*entry.model, entry.deformation, false, true);
-            }
-        }
-    }
+    //Remove non standard transformations and deform the models
+    data.removeNonStandardTransformationsFromModels();
+    data.deformModels();
 
     //Resulting entries
     std::vector<Index> newEntries;
@@ -217,9 +202,7 @@ nvl::Index replace(
         const double hardness1,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2,
-        const nvl::Affine3d& vActionRotation,
-        const nvl::Translation3d& vActionTranslation)
+        const bool includeParent2)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -249,13 +232,9 @@ nvl::Index replace(
     action.select1.joint = jointValues1;
     action.select2.vertex = vertexValues2;
     action.select2.joint = jointValues2;
-    action.rotation2 = vActionRotation;
-    action.translation2 = vActionTranslation;
     action.replaceMode = replaceMode;
 
     Index actionId = data.addAction(action);
-    entry1.relatedActions.push_back(actionId);
-    entry2.relatedActions.push_back(actionId);
 
     return actionId;
 }
@@ -271,9 +250,7 @@ nvl::Index attach(
         const double rigidity,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2,
-        const nvl::Affine3d& vActionRotation,
-        const nvl::Translation3d& vActionTranslation)
+        const bool includeParent2)
 {
     typedef typename SkinMixerData<Model>::Entry Entry;
     typedef typename SkinMixerData<Model>::Action Action;
@@ -302,13 +279,8 @@ nvl::Index attach(
     action.select1.joint = jointValues1;
     action.select2.vertex = vertexValues2;
     action.select2.joint = jointValues2;
-    action.rotation2 = vActionRotation;
-    action.translation2 = vActionTranslation;
 
     Index actionId = data.addAction(action);
-    entry1.relatedActions.push_back(actionId);
-    entry2.relatedActions.push_back(actionId);
-
     return actionId;
 }
 
@@ -343,7 +315,6 @@ nvl::Index remove(
     action.select1.joint = jointValues;
 
     Index actionId = data.addAction(action);
-    entry.relatedActions.push_back(actionId);
 
     return actionId;
 }
@@ -379,7 +350,6 @@ nvl::Index detach(
     action.select1.joint = jointValues;
 
     Index actionId = data.addAction(action);
-    entry.relatedActions.push_back(actionId);
 
     return actionId;
 }

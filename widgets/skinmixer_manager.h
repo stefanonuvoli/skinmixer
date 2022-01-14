@@ -36,6 +36,7 @@ class SkinMixerManager : public QFrame
     typedef typename SkinMixerData::Entry SkinMixerEntry;
     typedef typename SkinMixerData::BirthInfo::JointInfo JointInfo;
     typedef typename SkinMixerData::SelectInfo SelectInfo;
+    typedef typename SkinMixerData::Action SkinMixerAction;
 
     typedef skinmixer::OperationType OperationType;
     typedef skinmixer::ReplaceMode ReplaceMode;
@@ -71,52 +72,6 @@ public Q_SLOTS:
     void slot_movableFrameChanged();    
     void slot_drawableAdded(const Index& id, nvl::Drawable* drawable);
 
-
-private slots:
-
-    void on_modelLoadButton_clicked();
-    void on_modelRemoveButton_clicked();
-    void on_modelSaveButton_clicked();
-    void on_modelMoveButton_clicked();
-    void on_modelCopyButton_clicked();
-    void on_scaleOn1AndCenterButton_clicked();
-
-
-    void on_weightSmoothingSlider_valueChanged(int value);
-    void on_rigiditySlider_valueChanged(int value);
-    void on_showZeroCheckBox_clicked();
-
-    void on_hardness1Slider_valueChanged(int value);
-    void on_hardness2Slider_valueChanged(int value);
-    void on_parent1CheckBox_stateChanged(int arg1);
-    void on_parent2CheckBox_stateChanged(int arg1);
-
-    void on_operationDetachButton_clicked();
-    void on_operationRemoveButton_clicked();
-    void on_operationReplaceButton_clicked();
-    void on_operationAttachButton_clicked();
-    void on_operationAbortButton_clicked();
-    void on_operationApplyButton_clicked();
-
-    void on_mixButton_clicked();
-    void on_animationJointAllCheckBox_stateChanged(int arg1);
-    void on_animationJointMeshComboBox_currentIndexChanged(int index);
-    void on_animationBlendButton_clicked();
-    void on_animationConfirmButton_clicked();
-    void on_animationAbortButton_clicked();
-    void on_animationBlendLoopFixedButton_clicked();
-
-    void on_updateValuesResetButton_clicked();
-    void on_updateValuesWeightsButton_clicked();
-    void on_updateValuesSelectButton_clicked();
-    void on_updateValuesBirthButton_clicked();
-
-    void on_updateJointsResetButton_clicked();
-    void on_updateJointsBirthButton_clicked();
-
-    void on_modelAnimationPoseButton_clicked();
-    void on_modelAnimationRemoveButton_clicked();
-    void on_modelAnimationRemoveRootMotionButton_clicked();
 
 private:
 
@@ -186,13 +141,62 @@ private:
     ModelDrawer* vFirstSelectedModelDrawer;
     JointId vFirstSelectedJoint;
     bool vPreparedOperation;
-    nvl::Affine3d vActionRotation;
-    nvl::Translation3d vActionTranslation;
 
     std::vector<std::pair<Index, Index>> vBlendingAnimations;
     std::vector<QSlider*> animationWeightSliders;
     std::vector<QLabel*> animationWeightLabels;
 
+
+
+private slots:
+
+    void on_modelLoadButton_clicked();
+    void on_modelRemoveButton_clicked();
+    void on_modelSaveButton_clicked();
+    void on_modelMoveButton_clicked();
+    void on_modelCopyButton_clicked();
+    void on_scaleOn1AndCenterButton_clicked();
+
+    void on_weightSmoothingSlider_valueChanged(int value);
+    void on_rigiditySlider_valueChanged(int value);
+    void on_showZeroCheckBox_clicked();
+
+    void on_hardness1Slider_valueChanged(int value);
+    void on_hardness2Slider_valueChanged(int value);
+    void on_parent1CheckBox_stateChanged(int arg1);
+    void on_parent2CheckBox_stateChanged(int arg1);
+
+    void on_operationDetachButton_clicked();
+    void on_operationRemoveButton_clicked();
+    void on_operationReplaceButton_clicked();
+    void on_operationAttachButton_clicked();
+    void on_operationAbortButton_clicked();
+    void on_operationApplyButton_clicked();
+    void on_resetJointDeformationsButton_clicked();
+    void on_mixButton_clicked();
+
+    void on_animationJointAllCheckBox_stateChanged(int arg1);
+    void on_animationJointMeshComboBox_currentIndexChanged(int index);
+    void on_animationBlendButton_clicked();
+    void on_animationConfirmButton_clicked();
+    void on_animationAbortButton_clicked();
+    void on_animationBlendLoopFixedButton_clicked();
+
+    void on_updateValuesResetButton_clicked();
+    void on_updateValuesWeightsButton_clicked();
+    void on_updateValuesSelectButton_clicked();
+    void on_updateValuesBirthButton_clicked();
+
+    void on_updateJointsResetButton_clicked();
+    void on_updateJointsBirthButton_clicked();
+
+    void on_modelAnimationPoseButton_clicked();
+    void on_modelAnimationRemoveButton_clicked();
+    void on_modelAnimationRemoveRootMotionButton_clicked();
+
+    void on_actionRemoveButton_clicked();
+    void on_actionDownButton_clicked();
+    void on_actionUpButton_clicked();
 };
 
 #endif // SKINMIXER_MANAGER_H

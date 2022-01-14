@@ -93,9 +93,7 @@ nvl::Index replace(
         const double hardness1,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2,
-        const nvl::Affine3d& vActionRotation,
-        const nvl::Translation3d& vActionTranslation);
+        const bool includeParent2);
 
 template<class Model>
 nvl::Index attach(
@@ -108,9 +106,7 @@ nvl::Index attach(
         const double rigidity,
         const double hardness2,
         const bool includeParent1,
-        const bool includeParent2,
-        const nvl::Affine3d& vActionRotation,
-        const nvl::Translation3d& vActionTranslation);
+        const bool includeParent2);
 
 template<class Model>
 nvl::Index remove(

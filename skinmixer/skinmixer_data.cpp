@@ -1,8 +1,13 @@
 #include "skinmixer_data.h"
 
+#include <nvl/math/interpolation.h>
+#include <nvl/math/normalization.h>
+
 #include <nvl/models/algorithms/animation_skinning.h>
 #include <nvl/models/algorithms/skeleton_adjacencies.h>
-#include <nvl/math/interpolation.h>
+#include <nvl/models/algorithms/model_deformation.h>
+#include <nvl/models/algorithms/model_clean.h>
+
 #include <unordered_set>
 
 #define MIN_SKINNING_WEIGHT 0.05
@@ -100,12 +105,6 @@ nvl::Index SkinMixerData<Model>::addAction(const Action& action)
 template<class Model>
 void SkinMixerData<Model>::removeAction(const SkinMixerData::Index& index)
 {
-    for (Entry& entry : vEntries) {
-        std::vector<Index>::iterator it = std::find(entry.relatedActions.begin(), entry.relatedActions.end(), index);
-        if (it != entry.relatedActions.end()) {
-            entry.relatedActions.erase(it);
-        }
-    }
     vActions.erase(vActions.begin() + index);
 }
 
@@ -134,169 +133,390 @@ const typename SkinMixerData<Model>::Action& SkinMixerData<Model>::action(const 
 }
 
 template<class Model>
-void SkinMixerData<Model>::computeDeformation(const Index& entryId)
+void SkinMixerData<Model>::applyJointDeformation(const Index& entryId, const JointId& jId, const Rotation& rotation, const Translation& translation)
+{
+    Entry& entry = this->entry(entryId);
+    return this->applyJointDeformation(entry, jId, rotation, translation);
+}
+
+template<class Model>
+void SkinMixerData<Model>::applyJointDeformation(Entry& entry, const JointId& jId, const Rotation& rotation, const Translation& translation)
+{
+    const Model* model = entry.model;
+
+    std::vector<Affine>& rotations = entry.rotations;
+    std::vector<Translation>& translations = entry.translations;
+
+    if (rotations.empty() || translations.empty()) {
+        rotations.resize(model->skeleton.jointNumber(), Affine::Identity());
+        translations.resize(model->skeleton.jointNumber(), Translation::Identity());
+    }
+
+    rotations[jId] = rotation * rotations[jId];
+    translations[jId] = translation * translations[jId];
+}
+
+template<class Model>
+void SkinMixerData<Model>::resetJointDeformation(const Index& entryId)
+{
+    Entry& entry = this->entry(entryId);
+    return this->computeActionDeformation(entry);
+}
+
+template<class Model>
+void SkinMixerData<Model>::resetJointDeformation(Entry& entry)
+{
+    entry.rotations.clear();
+    entry.translations.clear();
+}
+
+template<class Model>
+std::vector<typename SkinMixerData<Model>::DualQuaternion> SkinMixerData<Model>::computeJointDeformation(const Index& entryId)
+{
+    Entry& entry = this->entry(entryId);
+    return this->computeJointDeformation(entry);
+}
+
+template<class Model>
+std::vector<typename SkinMixerData<Model>::DualQuaternion> SkinMixerData<Model>::computeJointDeformation(Entry& entry)
+{
+    const std::vector<Affine>& rotations = entry.rotations;
+    const std::vector<Translation>& translations = entry.translations;
+
+    Model* model = entry.model;
+
+    std::vector<DualQuaternion> deformations(entry.model->skeleton.jointNumber(), DualQuaternion::Identity());
+
+    bool deformationFound = false;
+
+    if (!rotations.empty() && !translations.empty()) {
+        //Generate dual quaternions
+        std::vector<Affine> propagatedRotations(entry.model->skeleton.jointNumber(), Affine::Identity());
+        std::vector<Translation> propagatedTranslations(entry.model->skeleton.jointNumber(), Translation::Identity());
+
+        for (Index jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
+            propagatedRotations[jId] = model->skeleton.jointBindPose(jId) * rotations[jId] * model->skeleton.jointBindPose(jId).inverse();
+            propagatedTranslations[jId] = translations[jId];
+        }
+
+        //Propagate
+        nvl::skeletonPoseGlobalFromLocal(model->skeleton, propagatedRotations);
+        nvl::skeletonPoseGlobalFromLocal(model->skeleton, propagatedTranslations);
+
+        //Set deformations
+        for (Index jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
+            Affine transformation = propagatedTranslations[jId] * propagatedRotations[jId];
+
+            if (!transformation.isApprox(Affine::Identity())) {
+                deformations[jId] = DualQuaternion(transformation);
+                deformationFound = true;
+            }
+        }
+    }
+
+    if (!deformationFound) {
+        deformations.clear();
+    }
+
+    return deformations;
+}
+
+template<class Model>
+std::vector<typename SkinMixerData<Model>::DualQuaternion> SkinMixerData<Model>::computeDeformation(const Index& entryId)
 {
     Entry& entry = this->entry(entryId);
     return this->computeDeformation(entry);
 }
 
 template<class Model>
-void SkinMixerData<Model>::computeDeformation(Entry& entry)
+std::vector<typename SkinMixerData<Model>::DualQuaternion> SkinMixerData<Model>::computeDeformation(Entry& entry)
 {
-    Model* model = entry.model;
-    std::vector<nvl::DualQuaterniond>& deformation = entry.deformation;
-    deformation.clear();
+    std::unordered_set<Index> involvedEntries;
 
-    std::vector<nvl::Affine3d> transformations(model->skeleton.jointNumber(), nvl::Affine3d::Identity());
-    std::vector<nvl::Translation3d> translations(model->skeleton.jointNumber(), nvl::Translation3d::Identity());
-
-    std::unordered_set<JointId> deformedJoints;
-
-    std::vector<std::unordered_set<Index>> vertexInvolvedActions(model->mesh.nextVertexId());
-    std::vector<std::unordered_set<Index>> jointInvolvedActions(model->skeleton.jointNumber());
-
-    for (Index aId : entry.relatedActions) {
+    std::vector<Index> relatedActions = this->relatedActions(entry);
+    for (Index aId : relatedActions) {
         const Action& action = this->action(aId);
 
         if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
             if (action.entry2 == entry.id) {
-                std::vector<JointId> descendantJoints = nvl::skeletonJointDescendants(model->skeleton, action.joint2);
-                descendantJoints.push_back(action.joint2);
+                involvedEntries.insert(action.entry1);
+                involvedEntries.insert(action.entry2);
+            }
+        }
+    }
 
-                for (JointId dId : descendantJoints) {
-                    transformations[dId] = action.translation2 * action.rotation2;
-                    translations[dId] = action.translation2;
+    if (involvedEntries.empty()) {
+        return computeJointDeformation(entry);
+    }
+    else {
+        std::vector<std::vector<DualQuaternion>> entriesDeformations = computeDeformations();
+        return entriesDeformations[entry.id];
+    }
+}
 
-                    deformedJoints.insert(dId);
+template<class Model>
+std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixerData<Model>::computeDeformations()
+{
+    typedef typename Model::Skeleton Skeleton;
+    typedef typename Skeleton::Transformation SkeletonTransformation;
+    typedef typename Skeleton::Scalar SkeletonScalar;
 
-                    for (VertexId vId = 0; vId < model->mesh.nextVertexId(); ++vId) {
-                        if (model->mesh.isVertexDeleted(vId))
-                            continue;
+    //Resulting deformations
+    std::vector<std::vector<DualQuaternion>> newDeformations;
 
-                        if (model->skinningWeights.weight(vId, dId) >= MIN_SKINNING_WEIGHT) {
-                            vertexInvolvedActions[vId].insert(aId);
+    std::vector<std::vector<Translation>> translations(this->entryNumber(), std::vector<Translation>());
+    std::vector<std::unordered_set<JointId>> deformedJoints(this->entryNumber());
+    std::vector<Skeleton> deformedSkeletons(this->entryNumber());
+
+    std::vector<std::vector<DualQuaternion>> originalDeformations(this->entryNumber(), std::vector<DualQuaternion>());
+    std::vector<Skeleton> originalSkeletons(this->entryNumber());
+
+    //Initialize deformations of the involved entries
+    for (Index eId = 0; eId < this->entryNumber(); ++eId) {
+        const Entry& entry = this->entry(eId);
+        const Model* model = entry.model;
+
+        originalDeformations[eId] = computeJointDeformation(eId);
+        originalSkeletons[eId] = model->skeleton;
+
+        //Apply transformations to skeleton
+        if (!originalDeformations[eId].empty()) {
+            #pragma omp parallel for
+            for (JointId jId = 0; jId < originalSkeletons[eId].jointNumber(); ++jId) {
+                const DualQuaternion& dq = originalDeformations[eId][jId];
+
+                const Affine& t = dq.affineTransformation();
+                if (!t.isApprox(Affine::Identity())) {
+                    SkeletonTransformation r = t * originalSkeletons[eId].jointBindPose(jId);
+                    originalSkeletons[eId].setJointBindPose(jId, r);
+                }
+            }
+        }
+
+        deformedSkeletons[eId] = originalSkeletons[eId];
+    }
+
+    //Copy original deformations
+    newDeformations = originalDeformations;
+
+    //Apply for each action
+    for (Index aId = 0; aId < this->actionNumber(); ++aId) {
+        const Action& action = this->action(aId);
+
+        if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {
+            const Index& eId1 = action.entry1;
+            const Index& eId2 = action.entry2;
+
+            const Index& jId1 = action.joint1;
+            const Index& jId2 = action.joint2;
+
+            const Entry& entry2 = this->entry(eId2);
+            const Model* model2 = entry2.model;
+
+            //Initialize translations
+            if (translations[eId2].empty()) {
+                translations[eId2].resize(model2->skeleton.jointNumber(), Translation::Identity());
+            }
+
+            //Get translations
+            nvl::Point3<SkeletonScalar> v1 = deformedSkeletons[eId1].jointBindPose(jId1) * deformedSkeletons[eId1].originPoint();
+            nvl::Point3<SkeletonScalar> v2 = originalSkeletons[eId2].jointBindPose(jId2) * originalSkeletons[eId2].originPoint();
+            nvl::Vector3<SkeletonScalar> translateVector = v1 - v2;
+            nvl::Translation3d translateTransform(translateVector);
+
+            //Set translations and fill deformed joints
+            std::vector<JointId> descendantJoints = nvl::skeletonJointDescendants(model2->skeleton, jId2);
+            descendantJoints.push_back(jId2);
+            for (JointId dId : descendantJoints) {
+                translations[eId2][dId] = translateTransform;
+                deformedJoints[eId2].insert(dId);
+            }
+
+            if (!deformedJoints[eId2].empty()) {
+                //Propagation iterations
+                const unsigned int propagationIterations = model2->skeleton.jointNumber() * 20;
+                const unsigned int deformedNeighbors = 1;
+
+                //Smoothing iterations
+                const unsigned int smoothingIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 20);
+
+                //Smoothed translations
+                std::vector<Translation> smoothedTranslations = translations[eId2];
+
+                //Propagate
+                std::unordered_set<JointId> processedJoints = deformedJoints[eId2];
+                for (unsigned int it = 0; it < propagationIterations; ++it) {
+                    std::vector<Translation> copyTranslation = translations[eId2];
+                    std::unordered_set<JointId> copyProcessedJoints = processedJoints;
+
+                    for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
+                        if (copyProcessedJoints.find(jId) == copyProcessedJoints.end()) {
+                            std::vector<Translation> values;
+                            std::vector<double> weights;
+
+                            if (!model2->skeleton.isRoot(jId)) {
+                                const JointId& parentId = model2->skeleton.parentId(jId);
+                                if (copyProcessedJoints.find(parentId) != copyProcessedJoints.end()) {
+                                    values.push_back(copyTranslation[parentId]);
+                                    weights.push_back(1.0);
+                                }
+                            }
+
+                            for (const JointId& childId : model2->skeleton.children(jId)) {
+                                if (copyProcessedJoints.find(childId) != copyProcessedJoints.end()) {
+                                    values.push_back(copyTranslation[childId]);
+                                    weights.push_back(1.0);
+                                }
+                            }
+
+                            if (!values.empty()) {
+                                assert(values.size() == weights.size());
+                                Translation interpolated;
+                                if (values.size() > 1) {
+                                    nvl::normalize(weights);
+                                    interpolated = nvl::interpolateTranslationLinear(values, weights);
+                                }
+                                else {
+                                    interpolated = values[0];
+                                }
+
+                                smoothedTranslations[jId] = interpolated;
+                                processedJoints.insert(jId);
+
+                                if (it < deformedNeighbors) {
+                                    translations[eId2][jId] = interpolated;
+                                    deformedJoints[eId2].insert(jId);
+                                }
+                            }
                         }
+                    }
+                }
+
+                //Laplacian on other joints
+                for (unsigned int it = 0; it < smoothingIterations; ++it) {
+                    std::vector<Translation> copyTranslation = smoothedTranslations;
+
+                    for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
+                        if (deformedJoints[eId2].find(jId) == deformedJoints[eId2].end()) {
+                            std::vector<Translation> values;
+                            std::vector<double> weights;
+
+                            values.push_back(copyTranslation[jId]);
+                            weights.push_back(1.0);
+
+                            if (!model2->skeleton.isRoot(jId)) {
+                                const JointId& parentId = model2->skeleton.parentId(jId);
+                                values.push_back(copyTranslation[parentId]);
+                                weights.push_back(1.0);
+                            }
+
+                            for (const JointId& childId : model2->skeleton.children(jId)) {
+                                values.push_back(copyTranslation[childId]);
+                                weights.push_back(1.0);
+                            }
+
+                            if (!values.empty()) {
+                                assert(values.size() == weights.size());
+                                Translation interpolated;
+                                if (values.size() > 1) {
+                                    nvl::normalize(weights);
+                                    interpolated = nvl::interpolateTranslationLinear(values, weights);
+                                }
+                                else {
+                                    interpolated = values[0];
+                                }
+
+                                smoothedTranslations[jId] = interpolated;
+                            }
+                        }
+                    }
+                }
+
+                if (newDeformations[eId2].empty()) {
+                    newDeformations[eId2].resize(model2->skeleton.jointNumber(), DualQuaternion::Identity());
+                }
+
+                for (Index jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
+                    if (!originalDeformations.empty()) {
+                        newDeformations[eId2][jId] = DualQuaternion(Rotation::Identity(), smoothedTranslations[jId]) * originalDeformations[eId2][jId];
+                    }
+                    else {
+                        newDeformations[eId2][jId] = DualQuaternion(Rotation::Identity(), smoothedTranslations[jId]);
+                    }
+                }
+
+                //Apply transformations to skeleton
+                deformedSkeletons[eId2] = model2->skeleton;
+                #pragma omp parallel for
+                for (JointId jId = 0; jId < deformedSkeletons[eId2].jointNumber(); ++jId) {
+                    const DualQuaternion& dq = newDeformations[eId2][jId];
+
+                    const Affine& t = dq.affineTransformation();
+                    if (!t.isApprox(Affine::Identity())) {
+                        SkeletonTransformation r = t * deformedSkeletons[eId2].jointBindPose(jId);
+                        deformedSkeletons[eId2].setJointBindPose(jId, r);
                     }
                 }
             }
         }
     }
 
-    if (!deformedJoints.empty()) {
-        const int propagationIterations = 1;
-        const int smoothingIterations = model->skeleton.jointNumber() * 20;
+    return newDeformations;
+}
 
-        //Propagate
-        for (int it = 0; it < propagationIterations; ++it) {
-            std::vector<nvl::Translation3d> copyTranslation = translations;
-            std::unordered_set<JointId> copyDeformedJoints = deformedJoints;
+template<class Model>
+void SkinMixerData<Model>::deformModel(const Index& entryId)
+{
+    Entry& entry = this->entry(entryId);
+    return this->deformModel(entry);
+}
 
-            for (JointId jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
-                if (copyDeformedJoints.find(jId) == copyDeformedJoints.end()) {
-                    std::vector<nvl::Translation3d> values;
+template<class Model>
+void SkinMixerData<Model>::deformModel(Entry& entry)
+{
+    Model* model = entry.model;
 
-                    if (!model->skeleton.isRoot(jId)) {
-                        const JointId& parentId = model->skeleton.parentId(jId);
-                        if (copyDeformedJoints.find(parentId) != copyDeformedJoints.end()) {
-                            values.push_back(copyTranslation[parentId]);
-                        }
-                    }
-                    for (const JointId& childId : model->skeleton.children(jId)) {
-                        if (copyDeformedJoints.find(childId) != copyDeformedJoints.end()) {
-                            values.push_back(copyTranslation[childId]);
-                        }
-                    }
+    std::vector<DualQuaternion> deformations = computeDeformation(entry);
 
-                    if (!values.empty()) {
-                        nvl::Vector3d vec(0,0,0);
-                        for (Index i = 0; i < values.size(); ++i) {
-                            vec += values[i].vector();
-                        }
-                        vec /= static_cast<double>(values.size());
+    if (!deformations.empty()) {
+        nvl::modelDeformDualQuaternionSkinning(*model, deformations, false, true);
+    }
+}
 
-                        transformations[jId] = nvl::Translation3d(vec);
-                        translations[jId] = nvl::Translation3d(vec);
-                        deformedJoints.insert(jId);
-                    }
-                }
-            }
+template<class Model>
+void SkinMixerData<Model>::deformModels()
+{
+    std::vector<std::vector<DualQuaternion>> deformations = computeDeformations();
+
+    for (Index eId = 0; eId < entryNumber(); ++eId) {
+        if (!deformations[eId].empty()) {
+            Entry& entry = this->entry(eId);
+            Model* model = entry.model;
+
+            nvl::modelDeformDualQuaternionSkinning(*model, deformations[eId], false, true);
         }
+    }
+}
 
+template<class Model>
+void SkinMixerData<Model>::removeNonStandardTransformationsFromModel(const Index& entryId)
+{
+    Entry& entry = this->entry(entryId);
+    return this->removeNonStandardTransformationsFromModel(entry);
+}
 
-        //Deformation based on skinning weights
-        for (JointId jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
-            if (deformedJoints.find(jId) == deformedJoints.end()) {
-                for (VertexId vId = 0; vId < model->mesh.nextVertexId(); ++vId) {
-                    if (!vertexInvolvedActions[vId].empty() && model->skinningWeights.weight(vId, jId) >= MIN_SKINNING_WEIGHT) {
-                        jointInvolvedActions[jId].insert(vertexInvolvedActions[vId].begin(), vertexInvolvedActions[vId].end());
-                    }
-                }
-            }
-        }
-        for (JointId jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
-            if (!jointInvolvedActions[jId].empty() && deformedJoints.find(jId) == deformedJoints.end()) {
-                std::vector<nvl::Translation3d> values;
+template<class Model>
+void SkinMixerData<Model>::removeNonStandardTransformationsFromModel(Entry& entry)
+{
+     nvl::modelRemoveNonStandardTransformations(*entry.model);
+}
 
-                for (Index aId : jointInvolvedActions[jId]) {
-                    const Action& action = this->action(aId);
-
-                    values.push_back(action.translation2);
-                }
-
-                if (!values.empty()) {
-                    nvl::Vector3d vec(0,0,0);
-                    for (Index i = 0; i < values.size(); ++i) {
-                        vec += values[i].vector();
-                    }
-                    vec /= static_cast<double>(values.size());
-
-                    transformations[jId] = nvl::Translation3d(vec);
-                    translations[jId] = nvl::Translation3d(vec);
-                    deformedJoints.insert(jId);
-                }
-            }
-        }
-
-
-
-        //Laplacian on other joints
-        for (int it = 0; it < smoothingIterations; ++it) {
-            std::vector<nvl::Translation3d> copyTranslation = translations;
-
-            for (JointId jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
-                if (deformedJoints.find(jId) == deformedJoints.end()) {
-                    std::vector<nvl::Translation3d> values;
-
-                    values.push_back(copyTranslation[jId]);
-                    if (!model->skeleton.isRoot(jId)) {
-                        const JointId& parentId = model->skeleton.parentId(jId);
-                        values.push_back(copyTranslation[parentId]);
-                    }
-                    for (const JointId& childId : model->skeleton.children(jId)) {
-                        values.push_back(copyTranslation[childId]);
-                    }
-
-                    nvl::Vector3d vec(0,0,0);
-                    if (values.size() > 1) {
-                        for (Index i = 0; i < values.size(); ++i) {
-                            vec += values[i].vector();
-                        }
-                        vec /= static_cast<double>(values.size());
-                    }
-                    else {
-                        vec = values[0].vector();
-                    }
-
-                    transformations[jId] = nvl::Translation3d(vec);
-                    translations[jId] = nvl::Translation3d(vec);
-                }
-            }
-        }
-
-        deformation.resize(model->skeleton.jointNumber());
-        for (Index jId = 0; jId < model->skeleton.jointNumber(); ++jId) {
-            deformation[jId] = nvl::DualQuaterniond(transformations[jId]);
-        }
+template<class Model>
+void SkinMixerData<Model>::removeNonStandardTransformationsFromModels()
+{
+    //Remove non standard deformations from models
+    for (Entry entry : this->entries()) {
+        removeNonStandardTransformationsFromModel(entry);
     }
 }
 
@@ -308,7 +528,6 @@ void SkinMixerData<Model>::Entry::clear()
     model = nullptr;
 
     birth.clear();
-    relatedActions.clear();
 
     blendingAnimationIds.clear();
     blendingAnimationModes.clear();
@@ -347,13 +566,44 @@ void SkinMixerData<Model>::Action::clear()
 }
 
 template<class Model>
+std::vector<nvl::Index> SkinMixerData<Model>::relatedActions(const Index& entryId)
+{
+    const Entry& currentEntry = this->entry(entryId);
+    return relatedActions(currentEntry);
+}
+
+template<class Model>
+std::vector<nvl::Index> SkinMixerData<Model>::relatedActions(const Entry& entry)
+{
+    std::vector<Index> actions;
+    for (Index aId = 0; aId < this->actionNumber(); ++aId) {
+        Action& action = this->action(aId);
+
+        if (action.entry1 == entry.id || action.entry2 == entry.id) {
+            actions.push_back(aId);
+        }
+    }
+
+    return actions;
+}
+
+template<class Model>
+typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSelectInfo(const Index& entryId)
+{
+    const Entry& currentEntry = this->entry(entryId);
+    return computeGlobalSelectInfo(currentEntry);
+}
+
+template<class Model>
 typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSelectInfo(const Entry& entry)
 {
     SelectInfo globalSelectInfo;
     globalSelectInfo.vertex.resize(entry.model->mesh.nextVertexId(), 1.0);
     globalSelectInfo.joint.resize(entry.model->skeleton.jointNumber(), 1.0);
 
-    for (Index aId : entry.relatedActions) {
+    std::vector<Index> relatedActions = this->relatedActions(entry);
+
+    for (Index aId : relatedActions) {
         Action& action = this->action(aId);
 
         if (action.entry1 == entry.id) {
@@ -376,7 +626,7 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
         }
     }
 
-    for (Index aId : entry.relatedActions) {
+    for (Index aId : relatedActions) {
         Action& action = this->action(aId);
 
         if (action.operation == OperationType::REMOVE) {
@@ -451,14 +701,6 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
 }
 
 template<class Model>
-typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSelectInfo(const Index& eId)
-{
-    const Entry& currentEntry = this->entry(eId);
-
-    return computeGlobalSelectInfo(currentEntry);
-}
-
-template<class Model>
 void SkinMixerData<Model>::clear()
 {
     vEntries.clear();
@@ -470,8 +712,6 @@ template<class Model>
 void SkinMixerData<Model>::clearActions()
 {
     this->vActions.clear();
-    for (Entry& entry : this->vEntries) {
-        entry.relatedActions.clear();
-    }
 }
+
 }

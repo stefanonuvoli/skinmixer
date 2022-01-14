@@ -199,7 +199,8 @@ void blendSurfaces(
         ffAdjs[cId] = nvl::meshFaceFaceAdjacencies(mesh);
 
         //Add action
-        actions.insert(actions.end(), entry.relatedActions.begin(), entry.relatedActions.end());
+        std::vector<Index> relatedActions = data.relatedActions(entry);
+        actions.insert(actions.end(), relatedActions.begin(), relatedActions.end());
 
         Scalar avgLength = nvl::meshAverageEdgeLength(mesh);
         voxelSize = std::min(voxelSize, avgLength * voxelSizeFactor);

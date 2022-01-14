@@ -101,7 +101,8 @@ void blendSkeletons(
         }
 
         //Get merge set
-        for (const Index& aId : currentEntry.relatedActions) {
+        std::vector<Index> relatedActions = data.relatedActions(currentEntry);
+        for (const Index& aId : relatedActions) {
             const Action& action = data.action(aId);
 
             if (action.entry1 == birthEId) {
@@ -171,7 +172,8 @@ void blendSkeletons(
                     Transformation transformation = joint.bindPose();
 
                     //Find the and handle merge joints
-                    for (const Index& aId : currentEntry.relatedActions) {
+                    std::vector<Index> relatedActions = data.relatedActions(currentEntry);
+                    for (const Index& aId : relatedActions) {
                         const Action& action = data.action(aId);
 
                         if (action.operation == OperationType::REPLACE || action.operation == OperationType::ATTACH) {

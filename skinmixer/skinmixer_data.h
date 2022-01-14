@@ -25,7 +25,10 @@ public:
     typedef typename Model::Mesh::VertexId VertexId;
     typedef typename Model::Mesh::FaceId FaceId;
     typedef typename nvl::Index Index;
-    typedef typename nvl::Affine3d Transformation;
+    typedef typename nvl::Translation3d Translation;
+    typedef typename nvl::Rotation3d Rotation;
+    typedef typename nvl::Affine3d Affine;
+    typedef typename nvl::DualQuaterniond DualQuaternion;
 
     struct SelectInfo {
         std::vector<double> vertex;
@@ -68,14 +71,13 @@ public:
 
         BirthInfo birth;
 
-        std::vector<Index> relatedActions;
-
         std::vector<Index> blendingAnimationModes;
         std::vector<Index> blendingAnimationIds;
         std::vector<std::vector<double>> blendingAnimationWeights;
         std::vector<double> blendingAnimationSpeeds;
 
-        std::vector<nvl::DualQuaterniond> deformation;
+        std::vector<Affine> rotations;
+        std::vector<Translation> translations;
 
         Index lastOriginalAnimationId;
 
@@ -93,9 +95,6 @@ public:
         SelectInfo select2;
         double hardness1;
         double hardness2;
-
-        nvl::Affine3d rotation2;
-        nvl::Translation3d translation2;
 
         ReplaceMode replaceMode;
 
@@ -124,11 +123,28 @@ public:
     const Action& action(const Index& index) const;
     Action& action(const Index& index);    
 
-    typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Entry& entry);
-    typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Index& eId);
+    std::vector<Index> relatedActions(const Index& entryId);
+    std::vector<Index> relatedActions(const Entry& entry);
 
-    void computeDeformation(const Index& entryId);
-    void computeDeformation(Entry& entry);
+    typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Index& entryId);
+    typename SkinMixerData<Model>::SelectInfo computeGlobalSelectInfo(const Entry& entry);
+
+    void applyJointDeformation(const Index& entryId, const JointId& jId, const Rotation& rotation, const Translation& translation);
+    void applyJointDeformation(Entry& entry, const JointId& jId, const Rotation& rotation, const Translation& translation);
+    void resetJointDeformation(const Index& entryId);
+    void resetJointDeformation(Entry& entry);
+    std::vector<DualQuaternion> computeJointDeformation(const Index& entryId);
+    std::vector<DualQuaternion> computeJointDeformation(Entry& entry);
+    std::vector<DualQuaternion> computeDeformation(const Index& entryId);
+    std::vector<DualQuaternion> computeDeformation(Entry& entry);
+    std::vector<std::vector<DualQuaternion>> computeDeformations();
+    void deformModel(const Index& entryId);
+    void deformModel(Entry& entry);
+    void deformModels();
+
+    void removeNonStandardTransformationsFromModel(const Index& entryId);
+    void removeNonStandardTransformationsFromModel(Entry& entry);
+    void removeNonStandardTransformationsFromModels();
 
     void clear();
     void clearActions();

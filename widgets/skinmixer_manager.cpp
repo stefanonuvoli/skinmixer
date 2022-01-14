@@ -14,7 +14,6 @@
 #include "skinmixer/skinmixer.h"
 
 #include <nvl/models/algorithms/mesh_normals.h>
-#include <nvl/models/algorithms/model_deformation.h>
 
 #define HARDNESS_DEFAULT 0
 #define DETACHING_HARDNESS_DEFAULT 0
@@ -40,9 +39,7 @@ SkinMixerManager::SkinMixerManager(
     vSelectedJoint(nvl::NULL_ID),
     vFirstSelectedModelDrawer(nullptr),
     vFirstSelectedJoint(nvl::NULL_ID),
-    vPreparedOperation(false),
-    vActionRotation(nvl::Affine3d::Identity()),
-    vActionTranslation(nvl::Translation3d::Identity())
+    vPreparedOperation(false)
 {
     ui->setupUi(this);
 
@@ -239,6 +236,8 @@ void SkinMixerManager::slot_jointSelectionChanged(const std::unordered_set<nvl::
         abortOperation();
     }
 
+    vCanvas->setMovableFrame(nvl::Affine3d::Identity());
+
     updateView();
     updatePreview();
 
@@ -288,22 +287,27 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
 
 void SkinMixerManager::slot_movableFrameChanged()
 {
+    if (vSelectedModelDrawer == nullptr) {
+        return;
+    }
+
     nvl::Affine3d transform = vCanvas->movableFrame();
 
     nvl::Affine3d::LinearMatrixType scaMatrix;
     transform.computeRotationScaling(static_cast<nvl::Affine3d::LinearMatrixType*>(0), &scaMatrix);
     nvl::Scaling3d sca(scaMatrix.diagonal());
-    nvl::Quaterniond rot(transform.rotation());
+    nvl::Rotation3d rot(transform.rotation());
     nvl::Translation3d tra(transform.translation());
 
-    if (vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) {
-        nvl::Point3d center = vSelectedModelDrawer->model()->skeleton.jointBindPose(vSelectedJoint) * vSelectedModelDrawer->model()->skeleton.originPoint();
-        nvl::Translation3d originTra(-center);
+    if (vSelectedJoint != nvl::NULL_ID) {
+        Model* modelPtr = vSelectedModelDrawer->model();
+        SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-        nvl::Affine3d rotationTransform = originTra.inverse() * rot * originTra;
+        if (!tra.isApprox(nvl::Translation3d::Identity()) || !rot.isApprox(nvl::Rotation3d::Identity())) {
+            vSkinMixerData.applyJointDeformation(entry, vSelectedJoint, rot, tra);
+        }        
 
-        vActionRotation = rotationTransform * vActionRotation;
-        vActionTranslation = tra * vActionTranslation;
+        updateAllModelDrawers();
 
         updatePreview();
     }
@@ -538,18 +542,22 @@ void SkinMixerManager::applyOperation()
 
         if (vCurrentOperation == OperationType::REPLACE) {
             const ReplaceMode replaceMode = ui->replaceModeBlendRadioBox->isChecked() ? ReplaceMode::BLEND : ReplaceMode::UNION;
-            skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
+            skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2);
         }
         else if (vCurrentOperation == OperationType::ATTACH) {
-            skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
+            skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2);
         }
 
         vFirstSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
         updateModelDrawer(vFirstSelectedModelDrawer);
+
+        updateModelDrawer(vFirstSelectedModelDrawer);
+        if (vFirstSelectedJoint != nvl::NULL_ID) {
+            vFirstSelectedModelDrawer->skeletonDrawer().resetRenderingJointColor(vFirstSelectedJoint);
+        }
+
         vFirstSelectedModelDrawer = nullptr;
         vFirstSelectedJoint = nvl::NULL_ID;
-        vActionRotation = nvl::Affine3d::Identity();
-        vActionTranslation = nvl::Translation3d::Identity();
         vPreparedOperation = false;
     }
 
@@ -564,14 +572,14 @@ void SkinMixerManager::abortOperation()
     ui->hardness1Slider->setValue(HARDNESS_DEFAULT);
     ui->hardness2Slider->setValue(HARDNESS_DEFAULT);
 
-    vActionRotation = nvl::Affine3d::Identity();
-    vActionTranslation = nvl::Translation3d::Identity();
-
     if (vSelectedModelDrawer != nullptr) {
         updateModelDrawer(vSelectedModelDrawer);
     }
     if (vFirstSelectedModelDrawer != nullptr) {
         updateModelDrawer(vFirstSelectedModelDrawer);
+        if (vFirstSelectedJoint != nvl::NULL_ID) {
+            vFirstSelectedModelDrawer->skeletonDrawer().resetRenderingJointColor(vFirstSelectedJoint);
+        }
     }
 
     vFirstSelectedModelDrawer = nullptr;
@@ -602,16 +610,16 @@ void SkinMixerManager::updatePreview()
         else if (vCurrentOperation == OperationType::DETACH) {
             actionId = skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
         }
-        else if ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && vFirstSelectedModelDrawer != nullptr && vFirstSelectedJoint != nvl::NULL_ID && vSelectedModelDrawer != vFirstSelectedModelDrawer) {
+        else if ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && firstDrawableSelected && firstJointSelected && vSelectedModelDrawer != vFirstSelectedModelDrawer) {
             const double hardness2 = ui->hardness2Slider->value() / 100.0;
             const double includeParent2 = ui->parent2CheckBox->isChecked();
 
             if (vCurrentOperation == OperationType::REPLACE) {
                 const ReplaceMode replaceMode = ui->replaceModeBlendRadioBox->isChecked() ? ReplaceMode::BLEND : ReplaceMode::UNION;
-                actionId = skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
+                actionId = skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2);
             }
             else if (vCurrentOperation == OperationType::ATTACH) {
-                actionId = skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2, vActionRotation, vActionTranslation);
+                actionId = skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2);
             }
 
             if (actionId != nvl::NULL_ID) {
@@ -640,7 +648,6 @@ void SkinMixerManager::prepareModelForReplaceOrAttach()
 
     if (jointSelected) {
         if (!vPreparedOperation && vSelectedModelDrawer != vFirstSelectedModelDrawer) {
-            typedef typename Model::Mesh::Point Point;
             typedef typename Model::Skeleton Skeleton;
             typedef typename Skeleton::JointId JointId;
 
@@ -660,15 +667,6 @@ void SkinMixerManager::prepareModelForReplaceOrAttach()
             if (includeParent2) {
                 targetJoint2 = skeleton2.parentId(targetJoint2);
             }
-
-            Point v1 = skeleton1.jointBindPose(targetJoint1) * skeleton1.originPoint();
-            Point v2 = skeleton2.jointBindPose(targetJoint2) * skeleton2.originPoint();
-
-            Point translateVector = v1 - v2;
-
-            nvl::Translation3d translateTransform(translateVector);
-            vActionRotation = nvl::Affine3d::Identity();
-            vActionTranslation = translateTransform;
 
             vPreparedOperation = true;
 
@@ -711,11 +709,11 @@ void SkinMixerManager::updateView()
         (vCurrentOperation == OperationType::DETACH || vCurrentOperation == OperationType::REMOVE) ||
         ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && vFirstSelectedModelDrawer != vSelectedModelDrawer)
     ));
+    ui->resetJointDeformationsButton->setEnabled(atLeastOneDrawableSelected && vCurrentOperation == OperationType::NONE);
+    ui->mixButton->setEnabled(vCurrentOperation == OperationType::NONE && !vSkinMixerData.actions().empty());
 
     ui->hardness1Slider->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE && vCurrentOperation != OperationType::ATTACH);
     ui->hardness2Slider->setEnabled(jointSelected && (vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH));
-
-    ui->mixButton->setEnabled(vCurrentOperation == OperationType::NONE && !vSkinMixerData.actions().empty());
 
     ui->updateValuesWeightsButton->setEnabled(jointSelected);
     ui->updateValuesBirthButton->setEnabled(modelDrawerSelected);
@@ -740,6 +738,34 @@ void SkinMixerManager::updateView()
     on_hardness1Slider_valueChanged(ui->hardness1Slider->value());
     on_hardness2Slider_valueChanged(ui->hardness2Slider->value());
     on_weightSmoothingSlider_valueChanged(ui->weightSmoothingSlider->value());
+
+    ui->actionTreeWidget->clear();
+    for (const SkinMixerAction& action : vSkinMixerData.actions()) {
+        std::string type;
+        if (action.operation == OperationType::REPLACE) {
+            type = "Replace";
+        }
+        else if (action.operation == OperationType::ATTACH) {
+            type = "Attach";
+        }
+        else if (action.operation == OperationType::REMOVE) {
+            type = "Remove";
+        }
+        else if (action.operation == OperationType::DETACH) {
+            type = "Detach";
+        }
+        else {
+            type = "Unknown";
+        }
+
+        QTreeWidgetItem* item = new QTreeWidgetItem();
+        item->setText(0, QString(type.c_str()));
+        item->setText(1, QString(std::to_string(action.entry1).c_str()));
+        item->setText(2, QString(std::to_string(action.joint1).c_str()));
+        item->setText(3, QString(std::to_string(action.entry2).c_str()));
+        item->setText(4, QString(std::to_string(action.joint2).c_str()));
+        ui->actionTreeWidget->addTopLevelItem(item);
+    }
 
     if (blendedModelSelected) {
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
@@ -990,9 +1016,16 @@ void SkinMixerManager::updateModelDrawer(
         modelDrawer,
         entry.blendingAnimationWeights);
 
-    vSkinMixerData.computeDeformation(entry);
-    if (!entry.deformation.empty()) {
-        modelDrawer->renderDualQuaternionSkinning(entry.deformation);
+    std::vector<nvl::DualQuaterniond> deformations = vSkinMixerData.computeDeformation(entry);
+    if (!deformations.empty()) {
+        modelDrawer->renderDualQuaternionSkinning(deformations);
+    }
+
+    if (vSelectedModelDrawer == modelDrawer && vSelectedJoint != nvl::NULL_ID) {
+        vSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(vSelectedJoint, nvl::Color(1.0, 1.0, 0.0));
+    }
+    if (vFirstSelectedModelDrawer == modelDrawer && vFirstSelectedJoint != nvl::NULL_ID) {
+        vFirstSelectedModelDrawer->skeletonDrawer().setRenderingJointColor(vFirstSelectedJoint, nvl::Color(0.0, 1.0, 1.0));
     }
 }
 
@@ -1008,12 +1041,12 @@ void SkinMixerManager::colorizeBySelectValues(
     typedef Mesh::Face Face;
     typedef Skeleton::JointId JointId;
 
+    assert(!vertexSelectValue.empty() && !jointSelectValue.empty());
+
     double minAlpha = 0.0;
     if (ui->showZeroCheckBox->isChecked()) {
         minAlpha = 0.2;
     }
-
-    assert(!vertexSelectValue.empty() && !jointSelectValue.empty());
 
     const Model& model = *modelDrawer->model();
     const Mesh& mesh = model.mesh;
@@ -1246,6 +1279,39 @@ void SkinMixerManager::connectSignals()
     }
 }
 
+void SkinMixerManager::clear()
+{
+    while (!vModelToDrawerMap.empty()) {
+        ModelDrawer* drawable = (vModelToDrawerMap.begin())->second;
+        removeModelDrawer(drawable);
+    }
+}
+
+void SkinMixerManager::initializeLoadedModel(Model* model)
+{
+    if (ui->updateFaceNormalsCheckBox->isChecked()) {
+        model->mesh.computeFaceNormals();
+    }
+    if (ui->updateVertexNormalsCheckBox->isChecked()) {
+        model->mesh.computeVertexNormals();
+    }
+}
+
+void SkinMixerManager::clearLayout(QLayout *layout)
+{
+    QLayoutItem *item;
+    while((item = layout->takeAt(0))) {
+        if (item->layout()) {
+            clearLayout(item->layout());
+            delete item->layout();
+        }
+        if (item->widget()) {
+           delete item->widget();
+        }
+        delete item;
+    }
+}
+
 void SkinMixerManager::on_modelLoadButton_clicked()
 {
     QFileDialog dialog(this);
@@ -1326,22 +1392,17 @@ void SkinMixerManager::on_modelMoveButton_clicked()
         ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(vCanvas->drawable(selected));
         if (modelDrawer != nullptr) {
             Model* modelPtr = modelDrawer->model();
-            SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-            if (entry.relatedActions.empty()) {
-                nvl::modelApplyTransformation(*modelPtr, modelDrawer->frame());
+            nvl::modelApplyTransformation(*modelPtr, modelDrawer->frame());
 
-                modelPtr->mesh.computeFaceNormals();
-                modelPtr->mesh.computeVertexNormals();
+            modelPtr->mesh.computeFaceNormals();
+            modelPtr->mesh.computeVertexNormals();
 
-                modelDrawer->setFrame(nvl::Affine3d::Identity());
-                modelDrawer->update();
-            }
-            else {
-                QMessageBox::warning(this, tr("Error"), tr("Error: impossible to move model if an operation has been taken!"));
-            }
+            modelDrawer->setFrame(nvl::Affine3d::Identity());
         }
     }
+
+    updateAllModelDrawers();
 
     vCanvas->updateGL();
 }
@@ -1500,8 +1561,6 @@ void SkinMixerManager::on_operationReplaceButton_clicked()
     assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID);
     vFirstSelectedModelDrawer = vSelectedModelDrawer;
     vFirstSelectedJoint = vSelectedJoint;
-    vActionRotation = nvl::Affine3d::Identity();
-    vActionTranslation = nvl::Translation3d::Identity();
 
     updatePreview();
     updateView();
@@ -1517,8 +1576,6 @@ void SkinMixerManager::on_operationAttachButton_clicked()
     assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID);
     vFirstSelectedModelDrawer = vSelectedModelDrawer;
     vFirstSelectedJoint = vSelectedJoint;
-    vActionRotation = nvl::Affine3d::Identity();
-    vActionTranslation = nvl::Translation3d::Identity();
 
     updatePreview();
     updateView();
@@ -1546,37 +1603,22 @@ void SkinMixerManager::on_operationApplyButton_clicked()
     vCanvas->updateGL();
 }
 
-void SkinMixerManager::clear()
+void SkinMixerManager::on_resetJointDeformationsButton_clicked()
 {
-    while (!vModelToDrawerMap.empty()) {
-        ModelDrawer* drawable = (vModelToDrawerMap.begin())->second;
-        removeModelDrawer(drawable);
-    }
-}
+    const std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
+    for (Index selected : selectedDrawables) {
+        ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(vCanvas->drawable(selected));
+        if (modelDrawer != nullptr) {
+            Model* modelPtr = modelDrawer->model();
+            SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
-void SkinMixerManager::initializeLoadedModel(Model* model)
-{
-    if (ui->updateFaceNormalsCheckBox->isChecked()) {
-        model->mesh.computeFaceNormals();
-    }
-    if (ui->updateVertexNormalsCheckBox->isChecked()) {
-        model->mesh.computeVertexNormals();
-    }
-}
+            vSkinMixerData.resetJointDeformation(entry);
 
-void SkinMixerManager::clearLayout(QLayout *layout)
-{
-    QLayoutItem *item;
-    while((item = layout->takeAt(0))) {
-        if (item->layout()) {
-            clearLayout(item->layout());
-            delete item->layout();
+            updateModelDrawer(modelDrawer);
         }
-        if (item->widget()) {
-           delete item->widget();
-        }
-        delete item;
     }
+
+    vCanvas->updateGL();
 }
 
 void SkinMixerManager::on_mixButton_clicked()
@@ -1658,6 +1700,7 @@ void SkinMixerManager::on_animationBlendButton_clicked()
 
     updatePreview();
     updateView();
+
     vCanvas->updateGL();
 }
 
@@ -1669,6 +1712,7 @@ void SkinMixerManager::on_animationConfirmButton_clicked()
 
     updatePreview();
     updateView();
+
     vCanvas->updateGL();
 }
 
@@ -1812,5 +1856,70 @@ void SkinMixerManager::on_modelAnimationRemoveRootMotionButton_clicked()
 
     nvl::animationRemoveRootMotion(model->skeleton, model->animation(aId));
     vSelectedModelDrawer->reloadAnimation();
+}
+
+
+void SkinMixerManager::on_actionRemoveButton_clicked()
+{
+    ui->actionTreeWidget->selectedItems();
+    QList<QTreeWidgetItem*> items = ui->actionTreeWidget->selectedItems();
+
+    for (int i = 0; i < items.size(); ++i) {
+        QTreeWidgetItem* item = items[i];
+        int id = ui->actionTreeWidget->indexOfTopLevelItem(item);
+
+        if (id >= 0) {
+            vSkinMixerData.removeAction(id);
+        }
+    }
+
+    updateAllModelDrawers();
+    updateView();
+    updatePreview();
+
+    vCanvas->updateGL();
+}
+
+
+void SkinMixerManager::on_actionDownButton_clicked()
+{
+    ui->actionTreeWidget->selectedItems();
+    QList<QTreeWidgetItem*> items = ui->actionTreeWidget->selectedItems();
+
+    for (int i = 0; i < items.size(); ++i) {
+        QTreeWidgetItem* item = items[i];
+        int id = ui->actionTreeWidget->indexOfTopLevelItem(item);
+
+        if (id >= 0 && id + 1 < static_cast<int>(vSkinMixerData.actionNumber())) {
+            std::swap(vSkinMixerData.action(id), vSkinMixerData.action(id + 1));
+        }
+    }
+
+    updateAllModelDrawers();
+    updateView();
+    updatePreview();
+
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_actionUpButton_clicked()
+{
+    ui->actionTreeWidget->selectedItems();
+    QList<QTreeWidgetItem*> items = ui->actionTreeWidget->selectedItems();
+
+    for (int i = 0; i < items.size(); ++i) {
+        QTreeWidgetItem* item = items[i];
+        int id = ui->actionTreeWidget->indexOfTopLevelItem(item);
+
+        if (id >= 1) {
+            std::swap(vSkinMixerData.action(id), vSkinMixerData.action(id - 1));
+        }
+    }
+
+    updateAllModelDrawers();
+    updateView();
+    updatePreview();
+
+    vCanvas->updateGL();
 }
 
