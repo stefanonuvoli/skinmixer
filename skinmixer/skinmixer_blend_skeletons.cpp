@@ -152,7 +152,7 @@ void blendSkeletons(
                 }
                 else if (parentId != nvl::NULL_ID && jointMap[birthEId][parentId] != nvl::NULL_ID) {
                     const Joint& joint = currentSkeleton.joint(jId);
-                    newJId = targetSkeleton.addChild(jointMap[birthEId][parentId], joint);
+                    newJId = targetSkeleton.addChild(joint, jointMap[birthEId][parentId]);
                 }
 
                 if (newJId != nvl::NULL_ID) {

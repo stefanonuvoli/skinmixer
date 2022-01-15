@@ -38,7 +38,6 @@ std::vector<nvl::Index> mix(
     //Resulting entries
     std::vector<Index> newEntries;
 
-
     //Find clusters
     nvl::DisjointSet<Index> ds;
     for (const Action& action : data.actions()) {
@@ -72,18 +71,18 @@ std::vector<nvl::Index> mix(
 
         //Blend surface
         blendSurfaces(
-                    data,
-                    cluster,
-                    resultEntry,
-                    par.mixMode,
-                    par.blendColorsFromTextures,
-                    par.smoothingBorderIterations,
-                    par.smoothingBorderThreshold,
-                    par.smoothingInnerIterations,
-                    par.smoothingInnerAlpha,
-                    par.smoothingResultIterations,
-                    par.voxelSize,
-                    par.voxelDistance);
+            data,
+            cluster,
+            resultEntry,
+            par.mixMode,
+            par.blendColorsFromTextures,
+            par.smoothingBorderIterations,
+            par.smoothingBorderThreshold,
+            par.smoothingInnerIterations,
+            par.smoothingInnerAlpha,
+            par.smoothingResultIterations,
+            par.voxelSize,
+            par.voxelDistance);
 
 #ifdef GLOBAL_TIMES
         duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();

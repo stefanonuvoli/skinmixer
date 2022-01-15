@@ -695,10 +695,11 @@ void SkinMixerManager::updateView()
     ui->modelSaveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelMoveButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelCopyButton->setEnabled(atLeastOneDrawableSelected);
-    ui->scaleOn1AndCenterButton->setEnabled(atLeastOneDrawableSelected);
+    ui->modelScaleAndCenterButton->setEnabled(atLeastOneDrawableSelected);
     ui->modelAnimationPoseButton->setEnabled(animationSelected);
     ui->modelAnimationRemoveButton->setEnabled(animationSelected);
     ui->modelAnimationRemoveRootMotionButton->setEnabled(animationSelected);
+    ui->modelSetRootButton->setEnabled(modelDrawerSelected && jointSelected);
 
     ui->operationDetachButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
     ui->operationRemoveButton->setEnabled(jointSelected && vCurrentOperation == OperationType::NONE);
@@ -760,10 +761,9 @@ void SkinMixerManager::updateView()
 
         QTreeWidgetItem* item = new QTreeWidgetItem();
         item->setText(0, QString(type.c_str()));
-        item->setText(1, QString(std::to_string(action.entry1).c_str()));
-        item->setText(2, QString(std::to_string(action.joint1).c_str()));
-        item->setText(3, QString(std::to_string(action.entry2).c_str()));
-        item->setText(4, QString(std::to_string(action.joint2).c_str()));
+        item->setText(1, QString(std::string(std::string("E: ") + std::to_string(action.entry1) + std::string(", J: ") + std::to_string(action.joint1)).c_str()));
+        item->setText(2, QString(std::string(std::string("E: ") + std::to_string(action.entry2) + std::string(", J: ") + std::to_string(action.joint2)).c_str()));
+
         ui->actionTreeWidget->addTopLevelItem(item);
     }
 
@@ -1366,21 +1366,24 @@ void SkinMixerManager::on_modelRemoveButton_clicked()
 }
 
 void SkinMixerManager::on_modelSaveButton_clicked()
-{
-    if (vSelectedModelDrawer == nullptr)
-        return;
+{    
+    const std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
+    for (Index selected : selectedDrawables) {
+        ModelDrawer* modelDrawer = dynamic_cast<ModelDrawer*>(vCanvas->drawable(selected));
+        if (modelDrawer != nullptr) {
+            const Model* modelPtr = vSelectedModelDrawer->model();
 
-    const Model& model = *vSelectedModelDrawer->model();
+            QString filename = QFileDialog::getSaveFileName(this,
+                tr("Save model"), QDir::homePath() + "/" + QString(modelPtr->name.c_str()) + QString(".rig"),
+                tr("Model (*.rig *.RIG *.obj *.OBJ *.fbx *.FBX);;RIG (*.rig *.RIG);;FBX (*.fbx *.FBX);;OBJ (*.obj *.OBJ);;Any file (*)")
+                );
 
-    QString filename = QFileDialog::getSaveFileName(this,
-        tr("Save model"), QDir::homePath() + "/" + QString(model.name.c_str()) + QString(".rig"),
-        tr("Model (*.rig *.RIG *.obj *.OBJ *.fbx *.FBX);;RIG (*.rig *.RIG);;FBX (*.fbx *.FBX);;OBJ (*.obj *.OBJ);;Any file (*)")
-    );
-
-    if (!filename.isEmpty()) {
-        bool success = nvl::modelSaveToFile(filename.toStdString(), model);
-        if (!success) {
-            QMessageBox::warning(this, tr("Error"), tr("Error: impossible to save model!"));
+            if (!filename.isEmpty()) {
+                bool success = nvl::modelSaveToFile(filename.toStdString(), *modelPtr);
+                if (!success) {
+                    QMessageBox::warning(this, tr("Error"), tr("Error: impossible to save model!"));
+                }
+            }
         }
     }
 }
@@ -1421,7 +1424,7 @@ void SkinMixerManager::on_modelCopyButton_clicked()
     vCanvas->updateGL();
 }
 
-void SkinMixerManager::on_scaleOn1AndCenterButton_clicked()
+void SkinMixerManager::on_modelScaleAndCenterButton_clicked()
 {
     const std::unordered_set<Index> selectedDrawables = vDrawableListWidget->selectedDrawables();
     for (Index selected : selectedDrawables) {
@@ -1444,6 +1447,92 @@ void SkinMixerManager::on_scaleOn1AndCenterButton_clicked()
             modelDrawer->update();
         }
     }
+
+    vCanvas->updateGL();
+}
+
+void SkinMixerManager::on_modelAnimationPoseButton_clicked()
+{
+    typedef typename Model::Animation Animation;
+    typedef typename Animation::Transformation Transformation;
+
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    Model* model = vSelectedModelDrawer->model();
+    if (model == nullptr)
+        return;
+
+    Index aId = getSelectedAnimation();
+    if (aId == nvl::NULL_ID)
+        return;
+
+    Index fId = getCurrentAnimationFrame();
+    if (fId == nvl::NULL_ID)
+        return;
+
+    std::vector<Transformation> transformations = vSelectedModelDrawer->currentFrame().transformations();
+    nvl::modelDeformDualQuaternionSkinning(*model, transformations, true, true);
+
+    vSelectedModelDrawer->update();
+    vCanvas->updateGL();
+}
+
+
+void SkinMixerManager::on_modelAnimationRemoveButton_clicked()
+{
+     if (vSelectedModelDrawer == nullptr)
+         return;
+
+     Model* model = vSelectedModelDrawer->model();
+     if (model == nullptr)
+         return;
+
+     Index aId = getSelectedAnimation();
+     if (aId == nvl::NULL_ID)
+         return;
+
+     vSelectedModelDrawer->unloadAnimation();
+     model->removeAnimation(aId);
+
+     vCanvas->updateGL();
+
+     emit signal_selectedDrawableUpdated();
+}
+
+void SkinMixerManager::on_modelAnimationRemoveRootMotionButton_clicked()
+{
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    Model* model = vSelectedModelDrawer->model();
+    if (model == nullptr)
+        return;
+
+    Index aId = getSelectedAnimation();
+    if (aId == nvl::NULL_ID)
+        return;
+
+    nvl::animationRemoveRootMotion(model->skeleton, model->animation(aId));
+    vSelectedModelDrawer->reloadAnimation();
+}
+
+void SkinMixerManager::on_modelSetRootButton_clicked()
+{
+    if (vSelectedModelDrawer == nullptr)
+        return;
+
+    if (vSelectedJoint == nvl::NULL_ID)
+        return;
+
+    Model* model = vSelectedModelDrawer->model();
+    if (model == nullptr)
+        return;
+
+
+    nvl::skeletonSetRoot(model->skeleton, vSelectedJoint);
+
+    updateModelDrawer(vSelectedModelDrawer);
 
     vCanvas->updateGL();
 }
@@ -1728,7 +1817,6 @@ void SkinMixerManager::on_animationAbortButton_clicked()
 
 void SkinMixerManager::on_animationBlendLoopFixedButton_clicked()
 {
-    ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
     if (vSelectedModelDrawer == nullptr)
         return;
 
@@ -1788,76 +1876,6 @@ void SkinMixerManager::on_updateJointsBirthButton_clicked()
 {
     updateJointsBirth();
 }
-
-void SkinMixerManager::on_modelAnimationPoseButton_clicked()
-{
-    typedef typename Model::Animation Animation;
-    typedef typename Animation::Transformation Transformation;
-
-    ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
-    if (vSelectedModelDrawer == nullptr)
-        return;
-
-    Model* model = vSelectedModelDrawer->model();
-    if (model == nullptr)
-        return;
-
-    Index aId = getSelectedAnimation();
-    if (aId == nvl::NULL_ID)
-        return;
-
-    Index fId = getCurrentAnimationFrame();
-    if (fId == nvl::NULL_ID)
-        return;
-
-    std::vector<Transformation> transformations = vSelectedModelDrawer->currentFrame().transformations();
-    nvl::modelDeformDualQuaternionSkinning(*model, transformations, true, true);
-
-    vSelectedModelDrawer->update();
-    vCanvas->updateGL();
-}
-
-
-void SkinMixerManager::on_modelAnimationRemoveButton_clicked()
-{
-     ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
-     if (vSelectedModelDrawer == nullptr)
-         return;
-
-     Model* model = vSelectedModelDrawer->model();
-     if (model == nullptr)
-         return;
-
-     Index aId = getSelectedAnimation();
-     if (aId == nvl::NULL_ID)
-         return;
-
-     vSelectedModelDrawer->unloadAnimation();
-     model->removeAnimation(aId);
-
-     vCanvas->updateGL();
-
-     emit signal_selectedDrawableUpdated();
-}
-
-void SkinMixerManager::on_modelAnimationRemoveRootMotionButton_clicked()
-{
-    ModelDrawer* vSelectedModelDrawer = getSelectedModelDrawer();
-    if (vSelectedModelDrawer == nullptr)
-        return;
-
-    Model* model = vSelectedModelDrawer->model();
-    if (model == nullptr)
-        return;
-
-    Index aId = getSelectedAnimation();
-    if (aId == nvl::NULL_ID)
-        return;
-
-    nvl::animationRemoveRootMotion(model->skeleton, model->animation(aId));
-    vSelectedModelDrawer->reloadAnimation();
-}
-
 
 void SkinMixerManager::on_actionRemoveButton_clicked()
 {

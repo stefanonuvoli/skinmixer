@@ -299,7 +299,7 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
     //Copy original deformations
     newDeformations = originalDeformations;
 
-    //Apply for each action
+    //Get deformation for each action
     for (Index aId = 0; aId < this->actionNumber(); ++aId) {
         const Action& action = this->action(aId);
 
@@ -334,7 +334,7 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
 
             if (!deformedJoints[eId2].empty()) {
                 //Propagation iterations
-                const unsigned int propagationIterations = model2->skeleton.jointNumber() * 20;
+                const unsigned int propagationIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 10);
                 const unsigned int deformedNeighbors = 1;
 
                 //Smoothing iterations
@@ -343,28 +343,25 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                 //Smoothed translations
                 std::vector<Translation> smoothedTranslations = translations[eId2];
 
-                //Propagate
-                std::unordered_set<JointId> processedJoints = deformedJoints[eId2];
-                for (unsigned int it = 0; it < propagationIterations; ++it) {
-                    std::vector<Translation> copyTranslation = translations[eId2];
-                    std::unordered_set<JointId> copyProcessedJoints = processedJoints;
-
+                //Deform neighbors
+                std::unordered_set<JointId> translatedJoints = deformedJoints[eId2];
+                for (unsigned int it = 0; it < deformedNeighbors; ++it) {
                     for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
-                        if (copyProcessedJoints.find(jId) == copyProcessedJoints.end()) {
+                        if (deformedJoints[eId2].find(jId) == deformedJoints[eId2].end()) {
                             std::vector<Translation> values;
                             std::vector<double> weights;
 
                             if (!model2->skeleton.isRoot(jId)) {
                                 const JointId& parentId = model2->skeleton.parentId(jId);
-                                if (copyProcessedJoints.find(parentId) != copyProcessedJoints.end()) {
-                                    values.push_back(copyTranslation[parentId]);
+                                if (deformedJoints[eId2].find(parentId) != deformedJoints[eId2].end()) {
+                                    values.push_back(smoothedTranslations[parentId]);
                                     weights.push_back(1.0);
                                 }
                             }
 
                             for (const JointId& childId : model2->skeleton.children(jId)) {
-                                if (copyProcessedJoints.find(childId) != copyProcessedJoints.end()) {
-                                    values.push_back(copyTranslation[childId]);
+                                if (deformedJoints[eId2].find(childId) != deformedJoints[eId2].end()) {
+                                    values.push_back(smoothedTranslations[childId]);
                                     weights.push_back(1.0);
                                 }
                             }
@@ -381,12 +378,51 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                                 }
 
                                 smoothedTranslations[jId] = interpolated;
-                                processedJoints.insert(jId);
+                                translatedJoints.insert(jId);
+                            }
+                        }
+                    }
+                }
 
-                                if (it < deformedNeighbors) {
-                                    translations[eId2][jId] = interpolated;
-                                    deformedJoints[eId2].insert(jId);
+                //Propagate
+                std::unordered_set<JointId> propagatedJoints = translatedJoints;
+                for (unsigned int it = 0; it < propagationIterations; ++it) {
+                    bool found = false;
+                    for (JointId jId = 0; jId < model2->skeleton.jointNumber() && !found; ++jId) {
+                        if (propagatedJoints.find(jId) == propagatedJoints.end()) {
+                            std::vector<Translation> values;
+                            std::vector<double> weights;
+
+                            if (!model2->skeleton.isRoot(jId)) {
+                                const JointId& parentId = model2->skeleton.parentId(jId);
+                                if (propagatedJoints.find(parentId) != propagatedJoints.end()) {
+                                    values.push_back(smoothedTranslations[parentId]);
+                                    weights.push_back(1.0);
                                 }
+                            }
+
+                            for (const JointId& childId : model2->skeleton.children(jId)) {
+                                if (propagatedJoints.find(childId) != propagatedJoints.end()) {
+                                    values.push_back(smoothedTranslations[childId]);
+                                    weights.push_back(1.0);
+                                }
+                            }
+
+                            if (!values.empty()) {
+                                assert(values.size() == weights.size());
+                                Translation interpolated;
+                                if (values.size() > 1) {
+                                    nvl::normalize(weights);
+                                    interpolated = nvl::interpolateTranslationLinear(values, weights);
+                                }
+                                else {
+                                    interpolated = values[0];
+                                }
+
+                                smoothedTranslations[jId] = interpolated;
+                                propagatedJoints.insert(jId);
+
+                                found = true;
                             }
                         }
                     }
@@ -397,7 +433,7 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                     std::vector<Translation> copyTranslation = smoothedTranslations;
 
                     for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
-                        if (deformedJoints[eId2].find(jId) == deformedJoints[eId2].end()) {
+                        if (translatedJoints.find(jId) == translatedJoints.end()) {
                             std::vector<Translation> values;
                             std::vector<double> weights;
 
@@ -598,36 +634,27 @@ template<class Model>
 typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSelectInfo(const Entry& entry)
 {
     SelectInfo globalSelectInfo;
-    globalSelectInfo.vertex.resize(entry.model->mesh.nextVertexId(), 1.0);
-    globalSelectInfo.joint.resize(entry.model->skeleton.jointNumber(), 1.0);
 
-    std::vector<Index> relatedActions = this->relatedActions(entry);
+    std::vector<Index> actions = this->relatedActions(entry);
 
-    for (Index aId : relatedActions) {
-        Action& action = this->action(aId);
+    if (actions.empty()) {
+        globalSelectInfo.vertex.resize(entry.model->mesh.nextVertexId(), 1.0);
+        globalSelectInfo.joint.resize(entry.model->skeleton.jointNumber(), 1.0);
 
-        if (action.entry1 == entry.id) {
-            const SelectInfo& selectInfo = action.select1;
-            for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
-                globalSelectInfo.vertex[vId] = std::min(globalSelectInfo.vertex[vId], selectInfo.vertex[vId]);
-            }
-            for (JointId jId = 0; jId < entry.model->skeleton.jointNumber(); ++jId) {
-                globalSelectInfo.joint[jId] = std::min(globalSelectInfo.joint[jId], selectInfo.joint[jId]);
-            }
-        }
-        else if (action.entry2 == entry.id) {
-            const SelectInfo& selectInfo = action.select2;
-            for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
-                globalSelectInfo.vertex[vId] = std::min(globalSelectInfo.vertex[vId], selectInfo.vertex[vId]);
-            }
-            for (JointId jId = 0; jId < entry.model->skeleton.jointNumber(); ++jId) {
-                globalSelectInfo.joint[jId] = std::min(globalSelectInfo.joint[jId], selectInfo.joint[jId]);
-            }
-        }
+        return globalSelectInfo;
     }
 
-    for (Index aId : relatedActions) {
-        Action& action = this->action(aId);
+    Action& action = this->action(actions[0]);
+    if (action.entry1 == entry.id) {
+        globalSelectInfo = action.select1;
+    }
+    else {
+        assert(action.entry2 == entry.id);
+        globalSelectInfo = action.select2;
+    }
+
+    for (Index rId = 1; rId < actions.size(); ++rId) {
+        Action& action = this->action(actions[rId]);
 
         if (action.operation == OperationType::REMOVE) {
             assert(action.entry1 != nvl::NULL_ID);

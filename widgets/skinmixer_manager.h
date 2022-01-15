@@ -155,7 +155,12 @@ private slots:
     void on_modelSaveButton_clicked();
     void on_modelMoveButton_clicked();
     void on_modelCopyButton_clicked();
-    void on_scaleOn1AndCenterButton_clicked();
+    void on_modelScaleAndCenterButton_clicked();
+
+    void on_modelAnimationPoseButton_clicked();
+    void on_modelAnimationRemoveButton_clicked();
+    void on_modelAnimationRemoveRootMotionButton_clicked();
+    void on_modelSetRootButton_clicked();
 
     void on_weightSmoothingSlider_valueChanged(int value);
     void on_rigiditySlider_valueChanged(int value);
@@ -189,10 +194,6 @@ private slots:
 
     void on_updateJointsResetButton_clicked();
     void on_updateJointsBirthButton_clicked();
-
-    void on_modelAnimationPoseButton_clicked();
-    void on_modelAnimationRemoveButton_clicked();
-    void on_modelAnimationRemoveRootMotionButton_clicked();
 
     void on_actionRemoveButton_clicked();
     void on_actionDownButton_clicked();

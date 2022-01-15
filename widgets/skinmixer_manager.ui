@@ -20,8 +20,8 @@
       <string>Models</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="1">
-       <widget class="QPushButton" name="modelSaveButton">
+      <item row="0" column="5">
+       <widget class="QPushButton" name="modelMoveButton">
         <property name="minimumSize">
          <size>
           <width>0</width>
@@ -35,45 +35,7 @@
          </size>
         </property>
         <property name="text">
-         <string>Save</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QPushButton" name="modelLoadButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Load</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="modelRemoveButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Remove</string>
+         <string>Move</string>
         </property>
        </widget>
       </item>
@@ -93,6 +55,19 @@
         </property>
         <property name="text">
          <string>Copy</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3" colspan="2">
+       <widget class="QPushButton" name="modelAnimationRemoveRootMotionButton">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Anim delete root motion</string>
         </property>
        </widget>
       </item>
@@ -122,41 +97,6 @@
         </property>
         <property name="checked">
          <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="3">
-       <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Faces</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="5">
-       <widget class="QPushButton" name="modelMoveButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Move</string>
         </property>
        </widget>
       </item>
@@ -198,8 +138,14 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="3" colspan="2">
-       <widget class="QPushButton" name="modelAnimationRemoveRootMotionButton">
+      <item row="0" column="3">
+       <widget class="QPushButton" name="modelRemoveButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -207,12 +153,12 @@
          </size>
         </property>
         <property name="text">
-         <string>Anim delete root motion</string>
+         <string>Remove</string>
         </property>
        </widget>
       </item>
       <item row="2" column="4" colspan="2">
-       <widget class="QPushButton" name="scaleOn1AndCenterButton">
+       <widget class="QPushButton" name="modelScaleAndCenterButton">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -224,6 +170,73 @@
         </property>
         <property name="checked">
          <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Faces</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QPushButton" name="modelLoadButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Load</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="modelSaveButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Save</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="5">
+       <widget class="QPushButton" name="modelSetRootButton">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Set root</string>
         </property>
        </widget>
       </item>
@@ -585,7 +598,33 @@
           <string>Actions</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_11">
-          <item row="1" column="0">
+          <item row="0" column="2">
+           <widget class="QPushButton" name="actionUpButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Up</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QPushButton" name="actionDownButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Down</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="2">
            <widget class="QPushButton" name="actionRemoveButton">
             <property name="maximumSize">
              <size>
@@ -598,21 +637,7 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
-           <widget class="QPushButton" name="actionUpButton">
-            <property name="text">
-             <string>Up</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="actionDownButton">
-            <property name="text">
-             <string>Down</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0" colspan="3">
+          <item row="0" column="0" rowspan="4" colspan="2">
            <widget class="QTreeWidget" name="actionTreeWidget">
             <property name="selectionMode">
              <enum>QAbstractItemView::ExtendedSelection</enum>
@@ -630,22 +655,12 @@
             </column>
             <column>
              <property name="text">
-              <string>M1</string>
+              <string>Entry 1</string>
              </property>
             </column>
             <column>
              <property name="text">
-              <string>J1</string>
-             </property>
-            </column>
-            <column>
-             <property name="text">
-              <string>M2</string>
-             </property>
-            </column>
-            <column>
-             <property name="text">
-              <string>J2</string>
+              <string>Entry 2</string>
              </property>
             </column>
            </widget>
