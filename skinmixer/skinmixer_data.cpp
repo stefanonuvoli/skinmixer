@@ -334,11 +334,11 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
 
             if (!deformedJoints[eId2].empty()) {
                 //Propagation iterations
-                const unsigned int propagationIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 10);
+                const unsigned int propagationIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 3);
                 const unsigned int deformedNeighbors = 1;
 
                 //Smoothing iterations
-                const unsigned int smoothingIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 20);
+                const unsigned int smoothingIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 10);
 
                 //Smoothed translations
                 std::vector<Translation> smoothedTranslations = translations[eId2];
@@ -347,20 +347,20 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                 std::unordered_set<JointId> translatedJoints = deformedJoints[eId2];
                 for (unsigned int it = 0; it < deformedNeighbors; ++it) {
                     for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
-                        if (deformedJoints[eId2].find(jId) == deformedJoints[eId2].end()) {
+                        if (translatedJoints.find(jId) == translatedJoints.end()) {
                             std::vector<Translation> values;
                             std::vector<double> weights;
 
                             if (!model2->skeleton.isRoot(jId)) {
                                 const JointId& parentId = model2->skeleton.parentId(jId);
-                                if (deformedJoints[eId2].find(parentId) != deformedJoints[eId2].end()) {
+                                if (translatedJoints.find(parentId) != translatedJoints.end()) {
                                     values.push_back(smoothedTranslations[parentId]);
                                     weights.push_back(1.0);
                                 }
                             }
 
                             for (const JointId& childId : model2->skeleton.children(jId)) {
-                                if (deformedJoints[eId2].find(childId) != deformedJoints[eId2].end()) {
+                                if (translatedJoints.find(childId) != translatedJoints.end()) {
                                     values.push_back(smoothedTranslations[childId]);
                                     weights.push_back(1.0);
                                 }
