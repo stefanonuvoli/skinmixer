@@ -1702,10 +1702,10 @@ void SkinMixerManager::on_resetJointDeformationsButton_clicked()
             SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
             vSkinMixerData.resetJointDeformation(entry);
-
-            updateModelDrawer(modelDrawer);
         }
     }
+
+    updateAllModelDrawers();
 
     vCanvas->updateGL();
 }

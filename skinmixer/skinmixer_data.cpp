@@ -265,7 +265,7 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
     std::vector<std::vector<DualQuaternion>> newDeformations;
 
     std::vector<std::vector<Translation>> translations(this->entryNumber(), std::vector<Translation>());
-    std::vector<std::unordered_set<JointId>> deformedJoints(this->entryNumber());
+    std::vector<std::unordered_set<JointId>> nonSmoothableJoints(this->entryNumber());
     std::vector<Skeleton> deformedSkeletons(this->entryNumber());
 
     std::vector<std::vector<DualQuaternion>> originalDeformations(this->entryNumber(), std::vector<DualQuaternion>());
@@ -310,6 +310,9 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
             const Index& jId1 = action.joint1;
             const Index& jId2 = action.joint2;
 
+            const Entry& entry1 = this->entry(eId1);
+            const Model* model1 = entry1.model;
+
             const Entry& entry2 = this->entry(eId2);
             const Model* model2 = entry2.model;
 
@@ -324,15 +327,18 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
             nvl::Vector3<SkeletonScalar> translateVector = v1 - v2;
             nvl::Translation3d translateTransform(translateVector);
 
+            //Add the joint on first entry non smoothable
+            nonSmoothableJoints[eId1].insert(jId1);
+
             //Set translations and fill deformed joints
             std::vector<JointId> descendantJoints = nvl::skeletonJointDescendants(model2->skeleton, jId2);
             descendantJoints.push_back(jId2);
             for (JointId dId : descendantJoints) {
                 translations[eId2][dId] = translateTransform;
-                deformedJoints[eId2].insert(dId);
+                nonSmoothableJoints[eId2].insert(dId);
             }
 
-            if (!deformedJoints[eId2].empty()) {
+            if (!nonSmoothableJoints[eId2].empty()) {
                 //Propagation iterations
                 const unsigned int propagationIterations = static_cast<unsigned int>(model2->skeleton.jointNumber() * 3);
                 const unsigned int deformedNeighbors = 1;
@@ -344,7 +350,7 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                 std::vector<Translation> smoothedTranslations = translations[eId2];
 
                 //Deform neighbors
-                std::unordered_set<JointId> translatedJoints = deformedJoints[eId2];
+                std::unordered_set<JointId> translatedJoints = nonSmoothableJoints[eId2];
                 for (unsigned int it = 0; it < deformedNeighbors; ++it) {
                     for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
                         if (translatedJoints.find(jId) == translatedJoints.end()) {
