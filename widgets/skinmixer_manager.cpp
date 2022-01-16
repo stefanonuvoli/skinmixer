@@ -522,16 +522,16 @@ void SkinMixerManager::applyOperation()
     assert(vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID);
 
     const unsigned int smoothingIterations = ui->weightSmoothingSlider->value();
-    const double rigidity = ui->rigiditySlider->value() / 100.0;
+    const double keepOrDiscardThreshold = ui->keepOrDiscardThresholdSlider->value() / 100.0;
 
     const double hardness1 = ui->hardness1Slider->value() / 100.0;
     const double includeParent1 = ui->parent1CheckBox->isChecked();
 
     if (vCurrentOperation == OperationType::REMOVE) {
-        skinmixer::remove(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
+        skinmixer::remove(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1);
     }
     else if (vCurrentOperation == OperationType::DETACH) {
-        skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
+        skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1);
     }
     else {
         const double hardness2 = ui->hardness2Slider->value() / 100.0;
@@ -542,10 +542,10 @@ void SkinMixerManager::applyOperation()
 
         if (vCurrentOperation == OperationType::REPLACE) {
             const ReplaceMode replaceMode = ui->replaceModeBlendRadioBox->isChecked() ? ReplaceMode::BLEND : ReplaceMode::UNION;
-            skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2);
+            skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, keepOrDiscardThreshold, hardness1, hardness2, includeParent1, includeParent2);
         }
         else if (vCurrentOperation == OperationType::ATTACH) {
-            skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2);
+            skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent1, includeParent2);
         }
 
         vFirstSelectedModelDrawer->setFrame(nvl::Affine3d::Identity());
@@ -599,16 +599,16 @@ void SkinMixerManager::updatePreview()
         nvl::Index actionId = nvl::NULL_ID;
 
         const unsigned int smoothingIterations = ui->weightSmoothingSlider->value();
-        const double rigidity = ui->rigiditySlider->value() / 100.0;
+        const double keepOrDiscardThreshold = ui->keepOrDiscardThresholdSlider->value() / 100.0;
 
         const double hardness1 = ui->hardness1Slider->value() / 100.0;
         const double includeParent1 = ui->parent1CheckBox->isChecked();
 
         if (vCurrentOperation == OperationType::REMOVE) {
-            actionId = skinmixer::remove(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
+            actionId = skinmixer::remove(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1);
         }
         else if (vCurrentOperation == OperationType::DETACH) {
-            actionId = skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, rigidity, hardness1, includeParent1);
+            actionId = skinmixer::detach(vSkinMixerData, vSelectedModelDrawer->model(), vSelectedJoint, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1);
         }
         else if ((vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH) && firstDrawableSelected && firstJointSelected && vSelectedModelDrawer != vFirstSelectedModelDrawer) {
             const double hardness2 = ui->hardness2Slider->value() / 100.0;
@@ -616,10 +616,10 @@ void SkinMixerManager::updatePreview()
 
             if (vCurrentOperation == OperationType::REPLACE) {
                 const ReplaceMode replaceMode = ui->replaceModeBlendRadioBox->isChecked() ? ReplaceMode::BLEND : ReplaceMode::UNION;
-                actionId = skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, rigidity, hardness1, hardness2, includeParent1, includeParent2);
+                actionId = skinmixer::replace(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, replaceMode, smoothingIterations, keepOrDiscardThreshold, hardness1, hardness2, includeParent1, includeParent2);
             }
             else if (vCurrentOperation == OperationType::ATTACH) {
-                actionId = skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, rigidity, hardness2, includeParent1, includeParent2);
+                actionId = skinmixer::attach(vSkinMixerData, vFirstSelectedModelDrawer->model(), vSelectedModelDrawer->model(), vFirstSelectedJoint, vSelectedJoint, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent1, includeParent2);
             }
 
             if (actionId != nvl::NULL_ID) {
@@ -735,7 +735,7 @@ void SkinMixerManager::updateView()
     clearLayout(ui->animationJointGroupBox->layout());
     ui->animationJointMeshComboBox->clear();
 
-    on_rigiditySlider_valueChanged(ui->rigiditySlider->value());
+    on_keepOrDiscardThresholdSlider_valueChanged(ui->keepOrDiscardThresholdSlider->value());
     on_hardness1Slider_valueChanged(ui->hardness1Slider->value());
     on_hardness2Slider_valueChanged(ui->hardness2Slider->value());
     on_weightSmoothingSlider_valueChanged(ui->weightSmoothingSlider->value());
@@ -1100,14 +1100,15 @@ void SkinMixerManager::colorizeBySelectValues(
         jointC.setAlphaF(std::max(minAlpha, jointValue));
         modelDrawer->skeletonDrawer().setRenderingJointColor(jId, jointC);
 
+        double boneValue = std::max(std::min(jointValue, jointSelectValue[jId]), 0.0);
         if (!skeleton.isRoot(jId)) {
             JointId parentJointId = skeleton.parentId(jId);
-            double boneValue = std::max(std::min(jointValue, jointSelectValue[parentJointId]), 0.0);
-
-            nvl::Color boneC = modelDrawer->skeletonDrawer().renderingBoneColor(jId);
-            boneC.setAlphaF(std::max(minAlpha, boneValue));
-            modelDrawer->skeletonDrawer().setRenderingBoneColor(jId, boneC);
+            boneValue = std::max(std::min(jointValue, jointSelectValue[parentJointId]), 0.0);
         }
+
+        nvl::Color boneC = modelDrawer->skeletonDrawer().renderingBoneColor(jId);
+        boneC.setAlphaF(std::max(minAlpha, boneValue));
+        modelDrawer->skeletonDrawer().setRenderingBoneColor(jId, boneC);
     }
 }
 
@@ -1550,13 +1551,13 @@ void SkinMixerManager::on_weightSmoothingSlider_valueChanged(int value)
     vCanvas->updateGL();
 }
 
-void SkinMixerManager::on_rigiditySlider_valueChanged(int value)
+void SkinMixerManager::on_keepOrDiscardThresholdSlider_valueChanged(int value)
 {
     std::ostringstream out;
     out.precision(2);
     out << std::fixed << value / 100.0;
 
-    ui->rigidityValueLabel->setText(out.str().c_str());
+    ui->keepOrDiscardThresholdValueLabel->setText(out.str().c_str());
 
     updatePreview();
 

@@ -163,7 +163,7 @@ private slots:
     void on_modelSetRootButton_clicked();
 
     void on_weightSmoothingSlider_valueChanged(int value);
-    void on_rigiditySlider_valueChanged(int value);
+    void on_keepOrDiscardThresholdSlider_valueChanged(int value);
     void on_showZeroCheckBox_clicked();
 
     void on_hardness1Slider_valueChanged(int value);

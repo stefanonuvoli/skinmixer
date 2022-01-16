@@ -418,7 +418,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Field mode:</string>
+             <string>Field mode</string>
             </property>
            </widget>
           </item>
@@ -517,7 +517,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Mix mode:</string>
+             <string>Mix mode</string>
             </property>
            </widget>
           </item>
@@ -747,7 +747,7 @@
            </spacer>
           </item>
           <item row="0" column="4">
-           <widget class="QSlider" name="rigiditySlider">
+           <widget class="QSlider" name="keepOrDiscardThresholdSlider">
             <property name="maximumSize">
              <size>
               <width>16777215</width>
@@ -758,7 +758,7 @@
              <number>100</number>
             </property>
             <property name="value">
-             <number>70</number>
+             <number>50</number>
             </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -766,7 +766,7 @@
            </widget>
           </item>
           <item row="0" column="5">
-           <widget class="QLabel" name="rigidityValueLabel">
+           <widget class="QLabel" name="keepOrDiscardThresholdValueLabel">
             <property name="maximumSize">
              <size>
               <width>16777215</width>
@@ -787,7 +787,7 @@
              </size>
             </property>
             <property name="text">
-             <string>W smooth:</string>
+             <string>W smooth</string>
             </property>
            </widget>
           </item>
@@ -800,7 +800,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Hardness 2:</string>
+             <string>Hardness 2</string>
             </property>
            </widget>
           </item>
@@ -813,12 +813,12 @@
              </size>
             </property>
             <property name="text">
-             <string>Hardness 1:</string>
+             <string>Hardness 1</string>
             </property>
            </widget>
           </item>
           <item row="0" column="3">
-           <widget class="QLabel" name="rigidityLabel">
+           <widget class="QLabel" name="keepOrDiscardThresholdLabel">
             <property name="maximumSize">
              <size>
               <width>16777215</width>
@@ -826,7 +826,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Rigidity:</string>
+             <string>Uniformity</string>
             </property>
            </widget>
           </item>
@@ -1010,14 +1010,14 @@
           <item row="0" column="0">
            <widget class="QLabel" name="surfaceSmoothingVoxelLabel">
             <property name="text">
-             <string>Voxels:</string>
+             <string>Voxels</string>
             </property>
            </widget>
           </item>
           <item row="2" column="0">
            <widget class="QLabel" name="surfaceSmoothingBorderLabel">
             <property name="text">
-             <string>Borders:</string>
+             <string>Borders</string>
             </property>
            </widget>
           </item>
@@ -1092,7 +1092,7 @@
           <item row="4" column="0">
            <widget class="QLabel" name="surfaceSmoothingInnerLabel">
             <property name="text">
-             <string>Inner:</string>
+             <string>Inner</string>
             </property>
            </widget>
           </item>
@@ -1150,7 +1150,7 @@
           <item row="6" column="0">
            <widget class="QLabel" name="surfaceSmoothingResultLabel">
             <property name="text">
-             <string>Result:</string>
+             <string>Result</string>
             </property>
            </widget>
           </item>
@@ -1170,7 +1170,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Global:</string>
+             <string>Global</string>
             </property>
            </widget>
           </item>
@@ -1260,7 +1260,7 @@
              </size>
             </property>
             <property name="text">
-             <string>FPS:</string>
+             <string>FPS</string>
             </property>
            </widget>
           </item>
@@ -1286,7 +1286,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Weight:</string>
+             <string>Weight</string>
             </property>
            </widget>
           </item>
@@ -1299,7 +1299,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Window:</string>
+             <string>Window</string>
             </property>
            </widget>
           </item>
@@ -1361,7 +1361,7 @@
           <item row="1" column="4">
            <widget class="QLabel" name="animationBlendingRotationWeightLabel">
             <property name="text">
-             <string>Rot weight:</string>
+             <string>Rot weight</string>
             </property>
            </widget>
           </item>
@@ -1374,21 +1374,21 @@
              </size>
             </property>
             <property name="text">
-             <string>Deriv:</string>
+             <string>Deriv</string>
             </property>
            </widget>
           </item>
           <item row="2" column="4">
            <widget class="QLabel" name="animationBlendingSmoothLabel">
             <property name="text">
-             <string>Smooth:</string>
+             <string>Smooth</string>
             </property>
            </widget>
           </item>
           <item row="2" column="2">
            <widget class="QLabel" name="animationBlendingLocalDerivativeLabel">
             <property name="text">
-             <string>Deriv:</string>
+             <string>Deriv</string>
             </property>
            </widget>
           </item>
@@ -1439,7 +1439,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Local:</string>
+             <string>Local</string>
             </property>
            </widget>
           </item>
@@ -1459,7 +1459,7 @@
              </size>
             </property>
             <property name="text">
-             <string>FBX load pose:</string>
+             <string>FBX load pose</string>
             </property>
            </widget>
           </item>

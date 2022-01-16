@@ -4,6 +4,7 @@
 
 #include <nvl/models/algorithms/mesh_transfer.h>
 #include <nvl/models/algorithms/mesh_adjacencies.h>
+#include <nvl/models/algorithms/mesh_geometric_information.h>
 
 #include <nvl/math/common_functions.h>
 #include <nvl/math/statistics.h>
@@ -24,7 +25,7 @@ template<class Model>
 void computeSelectValues(
         const Model& model,
         const unsigned int smoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness,
         const std::vector<double>& jointSelectValue,
         std::vector<double>& vertexSelectValue)
@@ -78,89 +79,87 @@ void computeSelectValues(
     std::vector<FaceId> faceComponentMap;
     std::vector<std::vector<FaceId>> connectedComponents = nvl::meshConnectedComponents(mesh, faceComponentMap);
 
-    //For each component, we check rigidity
-    for (const std::vector<FaceId>& componentFaces : connectedComponents) {
-        std::unordered_set<VertexId> componentVertices;
+    std::vector<std::unordered_set<VertexId>> componentVertices(connectedComponents.size());
+    std::vector<std::vector<double>> componentSignificantValues(connectedComponents.size());
+    std::vector<bool> keepOrDiscard(connectedComponents.size(), true);
+    std::vector<double> componentScore(connectedComponents.size(), 0.0);
+    std::vector<double> componentArea(connectedComponents.size(), 0.0);
+
+    //Number of components fielded
+    unsigned int numComponentsInField = 0;
+
+
+    //For each component, we check if to keep or discard
+    for (nvl::Index cId = 0; cId < connectedComponents.size(); ++cId) {
+        const std::vector<FaceId>& componentFaces = connectedComponents[cId];
+
         for (const FaceId& fId : componentFaces) {
-            componentVertices.insert(mesh.faceVertexIds(fId).begin(), mesh.faceVertexIds(fId).end());
+            componentVertices[cId].insert(mesh.faceVertexIds(fId).begin(), mesh.faceVertexIds(fId).end());
+            componentArea[cId] += nvl::meshFaceArea(mesh, fId);
         }
 
-        unsigned int numOnes = 0;
-        unsigned int numZeros = 0;
-
-        std::vector<double> significantSelectValues;
-        for (VertexId vId : componentVertices) {
-            if (nvl::epsEqual(vertexSelectValue[vId], 0.0)) {
-                ++numZeros;
-            }
-            else if (nvl::epsEqual(vertexSelectValue[vId], 1.0)) {
-                ++numOnes;
-            }
-            else {
-                significantSelectValues.push_back(vertexSelectValue[vId]);
+        for (const VertexId& vId : componentVertices[cId]) {
+            if (!nvl::epsEqual(vertexSelectValue[vId], 0.0) && !nvl::epsEqual(vertexSelectValue[vId], 1.0)) {
+                componentSignificantValues[cId].push_back(vertexSelectValue[vId]);
             }
         }
+    }
 
-        double zerosRatio = static_cast<double>(numZeros) / static_cast<double>(componentVertices.size());
-        double onesRatio = static_cast<double>(numOnes) / static_cast<double>(componentVertices.size());
+    double maxArea = nvl::max(componentArea);
 
-        bool keepOrDiscard;
+    for (nvl::Index cId = 0; cId < connectedComponents.size(); ++cId) {
+        if (componentSignificantValues[cId].size() > 5) {
+            //Uniformly distributed score
+            double uniformlyDistributedScore = nvl::sampleUniformlyDistributedScore(componentSignificantValues[cId], 0.0, 1.0, 10);
 
-        if (zerosRatio > 0.3 || onesRatio > 0.3) {
-            keepOrDiscard = false;
-        }
-        else if (significantSelectValues.empty()) {
-            keepOrDiscard = true;
-        }
-        else {
-            const double meanExpected = 0.5;
-            double mean = nvl::mean(significantSelectValues);
-
-//            const double stddevExpected = 1.0 / nvl::sqrt(12.0);
-//            double stddev = nvl::stddev(significantSelectValues, mean);
-
-            //Mean score
-            double meanScore =
-                    1.0 - nvl::max(nvl::min(
-                        (nvl::abs(mean - meanExpected) / meanExpected)
-                    , 1.0), 0.0);
-
-            //Standard deviation score
-            double uniformlyDistributedScore = 1.0 - nvl::sampleUniformlyDistributedScore(significantSelectValues, 0.0, 1.0, 10);
+            //Size score
+            double sizeScore = componentArea[cId] / static_cast<double>(maxArea);
 
             //Total score
-            double rigidityScore = 0.5 * meanScore + 0.5 * uniformlyDistributedScore;
+            componentScore[cId] = 0.8 * uniformlyDistributedScore + 0.2 * sizeScore;
 
+            //Check if uniform
+            if (componentScore[cId] > keepOrDiscardThreshold) {
+                keepOrDiscard[cId] = false;
+                numComponentsInField++;
+            }
+        }
+    }
 
-//            //Standard deviation score
-//            double stddevRigidityScore =
-//                    nvl::max(nvl::min(
-//                        (nvl::abs(stddev - stddevExpected) / stddevExpected)
-//                    , 1.0), 0.0);
-
-//            //Total score
-//            double rigidityScore = 0.5 * meanRigidityScore + 0.5 * stddevRigidityScore;
-
-
-            //Check if rigid
-            keepOrDiscard = rigidityScore < rigidity;
+    //If no component has been fielded, field the one with the greatest score
+    if (numComponentsInField == 0 && !connectedComponents.empty()) {
+        nvl::Index bestCId = nvl::NULL_ID;
+        for (nvl::Index cId = 0; cId < connectedComponents.size(); ++cId) {
+            if (!componentSignificantValues[cId].empty()) {
+                if (bestCId == nvl::NULL_ID || componentScore[bestCId] <= componentScore[cId]) {
+                    bestCId = cId;
+                }
+            }
         }
 
-        //Compute hardness
-        for (const VertexId& vId : componentVertices) {
-            vertexSelectValue[vId] = internal::computeHardness(vertexSelectValue[vId], hardness);
-        }
+        keepOrDiscard[bestCId] = false;
+        numComponentsInField++;
+    }
 
-        //Rigid: 1.0 or 0.0 depending on avg value
-        if (keepOrDiscard) {
+    //Compute hardness
+    for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
+        if (mesh.isVertexDeleted(vId))
+            continue;
+
+        vertexSelectValue[vId] = internal::computeHardness(vertexSelectValue[vId], hardness);
+    }
+
+    for (nvl::Index cId = 0; cId < connectedComponents.size(); ++cId) {
+        //Keep or discard: select values 1.0 or 0.0 depending on avg value
+        if (keepOrDiscard[cId]) {
             double avgSelectValue = 0.0;
-            for (const VertexId& vId : componentVertices) {
+            for (const VertexId& vId : componentVertices[cId]) {
                 avgSelectValue += vertexSelectValue[vId];
             }
-            avgSelectValue /= componentVertices.size();
+            avgSelectValue /= componentVertices[cId].size();
 
             const double selectValue = avgSelectValue >= 0.5 ? 1.0 : 0.0;
-            for (const VertexId& vId : componentVertices) {
+            for (const VertexId& vId : componentVertices[cId]) {
                 vertexSelectValue[vId] = selectValue;
             }
         }
@@ -174,7 +173,7 @@ void computeReplaceSelectValues(
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
         const unsigned int smoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness1,
         const double hardness2,
         const bool includeParent1,
@@ -184,8 +183,8 @@ void computeReplaceSelectValues(
         std::vector<double>& vertexSelectValue2,
         std::vector<double>& jointSelectValue2)
 {
-    skinmixer::computeRemoveSelectValues(model1, targetJoint1, smoothingIterations, rigidity, hardness1, includeParent1, 0.0, vertexSelectValue1, jointSelectValue1);
-    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, rigidity, hardness2, includeParent2, 0.0, vertexSelectValue2, jointSelectValue2);
+    skinmixer::computeRemoveSelectValues(model1, targetJoint1, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1, 0.0, vertexSelectValue1, jointSelectValue1);
+    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, 0.0, vertexSelectValue2, jointSelectValue2);
 }
 
 template<class Model>
@@ -195,7 +194,7 @@ void computeAttachSelectValues(
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
         const unsigned int smoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness2,
         const bool includeParent2,
         std::vector<double>& vertexSelectValue1,
@@ -225,7 +224,7 @@ void computeAttachSelectValues(
         }
     }
 
-    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, rigidity, hardness2, includeParent2, 0.5, vertexSelectValue2, jointSelectValue2);
+    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, 0.5, vertexSelectValue2, jointSelectValue2);
 }
 
 template<class Model>
@@ -233,7 +232,7 @@ void computeRemoveSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness,
         const bool includeParent,
         const double minThreshold,
@@ -261,7 +260,7 @@ void computeRemoveSelectValues(
     computeSelectValues(
         model,
         smoothingIterations,
-        rigidity,
+        keepOrDiscardThreshold,
         hardness,
         jointSelectValue,
         vertexSelectValue);
@@ -289,7 +288,7 @@ void computeDetachSelectValues(
         const Model& model,
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int smoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness,
         const bool includeParent,
         const double minThreshold,
@@ -318,7 +317,7 @@ void computeDetachSelectValues(
     computeSelectValues(
         model,
         smoothingIterations,
-        rigidity,
+        keepOrDiscardThreshold,
         hardness,
         jointSelectValue,
         vertexSelectValue);    

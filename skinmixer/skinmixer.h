@@ -89,7 +89,7 @@ nvl::Index replace(
         const typename Model::Skeleton::JointId& targetJoint2,
         const ReplaceMode& replaceMode,
         const unsigned int weightSmoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness1,
         const double hardness2,
         const bool includeParent1,
@@ -103,7 +103,7 @@ nvl::Index attach(
         const typename Model::Skeleton::JointId& targetJoint1,
         const typename Model::Skeleton::JointId& targetJoint2,
         const unsigned int weightSmoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness2,
         const bool includeParent1,
         const bool includeParent2);
@@ -114,7 +114,7 @@ nvl::Index remove(
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int weightSmoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness,
         const bool includeParent);
 
@@ -124,7 +124,7 @@ nvl::Index detach(
         Model* model,
         const typename Model::Skeleton::JointId& targetJoint,
         const unsigned int weightSmoothingIterations,
-        const double rigidity,
+        const double keepOrDiscardThreshold,
         const double hardness,
         const bool includeParent);
 
