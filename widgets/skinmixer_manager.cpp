@@ -785,7 +785,7 @@ void SkinMixerManager::updateView()
 
             QComboBox* animationIdCombo = new QComboBox(this);
             animationIdCombo->addItem("None");
-            for (Index aId = 0; aId < currentModel->animationNumber(); aId++) {
+            for (Index aId = 0; aId < entry.lastOriginalAnimationId; aId++) {
                 const Animation& animation = currentModel->animation(aId);
                 animationIdCombo->addItem(animation.name().c_str());
             }
