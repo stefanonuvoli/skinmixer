@@ -392,9 +392,11 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
 
                 //Propagate
                 std::unordered_set<JointId> propagatedJoints = translatedJoints;
-                for (unsigned int it = 0; it < propagationIterations; ++it) {
-                    bool found = false;
-                    for (JointId jId = 0; jId < model2->skeleton.jointNumber() && !found; ++jId) {
+                bool done = false;
+                for (unsigned int it = 0; it < propagationIterations && !done; ++it) {
+
+                    done = true;
+                    for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
                         if (propagatedJoints.find(jId) == propagatedJoints.end()) {
                             std::vector<Translation> values;
                             std::vector<double> weights;
@@ -428,7 +430,7 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                                 smoothedTranslations[jId] = interpolated;
                                 propagatedJoints.insert(jId);
 
-                                found = true;
+                                done = false;
                             }
                         }
                     }
