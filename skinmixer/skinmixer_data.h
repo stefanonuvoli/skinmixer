@@ -33,6 +33,7 @@ public:
     struct SelectInfo {
         std::vector<double> vertex;
         std::vector<double> joint;
+        std::vector<bool> keepDiscard;
 
         void clear();
     };

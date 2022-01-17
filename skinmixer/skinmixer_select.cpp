@@ -28,7 +28,8 @@ void computeSelectValues(
         const double keepOrDiscardThreshold,
         const double hardness,
         const std::vector<double>& jointSelectValue,
-        std::vector<double>& vertexSelectValue)
+        std::vector<double>& vertexSelectValue,
+        std::vector<bool>& keepDiscard)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::FaceId FaceId;
@@ -49,6 +50,7 @@ void computeSelectValues(
             continue;
 
         vertexSelectValue[vId] = 0.0;
+        keepDiscard[vId] = false;
 
         for (JointId jId = 0; jId < skeleton.jointNumber(); ++jId) {
             if (jointSelectValue[jId] > 0.0 && !nvl::epsEqual(jointSelectValue[jId], 0.0)) {
@@ -161,6 +163,7 @@ void computeSelectValues(
             const double selectValue = avgSelectValue >= 0.5 ? 1.0 : 0.0;
             for (const VertexId& vId : componentVertices[cId]) {
                 vertexSelectValue[vId] = selectValue;
+                keepDiscard[vId] = true;
             }
         }
     }
@@ -178,13 +181,15 @@ void computeReplaceSelectValues(
         const double hardness2,
         const bool includeParent1,
         const bool includeParent2,
-        std::vector<double>& vertexSelectValue1,
         std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<bool>& keepDiscard1,
+        std::vector<double>& jointSelectValue2,
         std::vector<double>& vertexSelectValue2,
-        std::vector<double>& jointSelectValue2)
+        std::vector<bool>& keepDiscard2)
 {
-    skinmixer::computeRemoveSelectValues(model1, targetJoint1, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1, 0.0, vertexSelectValue1, jointSelectValue1);
-    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, 0.0, vertexSelectValue2, jointSelectValue2);
+    skinmixer::computeRemoveSelectValues(model1, targetJoint1, smoothingIterations, keepOrDiscardThreshold, hardness1, includeParent1, 0.0, jointSelectValue1, vertexSelectValue1, keepDiscard1);
+    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, 0.0, jointSelectValue2, vertexSelectValue2, keepDiscard2);
 }
 
 template<class Model>
@@ -197,10 +202,12 @@ void computeAttachSelectValues(
         const double keepOrDiscardThreshold,
         const double hardness2,
         const bool includeParent2,
-        std::vector<double>& vertexSelectValue1,
         std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<bool>& keepDiscard1,
+        std::vector<double>& jointSelectValue2,
         std::vector<double>& vertexSelectValue2,
-        std::vector<double>& jointSelectValue2)
+        std::vector<bool>& keepDiscard2)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Mesh::VertexId VertexId;
@@ -213,6 +220,7 @@ void computeAttachSelectValues(
 
     vertexSelectValue1.resize(mesh1.nextVertexId(), 1.0);
     jointSelectValue1.resize(skeleton1.jointNumber(), 1.0);
+    keepDiscard1.resize(skeleton1.jointNumber(), false);
 
     for (VertexId vId = 0; vId < mesh1.nextVertexId(); ++vId) {
         if (mesh1.isVertexDeleted(vId))
@@ -224,7 +232,7 @@ void computeAttachSelectValues(
         }
     }
 
-    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, 0.5, vertexSelectValue2, jointSelectValue2);
+    skinmixer::computeDetachSelectValues(model2, targetJoint2, smoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, 0.5, jointSelectValue2, vertexSelectValue2, keepDiscard2);
 }
 
 template<class Model>
@@ -236,8 +244,9 @@ void computeRemoveSelectValues(
         const double hardness,
         const bool includeParent,
         const double minThreshold,
+        std::vector<double>& jointSelectValue,
         std::vector<double>& vertexSelectValue,
-        std::vector<double>& jointSelectValue)
+        std::vector<bool>& keepDiscard)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Model::Skeleton Skeleton;
@@ -257,13 +266,15 @@ void computeRemoveSelectValues(
     }
 
     vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
+    keepDiscard.resize(mesh.nextVertexId(), false);
     computeSelectValues(
         model,
         smoothingIterations,
         keepOrDiscardThreshold,
         hardness,
         jointSelectValue,
-        vertexSelectValue);
+        vertexSelectValue,
+        keepDiscard);
 
     //We reset them: this value will be used in blending skeletons
     if (!includeParent) {
@@ -292,8 +303,9 @@ void computeDetachSelectValues(
         const double hardness,
         const bool includeParent,
         const double minThreshold,
+        std::vector<double>& jointSelectValue,
         std::vector<double>& vertexSelectValue,
-        std::vector<double>& jointSelectValue)
+        std::vector<bool>& keepDiscard)
 {
     typedef typename Model::Mesh Mesh;
     typedef typename Model::Skeleton Skeleton;
@@ -314,13 +326,15 @@ void computeDetachSelectValues(
     }
 
     vertexSelectValue.resize(mesh.nextVertexId(), 1.0);
+    keepDiscard.resize(mesh.nextVertexId(), false);
     computeSelectValues(
         model,
         smoothingIterations,
         keepOrDiscardThreshold,
         hardness,
         jointSelectValue,
-        vertexSelectValue);    
+        vertexSelectValue,
+        keepDiscard);
 
     for (VertexId vId = 0; vId < mesh.nextVertexId(); ++vId) {
         if (mesh.isVertexDeleted(vId))

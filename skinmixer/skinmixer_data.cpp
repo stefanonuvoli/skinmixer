@@ -646,6 +646,7 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
     if (actions.empty()) {
         globalSelectInfo.vertex.resize(entry.model->mesh.nextVertexId(), 1.0);
         globalSelectInfo.joint.resize(entry.model->skeleton.jointNumber(), 1.0);
+        globalSelectInfo.keepDiscard.resize(entry.model->mesh.nextVertexId(), false);
 
         return globalSelectInfo;
     }
@@ -659,8 +660,8 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
         globalSelectInfo = action.select2;
     }
 
-    for (Index rId = 1; rId < actions.size(); ++rId) {
-        Action& action = this->action(actions[rId]);
+    for (Index aId = 1; aId < actions.size(); ++aId) {
+        Action& action = this->action(actions[aId]);
 
         if (action.operation == OperationType::REMOVE) {
             assert(action.entry1 != nvl::NULL_ID);
@@ -668,6 +669,10 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
             if (action.entry1 == entry.id) {
                 const SelectInfo& selectInfo1 = action.select1;
                 for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
+                    if (!selectInfo1.keepDiscard[vId]) {
+                        globalSelectInfo.keepDiscard[vId] = false;
+                    }
+
                     if (selectInfo1.vertex[vId] < 1.0) {
                         globalSelectInfo.vertex[vId] = std::min(globalSelectInfo.vertex[vId], selectInfo1.vertex[vId]);
                     }
@@ -685,6 +690,10 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
             if (action.entry1 == entry.id) {
                 const SelectInfo& selectInfo1 = action.select1;
                 for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
+                    if (!selectInfo1.keepDiscard[vId]) {
+                        globalSelectInfo.keepDiscard[vId] = false;
+                    }
+
                     if (selectInfo1.vertex[vId] > 0.0) {
                         globalSelectInfo.vertex[vId] = std::max(globalSelectInfo.vertex[vId], selectInfo1.vertex[vId]);
                     }
@@ -703,6 +712,10 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
             if (action.entry1 == entry.id) {
                 const SelectInfo& selectInfo1 = action.select1;
                 for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
+                    if (!selectInfo1.keepDiscard[vId]) {
+                        globalSelectInfo.keepDiscard[vId] = false;
+                    }
+
                     if (selectInfo1.vertex[vId] < 1.0) {
                         globalSelectInfo.vertex[vId] = std::min(globalSelectInfo.vertex[vId], selectInfo1.vertex[vId]);
                     }
@@ -717,6 +730,10 @@ typename SkinMixerData<Model>::SelectInfo SkinMixerData<Model>::computeGlobalSel
             if (action.entry2 == entry.id) {
                 const SelectInfo& selectInfo2 = action.select2;
                 for (VertexId vId = 0; vId < entry.model->mesh.nextVertexId(); ++vId) {
+                    if (!selectInfo2.keepDiscard[vId]) {
+                        globalSelectInfo.keepDiscard[vId] = false;
+                    }
+
                     if (selectInfo2.vertex[vId] > 0.0) {
                         globalSelectInfo.vertex[vId] = std::max(globalSelectInfo.vertex[vId], selectInfo2.vertex[vId]);
                     }

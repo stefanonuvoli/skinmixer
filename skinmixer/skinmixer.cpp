@@ -213,11 +213,13 @@ nvl::Index replace(
     model1->mesh.computeNormals();
     model2->mesh.computeNormals();
 
-    std::vector<double> vertexValues1;
     std::vector<double> jointValues1;
-    std::vector<double> vertexValues2;
+    std::vector<double> vertexValues1;
+    std::vector<bool> keepDiscard1;
     std::vector<double> jointValues2;
-    skinmixer::computeReplaceSelectValues(*model1, *model2, targetJoint1, targetJoint2, weightSmoothingIterations, keepOrDiscardThreshold, hardness1, hardness2, includeParent1, includeParent2, vertexValues1, jointValues1, vertexValues2, jointValues2);
+    std::vector<double> vertexValues2;
+    std::vector<bool> keepDiscard2;
+    skinmixer::computeReplaceSelectValues(*model1, *model2, targetJoint1, targetJoint2, weightSmoothingIterations, keepOrDiscardThreshold, hardness1, hardness2, includeParent1, includeParent2, jointValues1, vertexValues1, keepDiscard1, jointValues2, vertexValues2, keepDiscard2);
 
     Action action;
     action.operation = OperationType::REPLACE;
@@ -227,10 +229,12 @@ nvl::Index replace(
     action.joint2 = includeParent2 ? model2->skeleton.parentId(targetJoint2) : targetJoint2;
     action.hardness1 = hardness1;
     action.hardness2 = hardness2;
-    action.select1.vertex = vertexValues1;
     action.select1.joint = jointValues1;
-    action.select2.vertex = vertexValues2;
+    action.select1.vertex = vertexValues1;
+    action.select1.keepDiscard = keepDiscard1;
     action.select2.joint = jointValues2;
+    action.select2.vertex = vertexValues2;
+    action.select2.keepDiscard = keepDiscard2;
     action.replaceMode = replaceMode;
 
     Index actionId = data.addAction(action);
@@ -261,11 +265,13 @@ nvl::Index attach(
     model1->mesh.computeNormals();
     model2->mesh.computeNormals();
 
-    std::vector<double> vertexValues1;
     std::vector<double> jointValues1;
-    std::vector<double> vertexValues2;
+    std::vector<double> vertexValues1;
+    std::vector<bool> keepDiscard1;
     std::vector<double> jointValues2;
-    skinmixer::computeAttachSelectValues(*model1, *model2, (includeParent1 ? model1->skeleton.parentId(targetJoint1) : targetJoint1), targetJoint2, weightSmoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, vertexValues1, jointValues1, vertexValues2, jointValues2);
+    std::vector<double> vertexValues2;
+    std::vector<bool> keepDiscard2;
+    skinmixer::computeAttachSelectValues(*model1, *model2, (includeParent1 ? model1->skeleton.parentId(targetJoint1) : targetJoint1), targetJoint2, weightSmoothingIterations, keepOrDiscardThreshold, hardness2, includeParent2, jointValues1, vertexValues1, keepDiscard1, jointValues2, vertexValues2, keepDiscard2);
 
     Action action;
     action.operation = OperationType::ATTACH;
@@ -274,10 +280,12 @@ nvl::Index attach(
     action.joint1 = includeParent1 ? model1->skeleton.parentId(targetJoint1) : targetJoint1;
     action.joint2 = includeParent2 ? model2->skeleton.parentId(targetJoint2) : targetJoint2;
     action.hardness2 = hardness2;
-    action.select1.vertex = vertexValues1;
     action.select1.joint = jointValues1;
-    action.select2.vertex = vertexValues2;
+    action.select1.vertex = vertexValues1;
+    action.select1.keepDiscard = keepDiscard1;
     action.select2.joint = jointValues2;
+    action.select2.vertex = vertexValues2;
+    action.select2.keepDiscard = keepDiscard2;
 
     Index actionId = data.addAction(action);
     return actionId;
@@ -299,9 +307,10 @@ nvl::Index remove(
 
     Entry& entry = data.entryFromModel(model);
 
-    std::vector<double> vertexValues;
     std::vector<double> jointValues;
-    computeRemoveSelectValues(*model, targetJoint, weightSmoothingIterations, keepOrDiscardThreshold, hardness, includeParent, 0.5, vertexValues, jointValues);
+    std::vector<double> vertexValues;
+    std::vector<bool> keepDiscard;
+    computeRemoveSelectValues(*model, targetJoint, weightSmoothingIterations, keepOrDiscardThreshold, hardness, includeParent, 0.5, jointValues, vertexValues, keepDiscard);
 
     Action action;
     action.operation = OperationType::REMOVE;
@@ -310,8 +319,9 @@ nvl::Index remove(
     action.joint1 = includeParent ? model->skeleton.parentId(targetJoint) : targetJoint;
     action.joint2 = nvl::NULL_ID;
     action.hardness1 = hardness;
-    action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
+    action.select1.vertex = vertexValues;
+    action.select1.keepDiscard = keepDiscard;
 
     Index actionId = data.addAction(action);
 
@@ -334,9 +344,10 @@ nvl::Index detach(
 
     Entry& entry = data.entryFromModel(model);
 
-    std::vector<double> vertexValues;
     std::vector<double> jointValues;
-    computeDetachSelectValues(*model, targetJoint, weightSmoothingIterations, keepOrDiscardThreshold, hardness, includeParent, 0.5, vertexValues, jointValues);
+    std::vector<double> vertexValues;
+    std::vector<bool> keepDiscard;
+    computeDetachSelectValues(*model, targetJoint, weightSmoothingIterations, keepOrDiscardThreshold, hardness, includeParent, 0.5, jointValues, vertexValues, keepDiscard);
 
     Action action;
     action.operation = OperationType::DETACH;
@@ -345,8 +356,9 @@ nvl::Index detach(
     action.joint1 = includeParent ? model->skeleton.parentId(targetJoint) : targetJoint;
     action.joint2 = nvl::NULL_ID;
     action.hardness1 = hardness;
-    action.select1.vertex = vertexValues;
     action.select1.joint = jointValues;
+    action.select1.vertex = vertexValues;
+    action.select1.keepDiscard = keepDiscard;
 
     Index actionId = data.addAction(action);
 

@@ -88,7 +88,7 @@ private:
     void applyOperation();
     void abortOperation();    
 
-    void updatePreview();
+    void loadOperation();
     void prepareModelForReplaceOrAttach();
     void updateView();
 
@@ -99,8 +99,8 @@ private:
 
     void colorizeBySelectValues(
             ModelDrawer* modelDrawer,
-            const std::vector<double>& vertexSelectValue,
-            const std::vector<double>& jointSelectValue);
+            const std::vector<double>& jointSelectValue,
+            const std::vector<double>& vertexSelectValue);
     void colorizeByAnimationWeights(
             ModelDrawer* modelDrawer,
             const std::vector<std::vector<double>>& blendingAnimationWeights);
@@ -111,6 +111,7 @@ private:
     void updateValuesBirth();
     void updateJointsReset();
     void updateJointsBirth();
+    void updateValuesKeepDiscard();
 
     void initialize();
     void connectSignals();
@@ -141,6 +142,7 @@ private:
     ModelDrawer* vFirstSelectedModelDrawer;
     JointId vFirstSelectedJoint;
     bool vPreparedOperation;
+    Index vCurrentActionId;
 
     std::vector<std::pair<Index, Index>> vBlendingAnimations;
     std::vector<QSlider*> animationWeightSliders;
@@ -191,6 +193,7 @@ private slots:
     void on_updateValuesWeightsButton_clicked();
     void on_updateValuesSelectButton_clicked();
     void on_updateValuesBirthButton_clicked();
+    void on_updateValuesKeepDiscardButton_clicked();
 
     void on_updateJointsResetButton_clicked();
     void on_updateJointsBirthButton_clicked();

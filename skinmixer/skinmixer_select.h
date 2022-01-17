@@ -14,7 +14,8 @@ void computeSelectValues(
         const double keepOrDiscardThreshold,
         const double hardness,
         const std::vector<double>& jointSelectValue,
-        std::vector<double>& vertexSelectValue);
+        std::vector<double>& vertexSelectValue,
+        std::vector<bool>& keepDiscard);
 
 template<class Model>
 void computeReplaceSelectValues(
@@ -28,10 +29,12 @@ void computeReplaceSelectValues(
         const double hardness2,
         const bool includeParent1,
         const bool includeParent2,
-        std::vector<double>& vertexSelectValue1,
         std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<bool>& keepDiscard1,
+        std::vector<double>& jointSelectValue2,
         std::vector<double>& vertexSelectValue2,
-        std::vector<double>& jointSelectValue2);
+        std::vector<bool>& keepDiscard2);
 
 template<class Model>
 void computeAttachSelectValues(
@@ -43,10 +46,12 @@ void computeAttachSelectValues(
         const double keepOrDiscardThreshold,
         const double hardness2,
         const bool includeParent2,
-        std::vector<double>& vertexSelectValue1,
         std::vector<double>& jointSelectValue1,
+        std::vector<double>& vertexSelectValue1,
+        std::vector<bool>& keepDiscard1,
+        std::vector<double>& jointSelectValue2,
         std::vector<double>& vertexSelectValue2,
-        std::vector<double>& jointSelectValue2);
+        std::vector<bool>& keepDiscard2);
 
 template<class Model>
 void computeRemoveSelectValues(
@@ -57,8 +62,9 @@ void computeRemoveSelectValues(
         const double hardness,
         const bool includeParent,
         const double minThreshold,
+        std::vector<double>& jointSelectValue,
         std::vector<double>& vertexSelectValue,
-        std::vector<double>& jointSelectValue);
+        std::vector<bool>& keepDiscard);
 
 template<class Model>
 void computeDetachSelectValues(
@@ -69,8 +75,9 @@ void computeDetachSelectValues(
         const double hardness,
         const bool includeParent,
         const double minThreshold,
+        std::vector<double>& jointSelectValue,
         std::vector<double>& vertexSelectValue,
-        std::vector<double>& jointSelectValue);
+        std::vector<bool>& keepDiscard);
 
 
 }
