@@ -349,24 +349,29 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                 //Smoothed translations
                 std::vector<Translation> smoothedTranslations = translations[eId2];
 
-                //Deform neighbors
+                //Joints translated
                 std::unordered_set<JointId> translatedJoints = nonSmoothableJoints[eId2];
+
+                //Deform neighbors
                 for (unsigned int it = 0; it < deformedNeighbors; ++it) {
+                    std::vector<Translation> copyTranslations = smoothedTranslations;
+                    std::unordered_set<JointId> copyTranslatedJoints = translatedJoints;
+
                     for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
-                        if (translatedJoints.find(jId) == translatedJoints.end()) {
+                        if (copyTranslatedJoints.find(jId) == copyTranslatedJoints.end()) {
                             std::vector<Translation> values;
                             std::vector<double> weights;
 
                             if (!model2->skeleton.isRoot(jId)) {
                                 const JointId& parentId = model2->skeleton.parentId(jId);
-                                if (translatedJoints.find(parentId) != translatedJoints.end()) {
+                                if (copyTranslatedJoints.find(parentId) != copyTranslatedJoints.end()) {
                                     values.push_back(smoothedTranslations[parentId]);
                                     weights.push_back(1.0);
                                 }
                             }
 
                             for (const JointId& childId : model2->skeleton.children(jId)) {
-                                if (translatedJoints.find(childId) != translatedJoints.end()) {
+                                if (copyTranslatedJoints.find(childId) != copyTranslatedJoints.end()) {
                                     values.push_back(smoothedTranslations[childId]);
                                     weights.push_back(1.0);
                                 }
@@ -390,28 +395,32 @@ std::vector<std::vector<typename SkinMixerData<Model>::DualQuaternion>> SkinMixe
                     }
                 }
 
-                //Propagate
+                //Joints propagated
                 std::unordered_set<JointId> propagatedJoints = translatedJoints;
+
+                //Propagate
                 bool done = false;
                 for (unsigned int it = 0; it < propagationIterations && !done; ++it) {
+                    std::vector<Translation> copyTranslations = smoothedTranslations;
+                    std::unordered_set<JointId> copyPropagatedJoints = propagatedJoints;
 
                     done = true;
                     for (JointId jId = 0; jId < model2->skeleton.jointNumber(); ++jId) {
-                        if (propagatedJoints.find(jId) == propagatedJoints.end()) {
+                        if (copyPropagatedJoints.find(jId) == copyPropagatedJoints.end()) {
                             std::vector<Translation> values;
                             std::vector<double> weights;
 
                             if (!model2->skeleton.isRoot(jId)) {
                                 const JointId& parentId = model2->skeleton.parentId(jId);
-                                if (propagatedJoints.find(parentId) != propagatedJoints.end()) {
-                                    values.push_back(smoothedTranslations[parentId]);
+                                if (copyPropagatedJoints.find(parentId) != propagatedJoints.end()) {
+                                    values.push_back(copyTranslations[parentId]);
                                     weights.push_back(1.0);
                                 }
                             }
 
                             for (const JointId& childId : model2->skeleton.children(jId)) {
-                                if (propagatedJoints.find(childId) != propagatedJoints.end()) {
-                                    values.push_back(smoothedTranslations[childId]);
+                                if (copyPropagatedJoints.find(childId) != propagatedJoints.end()) {
+                                    values.push_back(copyTranslations[childId]);
                                     weights.push_back(1.0);
                                 }
                             }

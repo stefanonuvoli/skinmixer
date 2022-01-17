@@ -254,7 +254,7 @@ void blendAnimations(
             }
             else {
                 assert(animationMode == BLEND_ANIMATION_LOOP);
-                animationName += " - " + currentModel->name + " (B)";
+                animationName += " - " + currentModel->name + " (L)";
             }
 
             for (Index aId = 0; aId < currentModel->animationNumber(); ++aId) {
