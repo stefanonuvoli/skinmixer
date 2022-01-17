@@ -402,7 +402,7 @@
          <string/>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>4</number>
         </property>
         <widget class="QWidget" name="tab">
          <attribute name="title">
@@ -1189,7 +1189,7 @@
              <double>0.100000000000000</double>
             </property>
             <property name="value">
-             <double>0.900000000000000</double>
+             <double>1.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -1237,7 +1237,7 @@
              <double>0.100000000000000</double>
             </property>
             <property name="value">
-             <double>0.100000000000000</double>
+             <double>0.000000000000000</double>
             </property>
            </widget>
           </item>

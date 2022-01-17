@@ -1408,7 +1408,7 @@ void SkinMixerManager::on_modelSaveButton_clicked()
                 );
 
             if (!filename.isEmpty()) {
-                bool success = nvl::modelSaveToFile(filename.toStdString(), *modelPtr);
+                bool success = nvl::modelSaveToFile(filename.toStdString(), deformedModel);
                 if (!success) {
                     QMessageBox::warning(this, tr("Error"), tr("Error: impossible to save model!"));
                 }
