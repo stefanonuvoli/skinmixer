@@ -5,6 +5,7 @@ TARGET = skinmixer
 TEMPLATE = app
 CONFIG += c++17
 CONFIG += qt
+CONFIG += opengl
 CONFIG -= app_bundle
 QT += core gui opengl widgets
 
