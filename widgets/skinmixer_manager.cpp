@@ -774,6 +774,7 @@ void SkinMixerManager::updateView()
         std::vector<QDoubleSpinBox*> animationSpeedSpinBoxes(birthEntries.size());
         for (Index cId = 0; cId < birthEntries.size(); ++cId) {
             const Index& eId = birthEntries[cId];
+            SkinMixerEntry& birthEntry = vSkinMixerData.entry(eId);
             Model* currentModel = vSkinMixerData.entry(eId).model;
 
             QLabel* animationNameLabel = new QLabel(currentModel->name.c_str());
@@ -785,7 +786,7 @@ void SkinMixerManager::updateView()
 
             QComboBox* animationIdCombo = new QComboBox(this);
             animationIdCombo->addItem("None");
-            for (Index aId = 0; aId < entry.lastOriginalAnimationId; aId++) {
+            for (Index aId = 0; aId < birthEntry.lastOriginalAnimationId; aId++) {
                 const Animation& animation = currentModel->animation(aId);
                 animationIdCombo->addItem(animation.name().c_str());
             }
@@ -1253,18 +1254,14 @@ void SkinMixerManager::updateValuesKeepDiscard()
 
 void SkinMixerManager::updateJointsReset()
 {
-    if (vSelectedModelDrawer != nullptr) {
-        updateModelDrawer(vSelectedModelDrawer);
-    }
-
+    updateAllModelDrawers();
     vCanvas->updateGL();
 }
 
 void SkinMixerManager::updateJointsBirth()
 {
+    updateAllModelDrawers();
     if (vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID) {
-        updateModelDrawer(vSelectedModelDrawer);
-
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
 
         if (!entry.birth.joint.empty()) {
@@ -1275,9 +1272,9 @@ void SkinMixerManager::updateJointsBirth()
                 nvl::Color color = nvl::getRampRedGreen(jointInfo.confidence);
                 modelDrawer->skeletonDrawer().setRenderingJointColor(jointInfo.jId, color);
             }
+        }        
 
-            vCanvas->updateGL();
-        }
+        vCanvas->updateGL();
     }
 }
 

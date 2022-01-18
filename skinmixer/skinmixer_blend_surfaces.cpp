@@ -1717,7 +1717,7 @@ void blendSurfaces(
 
 #ifdef STEP_TIMES
         start = chrono::steady_clock::now();
-        std::cout << "Blending vertex colors from textures...";
+        std::cout << "Blending vertex colors from textures... ";
 #endif
 
         resultMesh.enableVertexColors();

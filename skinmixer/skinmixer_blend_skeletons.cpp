@@ -28,8 +28,8 @@ struct SkeletonPaths {
 
 
 double skeletonMatchingMatchedScore(
-        const bool matched,
-        const bool perfectMatched);
+        const bool nonMatched,
+        const bool nonPerfectMatched);
 
 template<class Skeleton>
 double skeletonMatchingConfidence(
@@ -494,11 +494,11 @@ void SkeletonPaths<Skeleton>::compute(const Skeleton& skeleton)
 }
 
 inline double skeletonMatchingMatchedScore(
-        const bool matched,
-        const bool perfectMatched)
+        const bool nonMatched,
+        const bool nonPerfectMatched)
 {
-    double alreadyMatchedScore = (matched ? 1.0 : 0.0);
-    double perfectMatchedScore = (perfectMatched ? 1.0 : 0.0);
+    double alreadyMatchedScore = (nonMatched ? 1.0 : 0.0);
+    double perfectMatchedScore = (nonPerfectMatched ? 1.0 : 0.0);
 
     double matchedScore =
             1.0 * perfectMatchedScore +
