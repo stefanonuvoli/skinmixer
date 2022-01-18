@@ -220,14 +220,14 @@ void computeAttachSelectValues(
 
     vertexSelectValue1.resize(mesh1.nextVertexId(), 1.0);
     jointSelectValue1.resize(skeleton1.jointNumber(), 1.0);
-    keepDiscard1.resize(skeleton1.jointNumber(), false);
+    keepDiscard1.resize(mesh1.nextVertexId(), false);
 
     for (VertexId vId = 0; vId < mesh1.nextVertexId(); ++vId) {
         if (mesh1.isVertexDeleted(vId))
             continue;
 
         if ((skinningWeights1.weight(vId, targetJoint1) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, targetJoint1) < 1.0 - nvl::EPSILON) ||
-            (!skeleton1.isRoot(targetJoint1) && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) < 1.0 - nvl::EPSILON)) {
+            (/*!skeleton1.isRoot(targetJoint1) && */skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) > 0.0 + nvl::EPSILON && skinningWeights1.weight(vId, skeleton1.parentId(targetJoint1)) < 1.0 - nvl::EPSILON)) {
             vertexSelectValue1[vId] = 0.999;
         }
     }

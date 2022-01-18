@@ -76,6 +76,7 @@ void initializeAnimationWeights(
 {
     typedef typename nvl::Index Index;
     typedef typename SkinMixerData<Model>::BirthInfo::JointInfo JointInfo;
+    typedef typename SkinMixerData<Model>::Action Action;
     typedef typename Model::Skeleton Skeleton;
     typedef typename Skeleton::JointId JointId;
 
@@ -96,9 +97,8 @@ void initializeAnimationWeights(
     for (JointId jId = 0; jId < targetSkeleton.jointNumber(); ++jId) {
         const std::vector<JointInfo>& jointInfos = resultEntry.birth.joint[jId];
 
-        JointId parentId = targetSkeleton.parentId(jId);
+        int numOneConfidence = 0;
 
-        int numConfidence = 0;
         for (JointInfo jointInfo : jointInfos) {
             assert(jointInfo.jId != nvl::NULL_ID);
             assert(jointInfo.eId != nvl::NULL_ID);
@@ -108,26 +108,41 @@ void initializeAnimationWeights(
 
             if (jointInfo.confidence == 1.0) {
                 animationWeights[jId][cId] = 1.0;
-                numConfidence++;
+                numOneConfidence++;
             }
         }
-        if (numConfidence > 1) {
+
+        if (numOneConfidence > 1) {
+            Index bestCId = nvl::NULL_ID;
+
             for (JointInfo jointInfo : jointInfos) {
                 assert(jointInfo.jId != nvl::NULL_ID);
                 assert(jointInfo.eId != nvl::NULL_ID);
                 assert(clusterMap[jointInfo.eId] != nvl::NULL_ID);
-                assert(parentId != nvl::NULL_ID);
 
                 const Index& cId = clusterMap[jointInfo.eId];
 
-                const std::vector<JointInfo>& parentJointInfos = resultEntry.birth.joint[parentId];
+                for (Index aId = 0; aId < data.actionNumber(); ++aId) {
+                    const Action& action = data.action(aId);
 
-                for (JointInfo parentJointInfo : parentJointInfos) {
-                    const Index& parentCId = clusterMap[parentJointInfo.eId];
-
-                    if (jointInfo.confidence == 1.0 && parentJointInfo.confidence == 1.0 && parentCId == cId) {
-                        animationWeights[jId][cId] = 0.0;
+                    if (action.operation == OperationType::REPLACE && action.entry2 == jointInfo.eId && action.joint2 == jointInfo.jId) {
+                        bestCId = cId;
                     }
+                    else if (action.operation == OperationType::ATTACH && action.entry1 == jointInfo.eId && action.joint1 == jointInfo.jId) {
+                        bestCId = cId;
+                    }
+                }
+            }
+
+            for (JointInfo jointInfo : jointInfos) {
+                assert(jointInfo.jId != nvl::NULL_ID);
+                assert(jointInfo.eId != nvl::NULL_ID);
+                assert(clusterMap[jointInfo.eId] != nvl::NULL_ID);
+
+                const Index& cId = clusterMap[jointInfo.eId];
+
+                if (bestCId != cId) {
+                    animationWeights[jId][cId] = 0.0;
                 }
             }
         }
