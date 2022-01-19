@@ -112,7 +112,7 @@ void computeSelectValues(
     for (nvl::Index cId = 0; cId < connectedComponents.size(); ++cId) {
         if (!componentSignificantValues[cId].empty()) {
             //Uniformly distributed score
-            double uniformlyDistributedScore = nvl::variance(componentSignificantValues[cId]) * 12;
+            double uniformlyDistributedScore = nvl::sampleUniformlyDistributedScore(componentSignificantValues[cId], 0.0, 1.0, 10);
 
             //Size score
             double sizeScore = componentArea[cId] / static_cast<double>(maxArea);
@@ -121,7 +121,7 @@ void computeSelectValues(
             componentScore[cId] = 0.8 * uniformlyDistributedScore + 0.2 * sizeScore;
 
             //Check if uniform
-            if (componentScore[cId] >= keepOrDiscardThreshold) {
+            if (componentScore[cId] > keepOrDiscardThreshold) {
                 keepOrDiscard[cId] = false;
                 numComponentsInField++;
             }
