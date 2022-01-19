@@ -111,6 +111,9 @@ void computeSelectValues(
 
     for (nvl::Index cId = 0; cId < connectedComponents.size(); ++cId) {
         if (!componentSignificantValues[cId].empty()) {
+//            //Uniformly distributed score with variance
+//            double uniformlyDistributedScore = nvl::variance(componentSignificantValues[cId]) * 12;
+
             //Uniformly distributed score
             double uniformlyDistributedScore = nvl::sampleUniformlyDistributedScore(componentSignificantValues[cId], 0.0, 1.0, 10);
 
