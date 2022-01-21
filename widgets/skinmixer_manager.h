@@ -111,6 +111,7 @@ private:
     void updateValuesBirth();
     void updateJointsReset();
     void updateJointsBirth();
+    void updateJointsInverseBirth();
     void updateValuesKeepDiscard();
 
     void initialize();

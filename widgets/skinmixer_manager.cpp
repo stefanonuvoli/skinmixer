@@ -289,9 +289,8 @@ void SkinMixerManager::slot_drawableSelectionChanged(const std::unordered_set<In
 
 void SkinMixerManager::slot_movableFrameChanged()
 {
-    if (vSelectedModelDrawer == nullptr) {
+    if (vDrawableListWidget->selectedDrawables().empty())
         return;
-    }
 
     nvl::Affine3d transform = vCanvas->movableFrame();
 
@@ -301,7 +300,7 @@ void SkinMixerManager::slot_movableFrameChanged()
     nvl::Rotation3d rot(transform.rotation());
     nvl::Translation3d tra(transform.translation());
 
-    if (vSelectedJoint != nvl::NULL_ID) {
+    if (vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID) {
         Model* modelPtr = vSelectedModelDrawer->model();
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(modelPtr);
 
@@ -724,7 +723,7 @@ void SkinMixerManager::updateView()
     ui->animationJointFrame->setEnabled(blendedModelSelected && jointSelected);
     ui->animationJointGroupBox->setEnabled(blendedModelSelected && jointSelected);
 
-    ui->updateJointsBirthButton->setEnabled(blendedModelSelected && jointSelected);
+    ui->updateJointsBirthButton->setEnabled(modelDrawerSelected && jointSelected);
 
     clearLayout(ui->animationSelectGroupBox->layout());
     clearLayout(ui->animationJointGroupBox->layout());
@@ -1262,17 +1261,34 @@ void SkinMixerManager::updateJointsBirth()
 {
     updateAllModelDrawers();
     if (vSelectedModelDrawer != nullptr && vSelectedJoint != nvl::NULL_ID) {
-        SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
+        SkinMixerEntry& selectedEntry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
 
-        if (!entry.birth.joint.empty()) {
-            for (auto jointInfo : entry.birth.joint[vSelectedJoint]) {
+        if (!selectedEntry.birth.joint.empty()) {
+            for (auto jointInfo : selectedEntry.birth.joint[vSelectedJoint]) {
                 const SkinMixerEntry& birthEntry = vSkinMixerData.entry(jointInfo.eId);
                 ModelDrawer* modelDrawer = vModelToDrawerMap.at(birthEntry.model);
 
                 nvl::Color color = nvl::getRampRedGreen(jointInfo.confidence);
                 modelDrawer->skeletonDrawer().setRenderingJointColor(jointInfo.jId, color);
             }
-        }        
+        }
+        else {
+            for (const SkinMixerEntry& entry : vSkinMixerData.entries()) {
+                if (std::find(entry.birth.entries.begin(), entry.birth.entries.end(), selectedEntry.id) != entry.birth.entries.end()) {
+                    for (JointId jId = 0; jId < entry.model->skeleton.jointNumber(); ++jId) {
+                        for (auto jointInfo : entry.birth.joint[jId]) {
+                            if (jointInfo.eId == selectedEntry.id && jointInfo.jId == vSelectedJoint) {
+                                ModelDrawer* modelDrawer = vModelToDrawerMap.at(entry.model);
+
+                                nvl::Color color = nvl::getRampRedGreen(jointInfo.confidence);
+                                modelDrawer->skeletonDrawer().setRenderingJointColor(jId, color);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
 
         vCanvas->updateGL();
     }
@@ -1858,7 +1874,15 @@ void SkinMixerManager::on_animationBlendLoopFixedButton_clicked()
                 animationIds[i] = aId;
                 blendAnimations();
 
-                vSelectedModelDrawer->unloadAnimation();
+                for (const std::pair<Index, Index>& blendingAnimation : vBlendingAnimations) {
+                    const Index& entryId = blendingAnimation.first;
+
+                    const SkinMixerEntry& entry = vSkinMixerData.entry(entryId);
+                    ModelDrawer* modelDrawer = vModelToDrawerMap.at(entry.model);
+
+                    modelDrawer->unloadAnimation();
+                }
+
                 vCanvas->stopAnimations();
 
                 vBlendingAnimations.clear();

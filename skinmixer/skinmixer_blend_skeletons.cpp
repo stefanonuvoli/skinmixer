@@ -501,8 +501,8 @@ inline double skeletonMatchingMatchedScore(
     double perfectMatchedScore = (nonPerfectMatched ? 1.0 : 0.0);
 
     double matchedScore =
-            1.0 * perfectMatchedScore +
-            0.3 * alreadyMatchedScore;
+            0.5 * perfectMatchedScore +
+            0.1 * alreadyMatchedScore;
 
     return matchedScore;
 }
