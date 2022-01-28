@@ -53,15 +53,19 @@ SkinMixerManager::~SkinMixerManager()
 {
     for (std::pair<Model*, ModelDrawer*> entry : vModelToDrawerMap) {
         delete entry.second;
+    }    
+    vDrawerToModelMap.clear();
+    vModelToDrawerMap.clear();
+
+    for (std::pair<ModelDrawer*, nvl::GLShader*> entry : shaders) {
+        delete entry.second;
     }
+    shaders.clear();
 
     for (Model* model : vModels) {
         delete model;
     }
     vModels.clear();
-
-    vDrawerToModelMap.clear();
-    vModelToDrawerMap.clear();
 
     delete ui;
 }
@@ -708,7 +712,8 @@ void SkinMixerManager::updateView()
     ui->hardness1Slider->setEnabled(jointSelected && vCurrentOperation != OperationType::NONE && vCurrentOperation != OperationType::ATTACH);
     ui->hardness2Slider->setEnabled(jointSelected && (vCurrentOperation == OperationType::REPLACE || vCurrentOperation == OperationType::ATTACH));
 
-    ui->updateValuesWeightsButton->setEnabled(jointSelected);
+    ui->updateValuesWeightsButton->setEnabled(modelDrawerSelected && jointSelected);
+    ui->updateValuesIsoButton->setEnabled(modelDrawerSelected && jointSelected);
     ui->updateValuesBirthButton->setEnabled(modelDrawerSelected);
     ui->updateValuesSelectButton->setEnabled(modelDrawerSelected);
     ui->updateValuesKeepDiscardButton->setEnabled(modelDrawerSelected);
@@ -1132,47 +1137,108 @@ void SkinMixerManager::colorizeByAnimationWeights(
 void SkinMixerManager::updateValuesReset()
 {
     if (vSelectedModelDrawer != nullptr) {
-        vSelectedModelDrawer->meshDrawer().clearVertexValues();
+        vSelectedModelDrawer->meshDrawer().clearFaceShader();
+
+        std::unordered_map<ModelDrawer*, nvl::GLShader*>::iterator it = shaders.find(vSelectedModelDrawer);
+        if (it != shaders.end()) {
+            delete it->second;
+            shaders.erase(it);
+        }
 
         vCanvas->updateGL();
     }
 }
 
-void SkinMixerManager::updateValuesSkinningWeights()
+void SkinMixerManager::updateValuesWeights()
 {
     if (vSelectedModelDrawer != nullptr) {
-        std::vector<double> vertexValues;
-
         if (vSelectedJoint != nvl::NULL_ID) {
-            vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
+            std::vector<float> vertexValues(vSelectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
 
             for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
                 vertexValues[vertex.id()] = vSelectedModelDrawer->model()->skinningWeights.weight(vertex.id(), vSelectedJoint);
             }
+
+            nvl::QGLRampShader* rampShader = new nvl::QGLRampShader();
+            std::unordered_map<ModelDrawer*, nvl::GLShader*>::iterator it = shaders.find(vSelectedModelDrawer);
+            if (it != shaders.end()) {
+                delete it->second;
+                it->second = rampShader;
+            }
+            else {
+                shaders.insert(std::make_pair(vSelectedModelDrawer, rampShader));
+            }
+
+            if (!rampShader->isLoaded())
+                rampShader->load(vCanvas->qglContext());
+            rampShader->setVertexValues(vertexValues);
+
+            vSelectedModelDrawer->meshDrawer().setFaceShader(rampShader);
+
+            vCanvas->updateGL();
         }
+    }
+}
 
-        vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+void SkinMixerManager::updateValuesIso()
+{
+    if (vSelectedModelDrawer != nullptr) {
+        if (vSelectedJoint != nvl::NULL_ID) {
+            std::vector<float> vertexValues(vSelectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
 
-        vCanvas->updateGL();
+            for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
+                vertexValues[vertex.id()] = vSelectedModelDrawer->model()->skinningWeights.weight(vertex.id(), vSelectedJoint);
+            }
+
+            nvl::QGLContourShader* contourShader = new nvl::QGLContourShader();
+            std::unordered_map<ModelDrawer*, nvl::GLShader*>::iterator it = shaders.find(vSelectedModelDrawer);
+            if (it != shaders.end()) {
+                delete it->second;
+                it->second = contourShader;
+            }
+            else {
+                shaders.insert(std::make_pair(vSelectedModelDrawer, contourShader));
+            }
+
+            if (!contourShader->isLoaded())
+                contourShader->load(vCanvas->qglContext());
+            contourShader->setVertexValues(vertexValues);
+
+            vSelectedModelDrawer->meshDrawer().setFaceShader(contourShader);
+
+            vCanvas->updateGL();
+        }
     }
 }
 
 void SkinMixerManager::updateValuesSelect()
 {
     if (vSelectedModelDrawer != nullptr) {
+        std::vector<float> vertexValues(vSelectedModelDrawer->model()->mesh.nextVertexId(), 1.0);
+
         Model* modelPtr = vSelectedModelDrawer->model();
         const SkinMixerEntry& currentEntry = vSkinMixerData.entryFromModel(modelPtr);
         SelectInfo currentSelect = vSkinMixerData.computeGlobalSelectInfo(currentEntry);
-
-        std::vector<double> vertexValues;
-
-        vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), 1.0);
 
         for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
             vertexValues[vertex.id()] = currentSelect.vertex[vertex.id()];
         }
 
-        vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+        nvl::QGLRampShader* rampShader = new nvl::QGLRampShader();
+        std::unordered_map<ModelDrawer*, nvl::GLShader*>::iterator it = shaders.find(vSelectedModelDrawer);
+        if (it != shaders.end()) {
+            delete it->second;
+            it->second = rampShader;
+        }
+        else {
+            shaders.insert(std::make_pair(vSelectedModelDrawer, rampShader));
+        }
+
+        if (!rampShader->isLoaded())
+            rampShader->load(vCanvas->qglContext());
+        rampShader->setVertexValues(vertexValues);
+
+        vSelectedModelDrawer->meshDrawer().setFaceShader(rampShader);
 
         vCanvas->updateGL();
     }
@@ -1183,6 +1249,8 @@ void SkinMixerManager::updateValuesBirth()
     if (vSelectedModelDrawer != nullptr) {
         SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
 
+        std::vector<float> vertexValues(vSelectedModelDrawer->model()->mesh.nextVertexId(), -1.0);
+
         if (!entry.birth.vertex.empty()) {
             std::set<nvl::Index> birthEntries;
             for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
@@ -1191,14 +1259,8 @@ void SkinMixerManager::updateValuesBirth()
                 }
             }
 
-            if (birthEntries.size() > 2) {
-                vSelectedModelDrawer->meshDrawer().clearVertexValues();
-            }
-            else {
+            if (birthEntries.size() <= 2) {
                 nvl::Index firstEntry = *birthEntries.begin();
-
-                std::vector<double> vertexValues;
-                vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), -1.0);
 
                 for (auto vertex : vSelectedModelDrawer->model()->mesh.vertices()) {
                     double currentValue = 0.0;
@@ -1219,12 +1281,26 @@ void SkinMixerManager::updateValuesBirth()
 
                     vertexValues[vertex.id()] = currentValue;
                 }
-
-                vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
             }
-
-            vCanvas->updateGL();
         }
+
+        nvl::QGLRampShader* rampShader = new nvl::QGLRampShader();
+        std::unordered_map<ModelDrawer*, nvl::GLShader*>::iterator it = shaders.find(vSelectedModelDrawer);
+        if (it != shaders.end()) {
+            delete it->second;
+            it->second = rampShader;
+        }
+        else {
+            shaders.insert(std::make_pair(vSelectedModelDrawer, rampShader));
+        }
+
+        if (!rampShader->isLoaded())
+            rampShader->load(vCanvas->qglContext());
+        rampShader->setVertexValues(vertexValues);
+
+        vSelectedModelDrawer->meshDrawer().setFaceShader(rampShader);
+
+        vCanvas->updateGL();
     }
 }
 
@@ -1235,7 +1311,7 @@ void SkinMixerManager::updateValuesKeepDiscard()
         const SkinMixerEntry& currentEntry = vSkinMixerData.entryFromModel(modelPtr);
         SelectInfo currentSelect = vSkinMixerData.computeGlobalSelectInfo(currentEntry);
 
-        std::vector<double> vertexValues;
+        std::vector<float> vertexValues;
 
         vertexValues.resize(vSelectedModelDrawer->model()->mesh.nextVertexId(), 0.0);
 
@@ -1245,7 +1321,21 @@ void SkinMixerManager::updateValuesKeepDiscard()
             }
         }
 
-        vSelectedModelDrawer->meshDrawer().setVertexValues(vertexValues);
+        nvl::QGLRampShader* rampShader = new nvl::QGLRampShader();
+        std::unordered_map<ModelDrawer*, nvl::GLShader*>::iterator it = shaders.find(vSelectedModelDrawer);
+        if (it != shaders.end()) {
+            delete it->second;
+            it->second = rampShader;
+        }
+        else {
+            shaders.insert(std::make_pair(vSelectedModelDrawer, rampShader));
+        }
+
+        if (!rampShader->isLoaded())
+            rampShader->load(vCanvas->qglContext());
+        rampShader->setVertexValues(vertexValues);
+
+        vSelectedModelDrawer->meshDrawer().setFaceShader(rampShader);
 
         vCanvas->updateGL();
     }
@@ -1903,7 +1993,12 @@ void SkinMixerManager::on_updateValuesResetButton_clicked()
 
 void SkinMixerManager::on_updateValuesWeightsButton_clicked()
 {
-    updateValuesSkinningWeights();
+    updateValuesWeights();
+}
+
+void SkinMixerManager::on_updateValuesIsoButton_clicked()
+{
+    updateValuesIso();
 }
 
 void SkinMixerManager::on_updateValuesSelectButton_clicked()

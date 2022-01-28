@@ -17,6 +17,9 @@
 #include <nvl/models/model_3d.h>
 #include <nvl/models/mesh_3d.h>
 
+#include <nvl/viewer/shaders/qgl_contour_shader.h>
+#include <nvl/viewer/shaders/qgl_ramp_shader.h>
+
 #include "skinmixer/skinmixer_data.h"
 
 namespace Ui {
@@ -106,7 +109,8 @@ private:
             const std::vector<std::vector<double>>& blendingAnimationWeights);
 
     void updateValuesReset();
-    void updateValuesSkinningWeights();
+    void updateValuesWeights();
+    void updateValuesIso();
     void updateValuesSelect();
     void updateValuesBirth();
     void updateJointsReset();
@@ -149,6 +153,7 @@ private:
     std::vector<QSlider*> animationWeightSliders;
     std::vector<QLabel*> animationWeightLabels;
 
+    std::unordered_map<ModelDrawer*, nvl::GLShader*> shaders;
 
 
 private slots:
@@ -192,6 +197,7 @@ private slots:
 
     void on_updateValuesResetButton_clicked();
     void on_updateValuesWeightsButton_clicked();
+    void on_updateValuesIsoButton_clicked();
     void on_updateValuesSelectButton_clicked();
     void on_updateValuesBirthButton_clicked();
     void on_updateValuesKeepDiscardButton_clicked();

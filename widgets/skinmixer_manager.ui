@@ -1822,7 +1822,7 @@
       <string>Debug visualization</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_6">
-      <item row="0" column="2">
+      <item row="0" column="4">
        <widget class="QPushButton" name="updateValuesBirthButton">
         <property name="maximumSize">
          <size>
@@ -1835,15 +1835,8 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Joints</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QPushButton" name="updateJointsResetButton">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="updateValuesResetButton">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -1855,21 +1848,8 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="updateValuesWeightsButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Weights</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="updateValuesResetButton">
+      <item row="1" column="1">
+       <widget class="QPushButton" name="updateJointsResetButton">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -1894,7 +1874,14 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="4">
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Joints</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="6">
        <widget class="QPushButton" name="updateValuesSelectButton">
         <property name="maximumSize">
          <size>
@@ -1914,7 +1901,20 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="5">
+      <item row="0" column="3">
+       <widget class="QPushButton" name="updateValuesIsoButton">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Iso</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="7">
        <widget class="QPushButton" name="updateValuesKeepDiscardButton">
         <property name="maximumSize">
          <size>
@@ -1923,7 +1923,20 @@
          </size>
         </property>
         <property name="text">
-         <string>Keep/discard</string>
+         <string>Keep/dis</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="updateValuesWeightsButton">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Weights</string>
         </property>
        </widget>
       </item>
