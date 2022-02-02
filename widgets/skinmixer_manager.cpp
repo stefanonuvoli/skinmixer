@@ -1358,7 +1358,7 @@ void SkinMixerManager::updateJointsBirth()
                 const SkinMixerEntry& birthEntry = vSkinMixerData.entry(jointInfo.eId);
                 ModelDrawer* modelDrawer = vModelToDrawerMap.at(birthEntry.model);
 
-                nvl::Color color = nvl::getRampRedGreen(jointInfo.confidence);
+                nvl::Color color = nvl::colorRampRedGreen(jointInfo.confidence);
                 modelDrawer->skeletonDrawer().setRenderingJointColor(jointInfo.jId, color);
             }
         }
@@ -1370,7 +1370,7 @@ void SkinMixerManager::updateJointsBirth()
                             if (jointInfo.eId == selectedEntry.id && jointInfo.jId == vSelectedJoint) {
                                 ModelDrawer* modelDrawer = vModelToDrawerMap.at(entry.model);
 
-                                nvl::Color color = nvl::getRampRedGreen(jointInfo.confidence);
+                                nvl::Color color = nvl::colorRampRedGreen(jointInfo.confidence);
                                 modelDrawer->skeletonDrawer().setRenderingJointColor(jId, color);
                             }
                         }

@@ -1839,7 +1839,7 @@ void blendSurfaces(
 
             if (!colors.empty()) {
                 nvl::normalize(colorWeights);
-                resultMesh.setVertexColor(vId, nvl::interpolateColor(colors, colorWeights));
+                resultMesh.setVertexColor(vId, nvl::colorInterpolation(colors, colorWeights));
             }
         }
 
