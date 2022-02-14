@@ -156,7 +156,7 @@ void SkinMixerManager::slot_canvasPicking(const std::vector<PickingData>& data) 
     if (data.size() > 0) {
         Index selected = 0;
         for (Index i = 0; i < data.size(); ++i) {
-            if (data[i].identifier == nvl::QCanvas::PICKING_SKELETON_JOINT) {
+            if (data[i].identifier == nvl::Canvas::PICKING_SKELETON_JOINT) {
                 selected = i;
                 break;
             }
@@ -186,7 +186,7 @@ void SkinMixerManager::slot_canvasPicking(const std::vector<PickingData>& data) 
 
         std::unordered_set<Index> selectedJoints;
 
-        if (picked.identifier == nvl::QCanvas::PICKING_SKELETON_JOINT) {
+        if (picked.identifier == nvl::Canvas::PICKING_SKELETON_JOINT) {
             Index jointId = picked.value(1);
 
             vSkeletonJointListWidget->updateJointList();
