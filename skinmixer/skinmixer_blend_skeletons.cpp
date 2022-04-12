@@ -82,7 +82,7 @@ void blendSkeletons(
     std::vector<std::unordered_set<JointId>> perfectMatchedJoints(data.entryNumber());
     std::vector<std::unordered_set<JointId>> seedJoints(data.entryNumber());
 
-    for (const nvl::Index& birthEId : cluster) {
+    for (const Index& birthEId : cluster) {
         const Entry& currentEntry = data.entry(birthEId);
 
         SelectInfo select = data.computeGlobalSelectInfo(birthEId);
