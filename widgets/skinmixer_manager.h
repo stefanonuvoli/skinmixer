@@ -3,6 +3,7 @@
 
 #include <QFrame>
 #include <QWidget>
+#include <QDialog>
 
 #include <string>
 #include <unordered_map>
@@ -126,6 +127,9 @@ private:
 
     void clearLayout(QLayout *layout);
 
+    void openLoadingWindow();
+    void closeLoadingWindow();
+
     //Fields
     std::unordered_set<Model*> vModels;
     std::unordered_map<ModelDrawer*, Model*> vDrawerToModelMap;
@@ -154,6 +158,10 @@ private:
     std::vector<QLabel*> animationWeightLabels;
 
     std::unordered_map<ModelDrawer*, nvl::GLShader*> shaders;
+
+    QDialog* loadingWindow;
+
+    double loadingOffset;
 
 
 private slots:
@@ -193,7 +201,7 @@ private slots:
     void on_animationBlendButton_clicked();
     void on_animationConfirmButton_clicked();
     void on_animationAbortButton_clicked();
-    void on_animationBlendLoopFixedButton_clicked();
+    void on_animationBlendGenerateAllButton_clicked();
 
     void on_updateValuesResetButton_clicked();
     void on_updateValuesWeightsButton_clicked();

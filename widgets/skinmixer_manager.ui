@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>534</width>
+    <width>427</width>
     <height>867</height>
    </rect>
   </property>
@@ -20,175 +20,6 @@
       <string>Models</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="5">
-       <widget class="QPushButton" name="modelMoveButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Move</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="4">
-       <widget class="QPushButton" name="modelCopyButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Copy</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="3" colspan="2">
-       <widget class="QPushButton" name="modelAnimationRemoveRootMotionButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Anim delete root motion</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="normalsLabel">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Normals:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="updateVertexNormalsCheckBox">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Vertices</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QPushButton" name="modelAnimationPoseButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Anim pose</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QPushButton" name="modelAnimationRemoveButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Anim remove</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="modelRemoveButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Remove</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="4" colspan="2">
-       <widget class="QPushButton" name="modelScaleAndCenterButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Scale and centre</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="3">
-       <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Faces</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="0">
        <widget class="QPushButton" name="modelLoadButton">
         <property name="minimumSize">
@@ -227,8 +58,14 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="5">
-       <widget class="QPushButton" name="modelSetRootButton">
+      <item row="1" column="0">
+       <widget class="QPushButton" name="modelCopyButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -236,7 +73,45 @@
          </size>
         </property>
         <property name="text">
-         <string>Set root</string>
+         <string>Copy</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QPushButton" name="modelRemoveButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Remove</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="modelMoveButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Move</string>
         </property>
        </widget>
       </item>
@@ -261,45 +136,7 @@
       <string>Operations</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
-      <item row="0" column="2">
-       <widget class="QPushButton" name="operationReplaceButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Replace</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="operationDetachButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Detach</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
+      <item row="1" column="0">
        <widget class="QPushButton" name="operationRemoveButton">
         <property name="minimumSize">
          <size>
@@ -321,26 +158,7 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="operationAttachButton">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Attach</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
+      <item row="4" column="1">
        <widget class="QPushButton" name="operationAbortButton">
         <property name="minimumSize">
          <size>
@@ -359,7 +177,7 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
+      <item row="4" column="0">
        <widget class="QPushButton" name="operationApplyButton">
         <property name="minimumSize">
          <size>
@@ -378,1184 +196,14 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="5">
-       <widget class="QTabWidget" name="parametersTabWidget">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="operationDetachButton">
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>150</height>
+          <height>0</height>
          </size>
         </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>150</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-        <property name="accessibleName">
-         <string/>
-        </property>
-        <property name="currentIndex">
-         <number>0</number>
-        </property>
-        <widget class="QWidget" name="tab">
-         <attribute name="title">
-          <string>Mix</string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_9">
-          <item row="0" column="0">
-           <widget class="QLabel" name="replaceModeLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Field mode</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <spacer name="verticalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="3" column="0">
-           <spacer name="verticalSpacer_5">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="1" column="1" colspan="2">
-           <widget class="QFrame" name="mixModeFrame">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>65</height>
-             </size>
-            </property>
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
-             <item>
-              <widget class="QRadioButton" name="mixModeMeshingRadioBox">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>20</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Meshing</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="mixModeMorphingRadioBox">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>20</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Morphing</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="mixModePreviewRadioBox">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>20</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Preview</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="mixModeLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Mix mode</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QFrame" name="replaceModeFrame">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <layout class="QHBoxLayout" name="horizontalLayout">
-             <item>
-              <widget class="QRadioButton" name="replaceModeBlendRadioBox">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>20</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Blend</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="replaceModeUnionRadioBox">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>20</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Union</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="0" column="2" colspan="2">
-           <widget class="QCheckBox" name="blendColorsFromTexturesCheckBox">
-            <property name="text">
-             <string>Blend colors from textures</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="3">
-           <spacer name="horizontalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="actionTab">
-         <attribute name="title">
-          <string>Actions</string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_11">
-          <item row="0" column="2">
-           <widget class="QPushButton" name="actionUpButton">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Up</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="actionDownButton">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Down</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="2">
-           <widget class="QPushButton" name="actionRemoveButton">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Delete</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0" rowspan="4" colspan="2">
-           <widget class="QTreeWidget" name="actionTreeWidget">
-            <property name="selectionMode">
-             <enum>QAbstractItemView::ExtendedSelection</enum>
-            </property>
-            <attribute name="headerMinimumSectionSize">
-             <number>50</number>
-            </attribute>
-            <attribute name="headerDefaultSectionSize">
-             <number>90</number>
-            </attribute>
-            <column>
-             <property name="text">
-              <string>Action</string>
-             </property>
-            </column>
-            <column>
-             <property name="text">
-              <string>Entry 1</string>
-             </property>
-            </column>
-            <column>
-             <property name="text">
-              <string>Entry 2</string>
-             </property>
-            </column>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="generalParametersPage">
-         <attribute name="title">
-          <string>Select</string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout">
-          <item row="2" column="2">
-           <widget class="QLabel" name="hardness1ValueLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>+0.00</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="QSlider" name="hardness2Slider">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="minimum">
-             <number>-99</number>
-            </property>
-            <property name="maximum">
-             <number>99</number>
-            </property>
-            <property name="value">
-             <number>1</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="2">
-           <widget class="QLabel" name="hardness2ValueLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>+0.00</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QLabel" name="weightSmoothingValueLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>0.00</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <spacer name="verticalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="0" column="4">
-           <widget class="QSlider" name="keepOrDiscardThresholdSlider">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="value">
-             <number>50</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="5">
-           <widget class="QLabel" name="keepOrDiscardThresholdValueLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>0.00</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="weightSmoothingLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>W smooth</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="hardness2Label">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Hardness 2</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="hardness1Label">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Hardness 1</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="3">
-           <widget class="QLabel" name="keepOrDiscardThresholdLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Keep/discard</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QSlider" name="weightSmoothingSlider">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="value">
-             <number>10</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QSlider" name="hardness1Slider">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="minimum">
-             <number>-99</number>
-            </property>
-            <property name="maximum">
-             <number>99</number>
-            </property>
-            <property name="value">
-             <number>1</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="3" colspan="2">
-           <widget class="QCheckBox" name="parent2CheckBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Parent</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="3" colspan="2">
-           <widget class="QCheckBox" name="parent1CheckBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Parent</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="surfacePage">
-         <attribute name="title">
-          <string>Surface</string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_10">
-          <item row="2" column="6">
-           <widget class="QDoubleSpinBox" name="surfaceSmoothingBorderThresholdSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.050000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.800000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="3">
-           <widget class="QSpinBox" name="surfaceSmoothingInnerIterationsSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="value">
-             <number>15</number>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QLabel" name="surfaceSmoothingBorderIterationsLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Iterations</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="6">
-           <widget class="QDoubleSpinBox" name="surfaceVoxelDistanceSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>200.000000000000000</double>
-            </property>
-            <property name="value">
-             <double>30.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="4" colspan="2">
-           <widget class="QLabel" name="surfaceVoxelDistanceLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Max distance</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="7">
-           <spacer name="horizontalSpacer_7">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="2" column="3">
-           <widget class="QSpinBox" name="surfaceSmoothingBorderIterationsSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="value">
-             <number>30</number>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="surfaceSmoothingVoxelLabel">
-            <property name="text">
-             <string>Voxels</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="surfaceSmoothingBorderLabel">
-            <property name="text">
-             <string>Borders</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="3">
-           <widget class="QSpinBox" name="surfaceSmoothingResultIterationsSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="value">
-             <number>3</number>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="1" colspan="2">
-           <widget class="QLabel" name="surfaceSmoothingResultIterationsLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Iterations</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="4" colspan="2">
-           <widget class="QLabel" name="surfaceSmoothingInnerThresholdLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Alpha</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="4" colspan="2">
-           <widget class="QLabel" name="surfaceSmoothingBorderThresholdLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Min select</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLabel" name="surfaceVoxelSizeLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Size</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <widget class="QLabel" name="surfaceSmoothingInnerLabel">
-            <property name="text">
-             <string>Inner</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="3">
-           <widget class="QDoubleSpinBox" name="surfaceVoxelSizeSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.050000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.800000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="6">
-           <widget class="QDoubleSpinBox" name="surfaceSmoothingInnerAlphaSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.050000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.800000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
-           <widget class="QLabel" name="surfaceSmoothingInnerIterationsLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Iterations</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="0">
-           <widget class="QLabel" name="surfaceSmoothingResultLabel">
-            <property name="text">
-             <string>Result</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="animationBlendingPage">
-         <attribute name="title">
-          <string>Animation blend</string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_8">
-          <item row="1" column="0">
-           <widget class="QLabel" name="animationBlendingGlobalLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Global</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="animationBlendingGlobalSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>1.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QSpinBox" name="animationBlendingWindowSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <number>10</number>
-            </property>
-            <property name="value">
-             <number>2</number>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <spacer name="verticalSpacer_4">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="1" column="3">
-           <widget class="QDoubleSpinBox" name="animationBlendingGlobalDerivativeSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="6">
-           <widget class="QSpinBox" name="animationBlendingSmoothIterationsSpinBox">
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="value">
-             <number>30</number>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="4">
-           <widget class="QLabel" name="animationBlendingFPSLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>FPS</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="6">
-           <widget class="QDoubleSpinBox" name="animationBlendingFPSSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="value">
-             <double>30.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QLabel" name="animationBlendingMainWeightLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Weight</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="animationBlendingWindowLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Window</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="11">
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="1" column="6">
-           <widget class="QDoubleSpinBox" name="animationBlendingRotationWeightSpinBox">
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.050000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.800000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="3">
-           <widget class="QDoubleSpinBox" name="animationBlendingMainWeightSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.600000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="10">
-           <widget class="QDoubleSpinBox" name="animationBlendingSmoothThresholdSpinBox">
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.050000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.980000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="4">
-           <widget class="QLabel" name="animationBlendingRotationWeightLabel">
-            <property name="text">
-             <string>Rot weight</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QLabel" name="animationBlendingGlobalDerivativeLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Deriv</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="4">
-           <widget class="QLabel" name="animationBlendingSmoothLabel">
-            <property name="text">
-             <string>Smooth</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="2">
-           <widget class="QLabel" name="animationBlendingLocalDerivativeLabel">
-            <property name="text">
-             <string>Deriv</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="animationBlendingLocalSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="3">
-           <widget class="QDoubleSpinBox" name="animationBlendingLocalDerivativeSpinBox">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="animationBlendingLocalLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Local</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="fbxTab">
-         <attribute name="title">
-          <string>FBX</string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_5">
-          <item row="0" column="0">
-           <widget class="QLabel" name="modelPoseLabel">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>FBX load pose</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QFrame" name="modelPoseFrame">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
-            </property>
-            <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
-            </property>
-            <layout class="QHBoxLayout" name="horizontalLayout_5">
-             <item>
-              <widget class="QRadioButton" name="modelPoseNoneRadio">
-               <property name="text">
-                <string>None</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="modelPoseDefaultRadio">
-               <property name="text">
-                <string>Default</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="modelPoseBindRadio">
-               <property name="text">
-                <string>Bind</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="modelPoseZeroRadio">
-               <property name="text">
-                <string>Zero</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <spacer name="horizontalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="1" column="0">
-           <spacer name="verticalSpacer_6">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </widget>
-       </widget>
-      </item>
-      <item row="0" column="4">
-       <widget class="QCheckBox" name="showZeroCheckBox">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -1563,11 +211,49 @@
          </size>
         </property>
         <property name="text">
-         <string>Show zero</string>
+         <string>Detach</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="2" colspan="2">
+      <item row="1" column="2">
+       <widget class="QPushButton" name="operationReplaceButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Replace</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QPushButton" name="operationAttachButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Attach</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="2" colspan="2">
        <widget class="QPushButton" name="mixButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -1592,16 +278,10 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="4">
-       <widget class="QPushButton" name="resetJointDeformationsButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Reset def</string>
+      <item row="3" column="0" colspan="4">
+       <widget class="Line" name="line">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
@@ -1656,32 +336,6 @@
       </size>
      </property>
      <layout class="QGridLayout" name="gridLayout_4">
-      <item row="0" column="1">
-       <widget class="QPushButton" name="animationBlendButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Blend</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="animationAbortButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Abort</string>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="2">
        <widget class="QPushButton" name="animationConfirmButton">
         <property name="maximumSize">
@@ -1696,7 +350,7 @@
        </widget>
       </item>
       <item row="0" column="4">
-       <widget class="QPushButton" name="animationBlendLoopFixedButton">
+       <widget class="QPushButton" name="animationAbortButton">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -1704,139 +358,12 @@
          </size>
         </property>
         <property name="text">
-         <string>Loop fixed-none</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="animationJointGroupBox">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>100</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>100</height>
-      </size>
-     </property>
-     <property name="title">
-      <string>Joint weights</string>
-     </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_3">
-      <property name="spacing">
-       <number>6</number>
-      </property>
-      <property name="leftMargin">
-       <number>2</number>
-      </property>
-      <property name="topMargin">
-       <number>2</number>
-      </property>
-      <property name="rightMargin">
-       <number>2</number>
-      </property>
-      <property name="bottomMargin">
-       <number>2</number>
-      </property>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QFrame" name="animationJointFrame">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
-     </property>
-     <property name="lineWidth">
-      <number>1</number>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_7">
-      <item row="2" column="2">
-       <widget class="QCheckBox" name="animationJointAllCheckBox">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>To all</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="animationJointMeshLabel">
-        <property name="text">
-         <string>To Mesh:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QComboBox" name="animationJointMeshComboBox">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="updateValuesGroupBox">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="title">
-      <string>Debug visualization</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_6">
-      <item row="0" column="4">
-       <widget class="QPushButton" name="updateValuesBirthButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Birth</string>
+         <string>Abort</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QPushButton" name="updateValuesResetButton">
+       <widget class="QPushButton" name="animationBlendButton">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -1844,12 +371,12 @@
          </size>
         </property>
         <property name="text">
-         <string>Reset</string>
+         <string>Blend</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QPushButton" name="updateJointsResetButton">
+      <item row="0" column="5">
+       <widget class="QPushButton" name="animationBlendGenerateAllButton">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
@@ -1857,86 +384,7 @@
          </size>
         </property>
         <property name="text">
-         <string>Reset</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2">
-       <widget class="QPushButton" name="updateJointsBirthButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Birth</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Joints</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="6">
-       <widget class="QPushButton" name="updateValuesSelectButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Select</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Vert.</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="updateValuesIsoButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Iso</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="7">
-       <widget class="QPushButton" name="updateValuesKeepDiscardButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Keep/dis</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="updateValuesWeightsButton">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Weights</string>
+         <string>Generate all</string>
         </property>
        </widget>
       </item>
@@ -1944,17 +392,1633 @@
     </widget>
    </item>
    <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
+    <widget class="QToolBox" name="toolBox">
+     <property name="maximumSize">
       <size>
-       <width>20</width>
-       <height>40</height>
+       <width>16777215</width>
+       <height>16777215</height>
       </size>
      </property>
-    </spacer>
+     <property name="contextMenuPolicy">
+      <enum>Qt::DefaultContextMenu</enum>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="page_5">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>409</width>
+        <height>293</height>
+       </rect>
+      </property>
+      <attribute name="label">
+       <string/>
+      </attribute>
+     </widget>
+     <widget class="QWidget" name="page_3">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>409</width>
+        <height>293</height>
+       </rect>
+      </property>
+      <attribute name="label">
+       <string>Settings</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_12">
+       <item row="0" column="0">
+        <widget class="QTabWidget" name="parametersTabWidget">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>150</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="accessibleName">
+          <string/>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="actionTab">
+          <attribute name="title">
+           <string>Actions</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_11">
+           <item row="0" column="2">
+            <widget class="QPushButton" name="actionUpButton">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Up</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QPushButton" name="actionDownButton">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Down</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QPushButton" name="actionRemoveButton">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Delete</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" rowspan="4">
+            <widget class="QTreeWidget" name="actionTreeWidget">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="selectionMode">
+              <enum>QAbstractItemView::ExtendedSelection</enum>
+             </property>
+             <attribute name="headerMinimumSectionSize">
+              <number>50</number>
+             </attribute>
+             <attribute name="headerDefaultSectionSize">
+              <number>90</number>
+             </attribute>
+             <column>
+              <property name="text">
+               <string>Action</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>E 2</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>E 2</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tab">
+          <attribute name="title">
+           <string>Mix</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_9">
+           <item row="3" column="0">
+            <widget class="QCheckBox" name="blendColorsFromTexturesCheckBox">
+             <property name="text">
+              <string>Blend colors from textures</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <spacer name="verticalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="1" column="3">
+            <spacer name="horizontalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="0" column="0">
+            <widget class="QGroupBox" name="replaceModeGroupBox">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="title">
+              <string>Field mode</string>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout">
+              <item>
+               <widget class="QRadioButton" name="replaceModeBlendRadioBox">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Blend</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QRadioButton" name="replaceModeUnionRadioBox">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Union</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="1" column="0" colspan="3">
+            <widget class="QGroupBox" name="mixModeGroupBox">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="title">
+              <string>Mix mode</string>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_4">
+              <item>
+               <widget class="QRadioButton" name="mixModeMeshingRadioBox">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Meshing</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QRadioButton" name="mixModeMorphingRadioBox">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Morphing</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QRadioButton" name="mixModePreviewRadioBox">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Preview</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="generalParametersPage">
+          <attribute name="title">
+           <string>Select</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="0" column="2">
+            <widget class="QLabel" name="weightSmoothingValueLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>0.00</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="weightSmoothingLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>W smooth</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="hardness2Label">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Hardness 2</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSlider" name="keepOrDiscardThresholdSlider">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>50</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QSlider" name="hardness1Slider">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="minimum">
+              <number>-99</number>
+             </property>
+             <property name="maximum">
+              <number>99</number>
+             </property>
+             <property name="value">
+              <number>1</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QLabel" name="keepOrDiscardThresholdValueLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>0.00</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QLabel" name="hardness1ValueLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>+0.00</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QSlider" name="hardness2Slider">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="minimum">
+              <number>-99</number>
+             </property>
+             <property name="maximum">
+              <number>99</number>
+             </property>
+             <property name="value">
+              <number>1</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="hardness1Label">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Hardness 1</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="2">
+            <widget class="QLabel" name="hardness2ValueLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>+0.00</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QSlider" name="weightSmoothingSlider">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="value">
+              <number>10</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="keepOrDiscardThresholdLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Keep/discard</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0" colspan="5">
+            <widget class="QCheckBox" name="showZeroCheckBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Show zero select values</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0">
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="2" column="4">
+            <widget class="QCheckBox" name="parent1CheckBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Parent</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="4">
+            <widget class="QCheckBox" name="parent2CheckBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Parent</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="surfacePage">
+          <attribute name="title">
+           <string>Surface</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_10">
+           <item row="6" column="3">
+            <widget class="QSpinBox" name="surfaceSmoothingResultIterationsSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>3</number>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="surfaceSmoothingVoxelLabel">
+             <property name="text">
+              <string>Voxels</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="surfaceSmoothingBorderLabel">
+             <property name="text">
+              <string>Borders</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="surfaceVoxelSizeLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Size</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="surfaceSmoothingInnerLabel">
+             <property name="text">
+              <string>Inner</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="1">
+            <widget class="QDoubleSpinBox" name="surfaceSmoothingBorderThresholdSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.800000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="surfaceSmoothingBorderIterationsLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Iterations</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="1" colspan="2">
+            <widget class="QLabel" name="surfaceSmoothingResultIterationsLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Iterations</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="0">
+            <widget class="QLabel" name="surfaceSmoothingBorderThresholdLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Min select</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0">
+            <widget class="QLabel" name="surfaceVoxelDistanceLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Max distance</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="surfaceSmoothingResultLabel">
+             <property name="text">
+              <string>Result</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="3">
+            <widget class="QSpinBox" name="surfaceSmoothingBorderIterationsSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>30</number>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="7">
+            <spacer name="horizontalSpacer_7">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="4" column="3">
+            <widget class="QSpinBox" name="surfaceSmoothingInnerIterationsSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>15</number>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QDoubleSpinBox" name="surfaceVoxelSizeSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.800000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLabel" name="surfaceSmoothingInnerIterationsLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Iterations</string>
+             </property>
+            </widget>
+           </item>
+           <item row="10" column="3">
+            <spacer name="verticalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="7" column="1">
+            <widget class="QDoubleSpinBox" name="surfaceVoxelDistanceSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>200.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>30.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="0">
+            <widget class="QLabel" name="surfaceSmoothingInnerThresholdLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Alpha</string>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="1">
+            <widget class="QDoubleSpinBox" name="surfaceSmoothingInnerAlphaSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.800000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="animationBlendingPage">
+          <attribute name="title">
+           <string>Anim</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_8">
+           <item row="4" column="1">
+            <widget class="QDoubleSpinBox" name="animationBlendingLocalSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QSpinBox" name="animationBlendingWindowSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <number>10</number>
+             </property>
+             <property name="value">
+              <number>2</number>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="2">
+            <widget class="QLabel" name="animationBlendingLocalDerivativeLabel">
+             <property name="text">
+              <string>Deriv</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="3">
+            <widget class="QDoubleSpinBox" name="animationBlendingRotationWeightSpinBox">
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.800000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QSpinBox" name="animationBlendingSmoothIterationsSpinBox">
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>30</number>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QDoubleSpinBox" name="animationBlendingGlobalSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QDoubleSpinBox" name="animationBlendingMainWeightSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.600000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="animationBlendingLocalLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Local</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QDoubleSpinBox" name="animationBlendingFPSSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="value">
+              <double>30.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="animationBlendingFPSLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>FPS</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0">
+            <spacer name="verticalSpacer_4">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="4" column="11">
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="4" column="3">
+            <widget class="QDoubleSpinBox" name="animationBlendingLocalDerivativeSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="animationBlendingSmoothLabel">
+             <property name="text">
+              <string>Smooth</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="animationBlendingWindowLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Window</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="animationBlendingMainWeightLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Weight</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="2">
+            <widget class="QLabel" name="animationBlendingGlobalDerivativeLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Deriv</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="3">
+            <widget class="QDoubleSpinBox" name="animationBlendingGlobalDerivativeSpinBox">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QLabel" name="animationBlendingRotationWeightLabel">
+             <property name="text">
+              <string>Rot weight</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="2">
+            <widget class="QDoubleSpinBox" name="animationBlendingSmoothThresholdSpinBox">
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.980000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="animationBlendingGlobalLabel">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Global</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0" colspan="4">
+            <widget class="QGroupBox" name="modelPoseGroupBox">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="title">
+              <string>FBX load pose</string>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <widget class="QRadioButton" name="modelPoseNoneRadio">
+                <property name="text">
+                 <string>None</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QRadioButton" name="modelPoseDefaultRadio">
+                <property name="text">
+                 <string>Default</string>
+                </property>
+                <property name="checked">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QRadioButton" name="modelPoseBindRadio">
+                <property name="text">
+                 <string>Bind</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QRadioButton" name="modelPoseZeroRadio">
+                <property name="text">
+                 <string>Zero</string>
+                </property>
+                <property name="checked">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="page_2">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>409</width>
+        <height>293</height>
+       </rect>
+      </property>
+      <attribute name="label">
+       <string>Joint weights</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QFrame" name="animationJointWeightsFrame">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>100</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>100</height>
+          </size>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="spacing">
+           <number>6</number>
+          </property>
+          <property name="leftMargin">
+           <number>2</number>
+          </property>
+          <property name="topMargin">
+           <number>2</number>
+          </property>
+          <property name="rightMargin">
+           <number>2</number>
+          </property>
+          <property name="bottomMargin">
+           <number>2</number>
+          </property>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="animationJointWeightsAutoFrame">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <property name="lineWidth">
+          <number>1</number>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_7">
+          <item row="2" column="2">
+           <widget class="QCheckBox" name="animationJointAllCheckBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>To all</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="animationJointMeshLabel">
+            <property name="text">
+             <string>To Mesh:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="animationJointMeshComboBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_7">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="page_4">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>409</width>
+        <height>293</height>
+       </rect>
+      </property>
+      <attribute name="label">
+       <string>Model edit</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_6">
+       <item row="3" column="0">
+        <widget class="QPushButton" name="modelAnimationRemoveRootMotionButton">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Remove root motion</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QPushButton" name="modelAnimationRemoveButton">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Remove anim</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QPushButton" name="modelSetRootButton">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Set root</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QPushButton" name="resetJointDeformationsButton">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Reset def</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QPushButton" name="modelScaleAndCenterButton">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Scale and centre</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0" colspan="2">
+        <widget class="QGroupBox" name="groupBox_3">
+         <property name="title">
+          <string>Normals on loading</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QCheckBox" name="updateVertexNormalsCheckBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Vertices</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="updateFaceNormalsCheckBox">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Faces</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QPushButton" name="modelAnimationPoseButton">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Set pose</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <spacer name="horizontalSpacer_5">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="4" column="1">
+        <spacer name="verticalSpacer_8">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="page">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>409</width>
+        <height>293</height>
+       </rect>
+      </property>
+      <attribute name="label">
+       <string>Debug</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_13">
+       <item row="2" column="1">
+        <spacer name="verticalSpacer_5">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="0" column="0" colspan="2">
+        <widget class="QGroupBox" name="groupBox">
+         <property name="title">
+          <string>Vertices</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_14">
+          <item row="0" column="0">
+           <widget class="QPushButton" name="updateValuesResetButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Reset</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="updateValuesWeightsButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Weights</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QPushButton" name="updateValuesIsoButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Iso</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QPushButton" name="updateValuesBirthButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Birth</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QPushButton" name="updateValuesSelectButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Select</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QPushButton" name="updateValuesKeepDiscardButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Keep/dis</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <widget class="QGroupBox" name="groupBox_2">
+         <property name="title">
+          <string>Joints</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_15">
+          <item row="0" column="0">
+           <widget class="QPushButton" name="updateJointsResetButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Reset</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="updateJointsBirthButton">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Birth</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </widget>
    </item>
   </layout>
  </widget>

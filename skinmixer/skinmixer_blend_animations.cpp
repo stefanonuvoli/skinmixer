@@ -13,6 +13,7 @@
 
 #define KEYFRAME_SELECTION_VERBOSITY
 #define DUPLICATE_KEYFRAME_TO_BLEND nvl::NULL_ID - 1
+//#define SIMPLE_ANIMATION_NAME
 
 #ifdef KEYFRAME_SELECTION_VERBOSITY
 #include <iostream>
@@ -151,7 +152,7 @@ void initializeAnimationWeights(
     }
 
     animationsModes.resize(cluster.size(), BLEND_ANIMATION_FIXED);
-    animationsIds.resize(cluster.size(), BLEND_ANIMATION_NONE);
+    animationsIds.resize(cluster.size(), BLEND_ANIMATION_ANY);
 }
 
 template<class Model>
@@ -208,7 +209,7 @@ void blendAnimations(
         Index animationMode = animationModes[cId];
         Index animationId = animationIds[cId];
 
-        if (animationMode == BLEND_ANIMATION_FIXED && animationId != BLEND_ANIMATION_NONE) {
+        if (animationMode == BLEND_ANIMATION_FIXED && animationId != BLEND_ANIMATION_ANY) {
             const Animation& currentAnimation = currentModel->animation(animationId);
             maxFixedDuration = std::max(currentAnimation.duration(), maxFixedDuration);
         }
@@ -245,10 +246,14 @@ void blendAnimations(
 
         //Fixed mode
         if (animationMode == BLEND_ANIMATION_FIXED) {
-            if (animationId != BLEND_ANIMATION_NONE) {
+            if (animationId != BLEND_ANIMATION_ANY) {
                 const Animation& currentAnimation = currentModel->animation(animationId);
 
+#ifndef SIMPLE_ANIMATION_NAME
                 animationName += " - " + currentModel->name + "@" + currentAnimation.name().c_str() + " (F)";
+#else
+                animationName += currentModel->name + "@" + currentAnimation.name().c_str();
+#endif
 
                 for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
                     Frame frame = currentAnimation.keyframe(fId);
@@ -265,16 +270,20 @@ void blendAnimations(
             localCandidateFrames[cId].resize(currentModel->animationNumber());
 
             if (animationMode == BLEND_ANIMATION_KEYFRAME) {
+#ifndef SIMPLE_ANIMATION_NAME
                 animationName += " - " + currentModel->name + " (K)";
+#endif
             }
             else {
                 assert(animationMode == BLEND_ANIMATION_LOOP);
+#ifndef SIMPLE_ANIMATION_NAME
                 animationName += " - " + currentModel->name + " (L)";
+#endif
             }
 
             for (Index aId = 0; aId < currentModel->animationNumber(); ++aId) {
-                if (animationId == BLEND_ANIMATION_NONE|| animationId == aId) {
-                    assert(animationId == BLEND_ANIMATION_NONE || (animationId != nvl::NULL_ID && animationId < currentModel->animationNumber()));
+                if (animationId == BLEND_ANIMATION_ANY|| animationId == aId) {
+                    assert(animationId == BLEND_ANIMATION_ANY || (animationId != nvl::NULL_ID && animationId < currentModel->animationNumber()));
 
                     const Animation& currentAnimation = currentModel->animation(aId);
                     for (Index fId = 0; fId < currentAnimation.keyframeNumber(); ++fId) {
@@ -420,7 +429,7 @@ void blendAnimations(
             const Model* currentModel = currentEntry.model;
 
             std::vector<Index> candidateAnimations;
-            if (animationId == BLEND_ANIMATION_NONE) {
+            if (animationId == BLEND_ANIMATION_ANY) {
                 for (Index candidateAId = 0; candidateAId < currentModel->animationNumber(); ++candidateAId) {
                     candidateAnimations.push_back(candidateAId);
                 }
@@ -494,7 +503,7 @@ void blendAnimations(
                             for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
                                 Index otherAnimationMode = animationModes[otherCId];
                                 Index otherAnimationId = animationIds[otherCId];
-                                if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
+                                if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_ANY) {
                                     const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
                                     const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
 
@@ -596,7 +605,7 @@ void blendAnimations(
 
             if (animationMode == BLEND_ANIMATION_KEYFRAME) {
                 std::vector<Index> candidateAnimations;
-                if (animationId == BLEND_ANIMATION_NONE) {
+                if (animationId == BLEND_ANIMATION_ANY) {
                     for (Index candidateAId = 0; candidateAId < currentModel->animationNumber(); ++candidateAId) {
                         candidateAnimations.push_back(candidateAId);
                     }
@@ -646,7 +655,7 @@ void blendAnimations(
                             for (Index otherCId = 0; otherCId < cluster.size(); ++otherCId) {
                                 Index otherAnimationMode = animationModes[otherCId];
                                 Index otherAnimationId = animationIds[otherCId];
-                                if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_NONE) {
+                                if (otherAnimationMode == BLEND_ANIMATION_FIXED && otherAnimationId != BLEND_ANIMATION_ANY) {
                                     const std::vector<Frame>& currentGlobalFixedFrames = globalFixedFrames[otherCId];
                                     const std::vector<Frame>& currentLocalFixedFrames = localFixedFrames[otherCId];
 
@@ -884,7 +893,7 @@ void blendAnimations(
 
                     //Fixed
                     if (animationMode == BLEND_ANIMATION_FIXED) {
-                        if (animationId == BLEND_ANIMATION_NONE) {
+                        if (animationId == BLEND_ANIMATION_ANY) {
                             transformations[cId] = Transformation::Identity();
                         }
                         else {
@@ -1020,7 +1029,7 @@ void blendAnimations(
                 const Index& bestFId = bestKeyframe[i][cId];
 
                 if (animationMode == BLEND_ANIMATION_FIXED) {
-                    if (animationId == BLEND_ANIMATION_NONE) {
+                    if (animationId == BLEND_ANIMATION_ANY) {
                         clusterTransformations[jId] = Transformation::Identity();
                     }
                     else {
@@ -1122,7 +1131,12 @@ void blendAnimations(
 
     nvl::animationGlobalFromLocal(targetSkeleton, targetAnimation);
 
+#ifndef SIMPLE_ANIMATION_NAME
     targetAnimation.setName("B" + animationName);
+#else
+    targetAnimation.setName(animationName);
+#endif
+
     Index targetAnimationId = targetModel->addAnimation(targetAnimation);
     resultAnimations.push_back(std::make_pair(entry.id, targetAnimationId));
 
@@ -1133,7 +1147,12 @@ void blendAnimations(
 
         nvl::animationGlobalFromLocal(currentSkeleton, clusterAnimations[cId]);
 
+#ifndef SIMPLE_ANIMATION_NAME
         clusterAnimations[cId].setName("S" + animationName);
+#else
+        clusterAnimations[cId].setName(animationName);
+#endif
+
         Index clusterAnimationId = currentModel->addAnimation(clusterAnimations[cId]);
         resultAnimations.push_back(std::make_pair(eId, clusterAnimationId));
     }

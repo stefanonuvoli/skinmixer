@@ -10,7 +10,7 @@
 #define BLEND_ANIMATION_FIXED 0
 #define BLEND_ANIMATION_KEYFRAME 1
 #define BLEND_ANIMATION_LOOP 2
-#define BLEND_ANIMATION_NONE nvl::NULL_ID
+#define BLEND_ANIMATION_ANY nvl::NULL_ID
 
 namespace skinmixer {
 
