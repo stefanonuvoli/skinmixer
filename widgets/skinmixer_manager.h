@@ -127,7 +127,7 @@ private:
 
     void clearLayout(QLayout *layout);
 
-    void openLoadingWindow();
+    void openLoadingWindow(const std::string& text);
     void closeLoadingWindow();
 
     //Fields
@@ -160,6 +160,7 @@ private:
     std::unordered_map<ModelDrawer*, nvl::GLShader*> shaders;
 
     QDialog* loadingWindow;
+    QLabel* loadingText;
 
     double loadingOffset;
 

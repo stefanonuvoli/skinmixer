@@ -16,6 +16,8 @@
 #include <nvl/models/algorithms/mesh_normals.h>
 #include <nvl/models/algorithms/model_deformation.h>
 
+#define MIN_ALPHA 0.2
+#define MAX_ALPHA 0.5
 #define HARDNESS_DEFAULT 0
 #define DETACHING_HARDNESS_DEFAULT 0
 #define REMOVING_HARDNESS_DEFAULT 0
@@ -52,15 +54,16 @@ SkinMixerManager::SkinMixerManager(
 
     //Creating loading dialog
     QVBoxLayout* loadingLayout = new QVBoxLayout(this);
-    QLabel* loadingText = new QLabel("Computing... Please wait", this);
+    loadingText = new QLabel("Computing... Please wait", this);
     QFont f("Arial", 20, QFont::Bold);
     loadingText->setFont(f);
     loadingText->setAlignment(Qt::AlignCenter);
     loadingLayout->addWidget(loadingText, Qt::AlignCenter);
-    loadingWindow->setWindowModality(Qt::NonModal);
+    loadingWindow->setWindowModality(Qt::WindowModal);
+//    loadingWindow->setModal(false);
     loadingWindow->setLayout(loadingLayout);
-    loadingWindow->setFixedWidth(450);
-    loadingWindow->setFixedHeight(200);
+    loadingWindow->setFixedWidth(600);
+    loadingWindow->setFixedHeight(300);
     loadingWindow->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     Qt::WindowFlags flags = loadingWindow->windowFlags();
     flags |= Qt::WindowStaysOnTopHint;
@@ -130,6 +133,17 @@ nvl::Index SkinMixerManager::loadModel(Model* model)
     modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_VERTEX);
     modelDrawer->meshDrawer().setWireframeVisible(true);
     modelDrawer->meshDrawer().setFaceLighting(false);
+
+    nvl::Color boneC = modelDrawer->skeletonDrawer().boneColor();
+    nvl::Color jointC = modelDrawer->skeletonDrawer().jointColor();
+    nvl::Color rootC = modelDrawer->skeletonDrawer().rootColor();
+    boneC.setAlphaF(MAX_ALPHA);
+    jointC.setAlphaF(MAX_ALPHA);
+    rootC.setAlphaF(MAX_ALPHA);
+    modelDrawer->skeletonDrawer().setBoneColor(boneC);
+    modelDrawer->skeletonDrawer().setJointColor(jointC);
+    modelDrawer->skeletonDrawer().setRootColor(rootC);
+    modelDrawer->skeletonDrawer().update();
 
     vDrawerToModelMap.insert(std::make_pair(modelDrawer, model));
     vModelToDrawerMap.insert(std::make_pair(model, modelDrawer));
@@ -463,20 +477,38 @@ void SkinMixerManager::mix()
         modelDrawer->meshDrawer().setFaceColorMode(ModelDrawer::FaceColorMode::FACE_COLOR_PER_VERTEX);
         modelDrawer->meshDrawer().setWireframeVisible(true);
         modelDrawer->meshDrawer().setFaceLighting(false);
+
+        nvl::Color boneC = modelDrawer->skeletonDrawer().boneColor();
+        nvl::Color jointC = modelDrawer->skeletonDrawer().jointColor();
+        nvl::Color rootC = modelDrawer->skeletonDrawer().rootColor();
+        boneC.setAlphaF(MAX_ALPHA);
+        jointC.setAlphaF(MAX_ALPHA);
+        rootC.setAlphaF(MAX_ALPHA);
+        modelDrawer->skeletonDrawer().setBoneColor(boneC);
+        modelDrawer->skeletonDrawer().setJointColor(jointC);
+        modelDrawer->skeletonDrawer().setRootColor(rootC);
+        modelDrawer->skeletonDrawer().update();
+
         modelDrawer->meshDrawer().setTextureMode(nvl::FaceMeshDrawerBase::TextureMode::TEXTURE_MODE_REPLACE);
 
         vDrawerToModelMap.insert(std::make_pair(modelDrawer, newModel));
         vModelToDrawerMap.insert(std::make_pair(newModel, modelDrawer));
 
+        std::string nameString("");
         for (const Index& bId : newEntry.birth.entries) {
             Model* model = vSkinMixerData.entry(bId).model;
+            if (!nameString.empty()) {
+                nameString += " + ";
+            }
+            nameString += model->name;
+
             typename std::unordered_map<Model*, ModelDrawer*>::iterator it = vModelToDrawerMap.find(model);
             if (it != vModelToDrawerMap.end()) {
                 it->second->setVisible(false);
             }
         }
 
-        Index id = vCanvas->addDrawable(modelDrawer, "Result");
+        Index id = vCanvas->addDrawable(modelDrawer, nameString);
         vDrawableListWidget->unselectAllDrawables();
         vDrawableListWidget->selectDrawable(id);
     }
@@ -1076,8 +1108,9 @@ void SkinMixerManager::colorizeBySelectValues(
 
     double minAlpha = 0.0;
     if (ui->showZeroCheckBox->isChecked()) {
-        minAlpha = 0.2;
+        minAlpha = MIN_ALPHA;
     }
+    double maxAlpha = MAX_ALPHA;
 
     const Model& model = *modelDrawer->model();
     const Mesh& mesh = model.mesh;
@@ -1123,12 +1156,11 @@ void SkinMixerManager::colorizeBySelectValues(
         modelDrawer->meshDrawer().setRenderingVertexColor(vId, vertexC);
     }
 
-
     for (JointId jId = 0; jId < skeleton.jointNumber(); jId++) {
         double jointValue = std::max(std::min(jointSelectValue[jId], 1.0), 0.0);
 
         nvl::Color jointC = modelDrawer->skeletonDrawer().renderingJointColor(jId);
-        jointC.setAlphaF(std::max(minAlpha, jointValue));
+        jointC.setAlphaF(std::min(maxAlpha, std::max(minAlpha, jointValue)));
         modelDrawer->skeletonDrawer().setRenderingJointColor(jId, jointC);
 
         double boneValue = std::max(std::min(jointValue, jointSelectValue[jId]), 0.0);
@@ -1138,7 +1170,7 @@ void SkinMixerManager::colorizeBySelectValues(
         }
 
         nvl::Color boneC = modelDrawer->skeletonDrawer().renderingBoneColor(jId);
-        boneC.setAlphaF(std::max(minAlpha, boneValue));
+        boneC.setAlphaF(std::min(maxAlpha, std::max(minAlpha, boneValue)));
         modelDrawer->skeletonDrawer().setRenderingBoneColor(jId, boneC);
     }
 }
@@ -1467,13 +1499,12 @@ void SkinMixerManager::clearLayout(QLayout *layout)
     }
 }
 
-void SkinMixerManager::openLoadingWindow()
+void SkinMixerManager::openLoadingWindow(const std::string& text)
 {
+    loadingText->setText(text.c_str());
     loadingWindow->show();
     loadingWindow->raise();
     loadingWindow->activateWindow();
-    loadingWindow->update();
-    loadingWindow->repaint();
     QCoreApplication::processEvents();
 }
 
@@ -1893,7 +1924,7 @@ void SkinMixerManager::on_resetJointDeformationsButton_clicked()
 
 void SkinMixerManager::on_mixButton_clicked()
 {
-    openLoadingWindow();
+    openLoadingWindow("Computing geometry, skeleton\nand skinning weights...");
 
     mix();
 
@@ -1970,7 +2001,7 @@ void SkinMixerManager::on_animationJointMeshComboBox_currentIndexChanged(int ind
 
 void SkinMixerManager::on_animationBlendButton_clicked()
 {
-    openLoadingWindow();
+    openLoadingWindow("Computing animation...");
 
     blendAnimations();
 
@@ -2005,8 +2036,6 @@ void SkinMixerManager::on_animationBlendGenerateAllButton_clicked()
 {
     if (vSelectedModelDrawer == nullptr)
         return;
-
-    openLoadingWindow();
 
     SkinMixerEntry& entry = vSkinMixerData.entryFromModel(vSelectedModelDrawer->model());
 
@@ -2045,12 +2074,17 @@ void SkinMixerManager::on_animationBlendGenerateAllButton_clicked()
 //        }
 //    }
 
+    openLoadingWindow("Computing animations...");
+
     for (Index i = 0; i < birthEntries.size(); ++i) {
         if (animationModes[i] == BLEND_ANIMATION_FIXED && animationIds[i] == BLEND_ANIMATION_ANY) {
             std::vector<Index> animationIdsBackup = animationIds;
             std::vector<Index> animationModesBackup = animationModes;
 
-            for (Index aId = 0; aId < vSkinMixerData.entry(birthEntries[i]).lastOriginalAnimationId; ++aId) {
+            const SkinMixerEntry& currentEntry = vSkinMixerData.entry(birthEntries[i]);
+            const Model* currentModel = currentEntry.model;
+
+            for (Index aId = 0; aId < currentEntry.lastOriginalAnimationId; ++aId) {
                 animationIds[i] = aId;
 
                 for (Index j = 0; j < birthEntries.size(); ++j) {
@@ -2058,6 +2092,10 @@ void SkinMixerManager::on_animationBlendGenerateAllButton_clicked()
                         animationModes[j] = BLEND_ANIMATION_KEYFRAME;
                     }
                 }
+
+                std::string animationName = currentModel->name + "@" + currentModel->animation(aId).name();
+                loadingText->setText(std::string(std::string("Computing animation\n") + animationName + std::string("...")).c_str());                
+                QCoreApplication::processEvents();
 
                 blendAnimations();
 
@@ -2077,13 +2115,14 @@ void SkinMixerManager::on_animationBlendGenerateAllButton_clicked()
 
             animationIds = animationIdsBackup;
             animationModes = animationModesBackup;
+
         }
     }
 
+    closeLoadingWindow();
+
     updateView();
     vCanvas->updateGL();
-
-    closeLoadingWindow();
 }
 
 void SkinMixerManager::on_updateValuesResetButton_clicked()
